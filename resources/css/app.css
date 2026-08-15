@@ -5,7 +5,112 @@
 @source '../**/*.blade.php';
 @source '../**/*.js';
 
+/* Twitter (X) Inspired Design System Tokens */
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    
+    /* Twitter Blue Primary Palette */
+    --color-twitter-50: #f0f8fe;
+    --color-twitter-100: #e1f1fc;
+    --color-twitter-200: #bde2f9;
+    --color-twitter-300: #86cdf6;
+    --color-twitter-400: #46b2f2;
+    --color-twitter-500: #1d9bf0;
+    --color-twitter-600: #1a8cd8;
+    --color-twitter-700: #1271b3;
+    --color-twitter-800: #135d91;
+    --color-twitter-900: #144f77;
+    --color-twitter-950: #0d324f;
+
+    /* Semantic Aliases */
+    --color-brand-50: #f0f8fe;
+    --color-brand-100: #e1f1fc;
+    --color-brand-200: #bde2f9;
+    --color-brand-300: #86cdf6;
+    --color-brand-400: #46b2f2;
+    --color-brand-500: #1d9bf0;
+    --color-brand-600: #1a8cd8;
+    --color-brand-700: #1271b3;
+    --color-brand-800: #135d91;
+    --color-brand-900: #144f77;
+    --color-brand-950: #0d324f;
+
+    /* Twitter UI Neutrals & States */
+    --color-twitter-bg: #f7f9f9;
+    --color-twitter-border: #eff3f4;
+    --color-twitter-text: #0f1419;
+    --color-twitter-subtext: #536471;
+    --color-twitter-green: #00ba7c;
+    --color-twitter-red: #f4212e;
+    --color-twitter-orange: #ff7a00;
+}
+
+/* Custom styles for clean UI touch targets and thermal print receipt */
+@layer utilities {
+    /* Hide scrollbar for clean horizontal tab scrolling on mobile */
+    .no-scrollbar::-webkit-scrollbar {
+        display: none;
+    }
+    .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+
+    /* Custom smooth scrolling */
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.02);
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(15, 20, 25, 0.12);
+        border-radius: 9999px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: rgba(15, 20, 25, 0.25);
+    }
+}
+
+/* Base resets for Twitter-style clean crispness */
+body {
+    background-color: #f7f9f9;
+    color: #0f1419;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Thermal / Document receipt print layout */
+@media print {
+    @page {
+        size: auto;
+        margin: 10mm;
+    }
+    html, body {
+        background: #ffffff !important;
+        color: #000000 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+    }
+    body * {
+        visibility: hidden !important;
+    }
+    #thermal-receipt-printable, #thermal-receipt-printable * {
+        visibility: visible !important;
+    }
+    #thermal-receipt-printable {
+        position: absolute !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        top: 0 !important;
+        width: 100% !important;
+        max-width: 650px !important;
+        margin: 0 auto !important;
+        padding: 10px !important;
+        background: #ffffff !important;
+        color: #000000 !important;
+        border: none !important;
+        box-shadow: none !important;
+    }
 }
