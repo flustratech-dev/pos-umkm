@@ -143,19 +143,32 @@
                 </div>
 
                 <!-- Action Links (Twitter Style Pills) -->
-                <div class="pt-2 border-t border-[#eff3f4] flex items-center justify-between gap-2">
-                    <!-- WhatsApp Link -->
-                    <a 
-                        :href="`https://wa.me/${store.phone ? store.phone.replace(/^0/, '62') : '6281234567890'}`" 
-                        target="_blank"
-                        class="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#e8f5fd] hover:bg-[#1d9bf0] text-[#1d9bf0] hover:text-white text-xs font-black transition-colors border border-[#bde2f9] cursor-pointer"
-                    >
-                        <span>💬 Chat WA</span>
-                    </a>
+                <div class="pt-2 border-t border-[#eff3f4] flex flex-wrap items-center justify-between gap-2">
+                    <div class="flex items-center gap-2">
+                        <!-- WhatsApp Link -->
+                        <a 
+                            :href="`https://wa.me/${store.phone ? store.phone.replace(/^0/, '62') : '6281234567890'}`" 
+                            target="_blank"
+                            class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-[#e8f5fd] hover:bg-[#1d9bf0] text-[#1d9bf0] hover:text-white text-xs font-black transition-colors border border-[#bde2f9] cursor-pointer"
+                        >
+                            <span>💬 Chat WA</span>
+                        </a>
+
+                        <!-- PDF Laporan Button -->
+                        <button 
+                            @click="$store.app.printTenantReport(store.id)" 
+                            type="button"
+                            class="inline-flex items-center gap-1 px-3 py-2 rounded-full bg-[#0f1419] hover:bg-[#272c30] text-white text-xs font-black transition-colors shadow-2xs cursor-pointer"
+                            title="Cetak PDF / Dokumen Stand Ini"
+                        >
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                            <span>PDF</span>
+                        </button>
+                    </div>
 
                     <!-- Detail Menu Modal Trigger (Twitter Blue Pill) -->
                     <button 
-                        @click="openDetail(store)"
+                        @click="openDetail(store)" 
                         type="button" 
                         class="px-4 py-2 rounded-full bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white text-xs font-black shadow-xs transition-colors cursor-pointer"
                     >

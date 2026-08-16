@@ -62,4 +62,32 @@ class TransactionVerificationService
             return $transaction->load(['items', 'store', 'verifier']);
         });
     }
+
+    /**
+     * Confirm pending cash transaction (admin received cash at exit booth).
+     */
+    public function confirmCash(Transaction $transaction, User $verifier): Transaction
+    {
+        if ($transaction->status !== 'pending') {
+            throw new InvalidArgumentException("Transaksi tidak dalam status pending (Status saat ini: {$transaction->status}).");
+        }
+
+        if ($transaction->payment_method !== 'cash') {
+            throw new InvalidArgumentException("Transaksi ini bukan transaksi cash.");
+        }
+
+        return DB::transaction(function () use ($transaction, $verifier) {
+            $transaction->update([
+                'status' => 'paid',
+                'paid_at' => now(),
+                'verified_by' => $verifier->id,
+                'verified_at' => now(),
+            ]);
+
+            // Calculate revenue split upon cash confirmation
+            $this->revenueSplitService->calculate($transaction);
+
+            return $transaction->load(['items', 'store', 'verifier', 'revenueSplit']);
+        });
+    }
 }

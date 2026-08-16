@@ -52,6 +52,27 @@ class ReportController extends Controller
     public function downloadPdf(Request $request): Response
     {
         $activeEvent = Event::getActive();
+
+        // 1. Download PDF khusus untuk satu tenant / warung tertentu
+        if ($request->filled('store_id') && $request->store_id !== 'all') {
+            $store = Store::with('owner')->findOrFail($request->store_id);
+            $user = $store->owner ?: auth()->user();
+            $stats = $this->reportService->getStoreStats($store);
+
+            $transactions = Transaction::where('store_id', $store->id)
+                ->with(['items', 'revenueSplit'])
+                ->latest()
+                ->get();
+
+            $pdf = Pdf::loadView('reports.user-pdf', compact('user', 'store', 'activeEvent', 'stats', 'transactions'))
+                ->setPaper('a4', 'portrait');
+
+            $fileName = 'Laporan_Stand_' . str_replace(' ', '_', $store->name) . '_' . date('Ymd_His') . '.pdf';
+
+            return $pdf->download($fileName);
+        }
+
+        // 2. Default: Download PDF keseluruhan event (All)
         $stats = $this->reportService->getEventStats($activeEvent);
 
         $query = Transaction::with(['store', 'revenueSplit'])

@@ -45,6 +45,14 @@
 
     <div class="line"></div>
 
+    @if($transaction->status === 'pending' && $transaction->payment_method === 'cash')
+    <div class="text-center bold" style="margin: 8px 0; padding: 4px; border: 1px dashed #000; font-size: 13px;">
+        BELUM DIBAYAR<br>
+        <span style="font-size: 10px;">Silakan bayar di Kasir Admin<br>(dekat pintu keluar)</span>
+    </div>
+    <div class="line"></div>
+    @endif
+
     @foreach($transaction->items as $item)
         <div>
             <div class="bold">{{ $item->title }}</div>

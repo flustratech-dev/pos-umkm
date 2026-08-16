@@ -410,8 +410,11 @@
                             :disabled="!$store.app.isCashValid"
                             class="w-full py-3.5 px-4 rounded-full bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white font-black text-sm shadow-md shadow-[#1d9bf0]/25 transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98] cursor-pointer"
                         >
-                            <span>Bayar Tunai & Cetak Struk</span>
+                            <span>Buat Pesanan & Cetak Nota</span>
                         </button>
+                        <p class="text-[10px] text-[#536471] text-center italic font-medium">
+                            *Pesanan berstatus Pending. Pembeli membayar tunai di Kasir Admin (dekat pintu keluar).
+                        </p>
                     </div>
 
                     <!-- TAB 2: QRIS PAYMENT (Twitter Blue CTA) -->

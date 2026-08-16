@@ -70,19 +70,38 @@
                         <span class="text-[9.5px] tracking-tight font-bold">Dashboard</span>
                     </a>
 
-                    <!-- 2. Verif QRIS -->
-                    <a 
-                        href="/{{ $rolePrefix }}/verifikasi-qris" 
-                        class="flex flex-col items-center justify-center py-1.5 px-1 rounded-2xl relative transition-all duration-200 cursor-pointer active:scale-95 {{ request()->is($rolePrefix.'/verifikasi-qris*') ? 'text-[#1d9bf0] font-black bg-[#e8f5fd]' : 'text-[#536471] hover:text-[#0f1419] hover:bg-[#f7f9f9]' }}"
-                    >
-                        <div class="relative">
-                            <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
-                            <template x-if="$store.app?.stats?.pendingCount > 0">
-                                <span class="absolute -top-1 -right-1 w-2 h-2 bg-[#ff7a00] rounded-full ring-2 ring-white"></span>
-                            </template>
+                    <!-- 2. Verifikasi (Combined) -->
+                    <div class="relative flex flex-col items-center justify-center" x-data="{ openVerif: false }">
+                        <a 
+                            @click.prevent="openVerif = !openVerif"
+                            href="#" 
+                            class="flex flex-col items-center justify-center py-1.5 px-1 rounded-2xl relative transition-all duration-200 cursor-pointer active:scale-95 {{ request()->is($rolePrefix.'/verifikasi-*') ? 'text-[#1d9bf0] font-black bg-[#e8f5fd]' : 'text-[#536471] hover:text-[#0f1419] hover:bg-[#f7f9f9]' }}"
+                        >
+                            <div class="relative">
+                                <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                                <template x-if="($store.app?.stats?.pendingCount || 0) + ($store.app?.stats?.pendingCashCount || 0) > 0">
+                                    <span class="absolute -top-1 -right-1 w-2 h-2 bg-[#ff7a00] rounded-full ring-2 ring-white"></span>
+                                </template>
+                            </div>
+                            <span class="text-[9.5px] tracking-tight font-bold">Verifikasi</span>
+                        </a>
+                        
+                        <!-- Combined Verif Dropdown Menu -->
+                        <div x-show="openVerif" @click.away="openVerif = false" class="absolute bottom-[110%] left-1/2 -translate-x-1/2 w-36 bg-white rounded-xl shadow-xl border border-[#eff3f4] overflow-hidden" x-cloak>
+                            <a href="/{{ $rolePrefix }}/verifikasi-qris" class="block px-3 py-2.5 text-[11px] font-bold text-[#0f1419] hover:bg-[#f7f9f9] border-b border-[#eff3f4]">
+                                Verif QRIS
+                                <template x-if="$store.app?.stats?.pendingCount > 0">
+                                    <span class="ml-1 px-1.5 py-0.5 rounded-full bg-[#ff7a00] text-white text-[9px]" x-text="$store.app.stats.pendingCount"></span>
+                                </template>
+                            </a>
+                            <a href="/{{ $rolePrefix }}/verifikasi-cash" class="block px-3 py-2.5 text-[11px] font-bold text-[#0f1419] hover:bg-[#f7f9f9]">
+                                Verif Cash
+                                <template x-if="$store.app?.stats?.pendingCashCount > 0">
+                                    <span class="ml-1 px-1.5 py-0.5 rounded-full bg-[#ff7a00] text-white text-[9px]" x-text="$store.app.stats.pendingCashCount"></span>
+                                </template>
+                            </a>
                         </div>
-                        <span class="text-[9.5px] tracking-tight font-bold">Verif QRIS</span>
-                    </a>
+                    </div>
 
                     <!-- 3. Produk -->
                     <a 

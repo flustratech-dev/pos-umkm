@@ -385,7 +385,7 @@ function renderAdminMethodChart() {
     </div>
 
     <!-- KPI Metric Cards (Twitter Blue Accent & Crisp Black Fonts) -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+    <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
         <!-- Total Gross Revenue -->
         <div class="bg-gradient-to-br from-[#1d9bf0] to-[#1271b3] rounded-3xl p-5 text-white shadow-lg shadow-[#1d9bf0]/25 col-span-2 sm:col-span-1">
             <span class="text-xs font-bold text-white/90 uppercase tracking-wider block">Total Omzet Event</span>
@@ -395,9 +395,9 @@ function renderAdminMethodChart() {
 
         <!-- Net EO Revenue -->
         <div class="bg-white rounded-3xl p-5 border border-[#eff3f4] shadow-xs">
-            <span class="text-xs font-bold text-[#0f1419] uppercase tracking-wider block">Bagian Bersih EO</span>
+            <span class="text-xs font-bold text-[#0f1419] uppercase tracking-wider block">Bagian EO (22.5%)</span>
             <h3 class="text-xl font-black text-[#1d9bf0] mt-1" x-text="formatRupiah(adminStats.adminNet)"></h3>
-            <p class="text-[11px] text-[#536471] mt-2 font-medium">25% Gross - Rp1.000 platform</p>
+            <p class="text-[11px] text-[#536471] mt-2 font-medium">Porsi bersih penyelenggara</p>
         </div>
 
         <!-- Active Stores Count -->
@@ -409,9 +409,16 @@ function renderAdminMethodChart() {
 
         <!-- Developer Flat Fee -->
         <div class="bg-white rounded-3xl p-5 border border-[#eff3f4] shadow-xs">
-            <span class="text-xs font-bold text-[#0f1419] uppercase tracking-wider block">Fee Developer</span>
+            <span class="text-xs font-bold text-[#0f1419] uppercase tracking-wider block">Fee Platform</span>
             <h3 class="text-xl font-black text-[#1d9bf0] mt-1" x-text="formatRupiah(adminStats.superadminTotal)"></h3>
-            <p class="text-[11px] text-[#536471] mt-2 font-medium">Rp1.000 flat per transaksi paid</p>
+            <p class="text-[11px] text-[#536471] mt-2 font-medium">2.5% dari Omzet</p>
+        </div>
+
+        <!-- Pending Cash Count -->
+        <div class="bg-amber-50 rounded-3xl p-5 border border-amber-200 shadow-xs">
+            <span class="text-xs font-bold text-[#ff7a00] uppercase tracking-wider block">Pending Cash</span>
+            <h3 class="text-xl font-black text-[#ff7a00] mt-1" x-text="$store.app.transactions.filter(t => t.status === 'pending' && t.payment_method === 'cash').length"></h3>
+            <p class="text-[11px] text-amber-700 mt-2 font-medium">Menunggu dibayar ke Kasir</p>
         </div>
     </div>
 
@@ -513,11 +520,11 @@ function renderAdminMethodChart() {
                                     class="px-2.5 py-0.5 rounded-full text-[10px] font-bold"
                                     :class="{
                                         'bg-[#e8f5fd] text-[#1d9bf0] border border-[#bde2f9]': tx.status === 'paid',
-                                        'bg-amber-50 text-[#ff7a00] border border-amber-200': tx.status === 'pending_verification',
+                                        'bg-amber-50 text-[#ff7a00] border border-amber-200': tx.status === 'pending_verification' || tx.status === 'pending',
                                         'bg-rose-50 text-[#f4212e] border border-rose-200': tx.status === 'rejected',
                                         'bg-slate-100 text-slate-500 line-through': tx.status === 'cancelled'
                                     }"
-                                    x-text="tx.status === 'pending_verification' ? 'Pending' : tx.status"
+                                    x-text="tx.status === 'pending_verification' ? 'Pending Verif' : (tx.status === 'pending' ? 'Belum Bayar' : tx.status)"
                                 ></span>
                             </td>
                         </tr>

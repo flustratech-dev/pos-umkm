@@ -119,13 +119,10 @@
         </button>
     </form>
 
-    <!-- Register Link -->
+    <!-- Register Note -->
     <div class="mt-6 pt-5 border-t border-[#eff3f4] text-center">
-        <p class="text-xs text-[#0f1419] font-medium">
-            Belum mendaftar sebagai tenant warung?
-            <a href="/register" class="font-black text-[#1d9bf0] hover:underline ml-1 transition-colors">
-                Daftar Warung Baru &rarr;
-            </a>
+        <p class="text-xs text-[#536471] font-medium">
+            Login khusus Admin & Panitia EO
         </p>
     </div>
 </div>

@@ -1,7 +1,9 @@
 <?php
 
+use App\Http\Controllers\Admin\CashVerificationController as AdminCashVerificationController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\EventController as AdminEventController;
+use App\Http\Controllers\Admin\EventDetailController as AdminEventDetailController;
 use App\Http\Controllers\Admin\GuideController as AdminGuideController;
 use App\Http\Controllers\Admin\HelpdeskController as AdminHelpdeskController;
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
@@ -11,6 +13,7 @@ use App\Http\Controllers\Admin\StoreController as AdminStoreController;
 use App\Http\Controllers\Admin\TransactionController as AdminTransactionController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ReceiptController;
+use App\Http\Controllers\TenantAccessController;
 use App\Http\Controllers\SuperAdmin\DashboardController as SuperAdminDashboardController;
 use App\Http\Controllers\SuperAdmin\EventController as SuperAdminEventController;
 use App\Http\Controllers\SuperAdmin\PlatformReportController as SuperAdminPlatformReportController;
@@ -31,12 +34,13 @@ Route::get('/', function () {
     return redirect()->route('login');
 });
 
-// Authentication Routes
+// Authentication Routes (Admin & Superadmin only — no self-registration)
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
-Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
-Route::post('/register', [AuthController::class, 'register']);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+
+// Tenant UUID Access (Public — no login required)
+Route::get('/tenda/{uuid}', [TenantAccessController::class, 'access'])->name('tenant.access');
 
 // Global Authenticated Routes
 Route::middleware(['auth'])->group(function () {
@@ -78,9 +82,20 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::delete('/events/{event}', [AdminEventController::class, 'destroy'])->name('events.destroy');
     Route::post('/events/{event}/activate', [AdminEventController::class, 'activate'])->name('events.activate');
 
+    // Event Detail + Tenant Registration
+    Route::get('/events/{event}/detail', [AdminEventDetailController::class, 'show'])->name('events.detail');
+    Route::post('/events/{event}/register-tenant', [AdminEventDetailController::class, 'registerTenant'])->name('events.register-tenant');
+    Route::delete('/events/{event}/tenants/{store}', [AdminEventDetailController::class, 'removeTenant'])->name('events.remove-tenant');
+    Route::post('/events/{event}/tenants/{store}/regenerate-link', [AdminEventDetailController::class, 'regenerateLink'])->name('events.regenerate-link');
+
+    // Verifikasi QRIS
     Route::get('/verifikasi-qris', [AdminQrisVerificationController::class, 'index'])->name('verifikasi-qris.index');
     Route::post('/verifikasi-qris/{transaction}/approve', [AdminQrisVerificationController::class, 'approve'])->name('verifikasi-qris.approve');
     Route::post('/verifikasi-qris/{transaction}/reject', [AdminQrisVerificationController::class, 'reject'])->name('verifikasi-qris.reject');
+
+    // Verifikasi Cash
+    Route::get('/verifikasi-cash', [AdminCashVerificationController::class, 'index'])->name('verifikasi-cash.index');
+    Route::post('/verifikasi-cash/{transaction}/confirm', [AdminCashVerificationController::class, 'confirm'])->name('verifikasi-cash.confirm');
 
     Route::post('/transaksi/{transaction}/cancel', [AdminTransactionController::class, 'cancel'])->name('transaksi.cancel');
 
@@ -112,6 +127,7 @@ Route::prefix('superadmin')->name('superadmin.')->middleware(['auth', 'role:supe
     Route::get('/laporan/pdf', [SuperAdminPlatformReportController::class, 'downloadPdf'])->name('laporan.pdf');
 
     Route::get('/verifikasi-qris', [AdminQrisVerificationController::class, 'index'])->name('verifikasi-qris');
+    Route::get('/verifikasi-cash', [AdminCashVerificationController::class, 'index'])->name('verifikasi-cash');
     Route::get('/produk', [AdminProductController::class, 'index'])->name('produk');
     Route::get('/warung', [AdminStoreController::class, 'index'])->name('warung');
     Route::get('/helpdesk', [AdminHelpdeskController::class, 'index'])->name('helpdesk');
