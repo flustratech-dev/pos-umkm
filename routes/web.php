@@ -21,7 +21,6 @@ use App\Http\Controllers\User\ProductController as UserProductController;
 use App\Http\Controllers\User\ReportController as UserReportController;
 use Illuminate\Support\Facades\Route;
 
-// Home / Root Landing -> Redirect to default active terminal
 Route::get('/', function () {
     if (auth()->check()) {
         $user = auth()->user();
