@@ -15,24 +15,32 @@
     <!-- Vite Styles & Scripts -->
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     
+    @php
+        $authUser = auth()->user();
+        $jsAuthUser = $authUser ? [
+            'id' => $authUser->id,
+            'name' => $authUser->name,
+            'username' => $authUser->username,
+            'email' => $authUser->email,
+            'role' => $authUser->role,
+            'store_id' => $authUser->store_id,
+            'store_name' => $authUser->store ? $authUser->store->name : null,
+            'booth_number' => $authUser->store ? $authUser->store->booth_number : null,
+        ] : null;
+
+        $activeEv = \App\Models\Event::getActive();
+        $jsActiveEvent = $activeEv ? [
+            'id' => $activeEv->id,
+            'name' => $activeEv->name,
+            'slug' => $activeEv->slug,
+            'location' => $activeEv->location,
+            'is_active' => $activeEv->is_active,
+        ] : null;
+    @endphp
+
     <script>
-        window.__AUTH_USER__ = @json(auth()->user() ? [
-            'id' => auth()->user()->id,
-            'name' => auth()->user()->name,
-            'username' => auth()->user()->username,
-            'email' => auth()->user()->email,
-            'role' => auth()->user()->role,
-            'store_id' => auth()->user()->store_id,
-            'store_name' => auth()->user()->store ? auth()->user()->store->name : null,
-            'booth_number' => auth()->user()->store ? auth()->user()->store->booth_number : null,
-        ] : null);
-        window.__ACTIVE_EVENT__ = @json(\App\Models\Event::getActive() ? [
-            'id' => \App\Models\Event::getActive()->id,
-            'name' => \App\Models\Event::getActive()->name,
-            'slug' => \App\Models\Event::getActive()->slug,
-            'location' => \App\Models\Event::getActive()->location,
-            'is_active' => \App\Models\Event::getActive()->is_active,
-        ] : null);
+        window.__AUTH_USER__ = @json($jsAuthUser);
+        window.__ACTIVE_EVENT__ = @json($jsActiveEvent);
     </script>
 
     <style>
