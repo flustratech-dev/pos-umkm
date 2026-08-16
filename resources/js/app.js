@@ -45,24 +45,13 @@ window.formatRupiah = formatRupiah;
 window.formatNumber = formatNumber;
 window.formatDateTime = formatDateTime;
 
-// Storage helper with persistence for realistic demo
-const getStoredData = (key, defaultData) => {
-    try {
-        const item = localStorage.getItem(`pos_umkm_${key}`);
-        return item ? JSON.parse(item) : defaultData;
-    } catch (e) {
-        console.warn(`Error reading localStorage for ${key}`, e);
-        return defaultData;
-    }
-};
-
-const setStoredData = (key, data) => {
-    try {
-        localStorage.setItem(`pos_umkm_${key}`, JSON.stringify(data));
-    } catch (e) {
-        console.warn(`Error writing localStorage for ${key}`, e);
-    }
-};
+// Purge stale demo data from localStorage on load
+try {
+    ['events', 'stores', 'products', 'transactions', 'helpdesk', 'role'].forEach(k => {
+        localStorage.removeItem(`pos_umkm_${k}`);
+        localStorage.removeItem(k);
+    });
+} catch (e) {}
 
 // Global Store setup in Alpine
 Alpine.store('app', {
@@ -72,12 +61,12 @@ Alpine.store('app', {
         activeEvent: window.__ACTIVE_EVENT__ || null,
         staticQris: staticQrisData,
 
-        // Data arrays
-        events: getStoredData('events', initialEvents),
-        stores: getStoredData('stores', initialStores),
-        products: getStoredData('products', initialProducts),
-        transactions: getStoredData('transactions', initialTransactions),
-        helpdesk: getStoredData('helpdesk', initialHelpdeskTickets),
+        // Real database data from Laravel backend
+        events: window.__INITIAL_EVENTS__ || [],
+        stores: window.__INITIAL_STORES__ || [],
+        products: window.__INITIAL_PRODUCTS__ || [],
+        transactions: window.__INITIAL_TRANSACTIONS__ || [],
+        helpdesk: window.__INITIAL_HELPDESK__ || [],
 
         // Cart state for User POS
         cart: [],
@@ -155,6 +144,11 @@ Alpine.store('app', {
             if (window.__ACTIVE_EVENT__) {
                 this.activeEvent = window.__ACTIVE_EVENT__;
             }
+            if (window.__INITIAL_EVENTS__) this.events = window.__INITIAL_EVENTS__;
+            if (window.__INITIAL_STORES__) this.stores = window.__INITIAL_STORES__;
+            if (window.__INITIAL_PRODUCTS__) this.products = window.__INITIAL_PRODUCTS__;
+            if (window.__INITIAL_TRANSACTIONS__) this.transactions = window.__INITIAL_TRANSACTIONS__;
+            if (window.__INITIAL_HELPDESK__) this.helpdesk = window.__INITIAL_HELPDESK__;
         },
 
         getRoleLabel(role) {
@@ -471,7 +465,7 @@ Alpine.store('app', {
                 price: '',
                 category: 'Makanan',
                 description: '',
-                photo: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&auto=format&fit=crop&q=80',
+                photo: '',
                 stock_badge: 'Tersedia'
             };
             this.productModalOpen = true;
@@ -485,7 +479,7 @@ Alpine.store('app', {
                 price: product.price,
                 category: product.category || 'Makanan',
                 description: product.description || '',
-                photo: product.photo,
+                photo: product.photo || '',
                 stock_badge: product.stock_badge || 'Tersedia'
             };
             this.productModalOpen = true;
@@ -508,7 +502,7 @@ Alpine.store('app', {
                         price: parseFloat(this.productFormData.price),
                         category: this.productFormData.category,
                         description: this.productFormData.description,
-                        photo: this.productFormData.photo || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&auto=format&fit=crop&q=80',
+                        photo: this.productFormData.photo || '',
                         stock_badge: this.productFormData.stock_badge
                     };
                     this.notify('success', 'Produk Diperbarui', `Menu ${this.productFormData.title} berhasil diupdate.`);
@@ -516,12 +510,12 @@ Alpine.store('app', {
             } else {
                 const newProd = {
                     id: Date.now(),
-                    store_id: store.id,
+                    store_id: store ? store.id : null,
                     title: this.productFormData.title.trim(),
                     price: parseFloat(this.productFormData.price),
                     category: this.productFormData.category,
                     description: this.productFormData.description,
-                    photo: this.productFormData.photo || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&auto=format&fit=crop&q=80',
+                    photo: this.productFormData.photo || '',
                     is_active: true,
                     stock_badge: this.productFormData.stock_badge
                 };

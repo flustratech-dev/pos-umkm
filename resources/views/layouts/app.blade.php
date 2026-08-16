@@ -36,11 +36,101 @@
             'location' => $activeEv->location,
             'is_active' => $activeEv->is_active,
         ] : null;
+
+        $dbEvents = \App\Models\Event::all();
+        $dbStores = \App\Models\Store::with('owner')->get()->map(function($s) {
+            return [
+                'id' => $s->id,
+                'event_id' => $s->event_id,
+                'owner_id' => $s->owner_id,
+                'name' => $s->name,
+                'owner_name' => $s->owner ? $s->owner->name : '',
+                'phone' => $s->owner ? $s->owner->phone : '',
+                'booth_number' => $s->booth_number,
+                'category' => $s->category,
+                'is_active' => $s->is_active,
+            ];
+        });
+        $dbProducts = \App\Models\Product::where('is_active', true)->get()->map(function($p) {
+            return [
+                'id' => $p->id,
+                'store_id' => $p->store_id,
+                'title' => $p->title,
+                'price' => (float)$p->price,
+                'category' => $p->category,
+                'description' => $p->description,
+                'photo' => $p->photo_url,
+                'stock_badge' => $p->stock_badge,
+                'is_active' => $p->is_active,
+            ];
+        });
+        $dbTransactions = \App\Models\Transaction::with(['items', 'store', 'paymentProof', 'revenueSplit'])->orderBy('id', 'desc')->get()->map(function($t) {
+            return [
+                'id' => $t->id,
+                'invoice_code' => $t->invoice_code,
+                'store_id' => $t->store_id,
+                'store_name' => $t->store ? $t->store->name : '',
+                'cashier_id' => $t->cashier_id,
+                'cashier_name' => $t->cashier ? $t->cashier->name : '',
+                'total_amount' => (float)$t->total_amount,
+                'payment_method' => $t->payment_method,
+                'amount_paid' => $t->amount_paid ? (float)$t->amount_paid : null,
+                'change_due' => $t->change_due ? (float)$t->change_due : null,
+                'status' => $t->status,
+                'paid_at' => $t->paid_at ? $t->paid_at->toIso8601String() : null,
+                'created_at' => $t->created_at ? $t->created_at->toIso8601String() : null,
+                'payment_proof' => $t->paymentProof ? $t->paymentProof->proof_url : null,
+                'proof_image' => $t->paymentProof ? $t->paymentProof->proof_url : null,
+                'items' => $t->items->map(function($item) {
+                    return [
+                        'product_id' => $item->product_id,
+                        'title' => $item->title,
+                        'price' => (float)$item->price,
+                        'qty' => $item->qty,
+                        'subtotal' => (float)$item->subtotal,
+                    ];
+                }),
+                'revenue_split' => $t->revenueSplit ? [
+                    'owner_share' => (float)$t->revenueSplit->owner_share,
+                    'admin_gross_share' => (float)$t->revenueSplit->admin_gross_share,
+                    'superadmin_share' => (float)$t->revenueSplit->superadmin_share,
+                    'admin_net_share' => (float)$t->revenueSplit->admin_net_share,
+                ] : null,
+            ];
+        });
+        $dbTickets = \App\Models\HelpdeskTicket::with(['user', 'store', 'replies.user'])->orderBy('id', 'desc')->get()->map(function($tk) {
+            return [
+                'id' => $tk->id,
+                'ticket_code' => $tk->ticket_code,
+                'user_id' => $tk->user_id,
+                'user_name' => $tk->user ? $tk->user->name : '',
+                'store_id' => $tk->store_id,
+                'store_name' => $tk->store ? $tk->store->name : '',
+                'category' => $tk->category,
+                'subject' => $tk->subject,
+                'status' => $tk->status,
+                'created_at' => $tk->created_at ? $tk->created_at->toIso8601String() : null,
+                'replies' => $tk->replies->map(function($r) {
+                    return [
+                        'id' => $r->id,
+                        'user_id' => $r->user_id,
+                        'user_name' => $r->user ? $r->user->name : '',
+                        'message' => $r->message,
+                        'created_at' => $r->created_at ? $r->created_at->toIso8601String() : null,
+                    ];
+                }),
+            ];
+        });
     @endphp
 
     <script>
         window.__AUTH_USER__ = @json($jsAuthUser);
         window.__ACTIVE_EVENT__ = @json($jsActiveEvent);
+        window.__INITIAL_EVENTS__ = @json($dbEvents);
+        window.__INITIAL_STORES__ = @json($dbStores);
+        window.__INITIAL_PRODUCTS__ = @json($dbProducts);
+        window.__INITIAL_TRANSACTIONS__ = @json($dbTransactions);
+        window.__INITIAL_HELPDESK__ = @json($dbTickets);
     </script>
 
     <style>

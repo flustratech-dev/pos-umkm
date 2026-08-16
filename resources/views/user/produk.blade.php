@@ -198,14 +198,21 @@
                     <div>
                         <label class="block text-xs font-bold text-[#0f1419] mb-1.5">Foto Menu (Preview Instan)</label>
                         <div class="flex items-center gap-4">
-                            <img 
-                                :src="$store.app.productFormData.photo || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&auto=format&fit=crop&q=80'" 
-                                class="w-16 h-16 rounded-2xl object-cover border border-[#eff3f4] shadow-xs shrink-0"
-                            >
+                            <template x-if="$store.app.productFormData.photo">
+                                <img 
+                                    :src="$store.app.productFormData.photo" 
+                                    class="w-16 h-16 rounded-2xl object-cover border border-[#eff3f4] shadow-xs shrink-0"
+                                >
+                            </template>
+                            <template x-if="!$store.app.productFormData.photo">
+                                <div class="w-16 h-16 rounded-2xl bg-[#f7f9f9] border border-[#eff3f4] flex items-center justify-center text-[#536471] shrink-0">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                </div>
+                            </template>
                             <input 
                                 type="url" 
                                 x-model="$store.app.productFormData.photo" 
-                                placeholder="URL Foto menu (jpg/png)..."
+                                placeholder="URL Foto menu (opsional)..."
                                 class="flex-1 px-4 py-2.5 bg-[#f7f9f9] border border-[#eff3f4] rounded-full text-xs text-[#0f1419] focus:ring-2 focus:ring-[#1d9bf0] focus:outline-none font-semibold"
                             >
                         </div>
