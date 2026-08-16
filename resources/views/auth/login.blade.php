@@ -4,21 +4,18 @@
 
 @section('content')
 <div x-data="{
-    email: 'admin@gmail.com',
-    password: 'password',
+    email: '',
+    password: '',
     remember: true,
     isLoading: false,
 
-    async handleLogin(role = null) {
-        this.isLoading = true;
-
-        if (role === 'admin') {
-            this.email = 'admin@gmail.com';
-            this.password = '12345678';
-        } else if (role === 'superadmin') {
-            this.email = 'superadmin@gmail.com';
-            this.password = '12345678';
+    async handleLogin() {
+        if (!this.email.trim() || !this.password.trim()) {
+            alert('Harap masukkan email dan kata sandi Anda.');
+            return;
         }
+
+        this.isLoading = true;
 
         try {
             const token = document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || '';
@@ -30,7 +27,7 @@
                     'X-CSRF-TOKEN': token
                 },
                 body: JSON.stringify({
-                    login: this.email,
+                    login: this.email.trim(),
                     password: this.password,
                     remember: this.remember
                 })
@@ -39,55 +36,22 @@
             const data = await res.json();
 
             if (res.ok && data.success) {
-                if (window.Alpine && Alpine.store('app')) {
-                    Alpine.store('app').currentRole = data.user.role;
-                    localStorage.setItem('pos_umkm_role', data.user.role);
-                }
                 window.location.href = data.redirect || '/';
             } else {
-                alert(data.message || 'Login gagal. Periksa email dan password Anda.');
+                alert(data.message || 'Login gagal. Periksa kembali email dan password Anda.');
             }
         } catch (err) {
             console.error(err);
-            // Fallback standard submit if fetch fails
             document.getElementById('loginForm')?.submit();
         } finally {
             this.isLoading = false;
         }
-    },
-
-    setDemoCredentials(role) {
-        this.handleLogin(role);
     }
 }">
     <!-- Heading -->
     <div class="mb-6 text-center">
         <h2 class="text-2xl font-black text-[#0f1419] tracking-tight">Masuk ke Akun Anda</h2>
-        <p class="text-sm text-[#0f1419] font-semibold mt-1">Gunakan akun tenant stand atau panitia event</p>
-    </div>
-
-    <!-- Quick Demo Role Switcher / Shortcut Buttons (Twitter Style Pills) -->
-    <div class="mb-6 p-3.5 bg-[#f7f9f9] rounded-2xl border border-[#eff3f4]">
-        <p class="text-xs font-black text-[#0f1419] mb-2 flex items-center justify-between">
-            <span>⚡ Demo Akses Cepat (1-Klik):</span>
-            <span class="text-[10px] text-[#1d9bf0] font-black">Pilih Role</span>
-        </p>
-        <div class="grid grid-cols-2 gap-2 text-xs">
-            <button 
-                type="button" 
-                @click="setDemoCredentials('admin')" 
-                class="py-2.5 px-2 rounded-full bg-white hover:bg-[#e8f5fd] text-[#1d9bf0] border border-[#bde2f9] font-black transition-all text-center shadow-2xs cursor-pointer"
-            >
-                🛡️ Admin EO (admin@gmail.com)
-            </button>
-            <button 
-                type="button" 
-                @click="setDemoCredentials('superadmin')" 
-                class="py-2.5 px-2 rounded-full bg-white hover:bg-[#e8f5fd] text-[#1d9bf0] border border-[#bde2f9] font-black transition-all text-center shadow-2xs cursor-pointer"
-            >
-                👑 Superadmin (superadmin@gmail.com)
-            </button>
-        </div>
+        <p class="text-sm text-[#0f1419] font-semibold mt-1">Gunakan akun terdaftar Anda untuk melanjutkan</p>
     </div>
 
     <form @submit.prevent="handleLogin()" class="space-y-4">

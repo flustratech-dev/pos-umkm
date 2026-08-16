@@ -115,6 +115,17 @@
         </template>
     </div>
 
+    <!-- Empty State -->
+    <template x-if="filteredStores.length === 0">
+        <div class="bg-white rounded-3xl border border-[#eff3f4] p-12 text-center max-w-md mx-auto my-8 shadow-2xs">
+            <div class="w-16 h-16 bg-[#e8f5fd] rounded-full text-[#1d9bf0] flex items-center justify-center mx-auto mb-3">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+            </div>
+            <h4 class="text-sm font-black text-[#0f1419]">Belum Ada Warung / Stand Terdaftar</h4>
+            <p class="text-xs text-[#536471] font-semibold mt-1">Tenant baru yang mendaftar secara mandiri melalui form registrasi akan langsung muncul di sini.</p>
+        </div>
+    </template>
+
     <!-- STORE DETAIL MODAL (SLIDE UP BOTTOM SHEET ON MOBILE) -->
     <div 
         x-show="storeDetailModalOpen" 

@@ -144,8 +144,15 @@
 
     <!-- Empty State -->
     <template x-if="storeProducts.length === 0">
-        <div class="bg-white rounded-3xl border border-[#eff3f4] p-10 text-center max-w-sm mx-auto my-6">
-            <p class="text-xs text-[#0f1419] font-bold">Tidak ada produk ditemukan untuk kriteria ini.</p>
+        <div class="bg-white rounded-3xl border border-[#eff3f4] p-10 text-center max-w-md mx-auto my-8">
+            <div class="w-14 h-14 mx-auto rounded-full bg-[#f7f9f9] text-[#536471] flex items-center justify-center mb-3">
+                <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+            </div>
+            <h3 class="text-sm font-black text-[#0f1419]">Katalog Menu Masih Kosong</h3>
+            <p class="text-xs text-[#536471] font-medium mt-1 mb-4">Belum ada menu yang didaftarkan pada stand ini. Tambahkan produk sekarang untuk mulai berjualan.</p>
+            <a href="/user/produk" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white text-xs font-black transition-all shadow-xs">
+                <span>+ Tambah Produk Baru</span>
+            </a>
         </div>
     </template>
 

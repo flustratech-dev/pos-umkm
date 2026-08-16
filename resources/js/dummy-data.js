@@ -1,48 +1,13 @@
 /**
- * Clean Initial State for Production - POS Kasir UMKM Event
+ * Clean State Initializer - POS Kasir UMKM Event
+ * All mock data has been purged for production readiness.
  */
 
-export const initialEvents = [
-    {
-        id: 1,
-        name: 'Bazar Kuliner & UMKM Nusantara 2026',
-        slug: 'event-bazar-umkm-2026',
-        start_date: new Date().toISOString().substring(0, 10),
-        end_date: new Date(Date.now() + 30 * 86400000).toISOString().substring(0, 10),
-        is_active: true,
-        location: 'Area Bazar Utama',
-        created_by: 1,
-        created_at: new Date().toISOString().replace('T', ' ').substring(0, 19)
-    }
-];
-
-export const initialUsers = [
-    {
-        id: 1,
-        name: 'Super Admin Platform',
-        username: 'superadmin',
-        email: 'superadmin@gmail.com',
-        role: 'superadmin',
-        store_id: null,
-        phone: '081122334455'
-    },
-    {
-        id: 2,
-        name: 'Admin EO',
-        username: 'admin',
-        email: 'admin@gmail.com',
-        role: 'admin',
-        store_id: null,
-        phone: '081299887766'
-    }
-];
-
+export const initialEvents = [];
+export const initialUsers = [];
 export const initialStores = [];
-
 export const initialProducts = [];
-
 export const initialTransactions = [];
-
 export const initialHelpdeskTickets = [];
 
 export const staticQrisData = {

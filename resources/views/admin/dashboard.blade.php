@@ -16,13 +16,22 @@
             const ctxHourly = document.getElementById('hourlySalesChart');
             if (ctxHourly && window.Chart) {
                 if (this.chartHourly) this.chartHourly.destroy();
+
+                const hours = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
+                const hourlyTotals = hours.map(h => {
+                    const hNum = parseInt(h.split(':')[0], 10);
+                    return $store.app.transactions
+                        .filter(t => t.status === 'paid' && t.paid_at && new Date(t.paid_at).getHours() === hNum)
+                        .reduce((sum, t) => sum + (t.total_amount || 0), 0);
+                });
+
                 this.chartHourly = new window.Chart(ctxHourly, {
                     type: 'line',
                     data: {
-                        labels: ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'],
+                        labels: hours,
                         datasets: [{
                             label: 'Omzet Penjualan (Rp)',
-                            data: [85000, 140000, 310000, 480000, 390000, 220000, 180000, 0, 0],
+                            data: hourlyTotals,
                             borderColor: '#1d9bf0',
                             backgroundColor: 'rgba(29, 155, 240, 0.12)',
                             fill: true,
@@ -73,7 +82,7 @@
                     data: {
                         labels: ['Cash / Tunai', 'QRIS Statis'],
                         datasets: [{
-                            data: [cashCount || 4, qrisCount || 3],
+                            data: (cashCount === 0 && qrisCount === 0) ? [0, 0] : [cashCount, qrisCount],
                             backgroundColor: ['#1d9bf0', '#71c9f8'],
                             borderColor: '#ffffff',
                             borderWidth: 3

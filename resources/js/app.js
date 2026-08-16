@@ -66,9 +66,10 @@ const setStoredData = (key, data) => {
 
 // Global Store setup in Alpine
 Alpine.store('app', {
-        // Active role & users
-        currentRole: localStorage.getItem('pos_umkm_role') || 'user',
-        users: initialUsers,
+        // Authenticated Session State (Strictly Server Driven)
+        currentUser: window.__AUTH_USER__ || null,
+        currentRole: window.__AUTH_USER__?.role || 'user',
+        activeEvent: window.__ACTIVE_EVENT__ || null,
         staticQris: staticQrisData,
 
         // Data arrays
@@ -147,72 +148,40 @@ Alpine.store('app', {
         toasts: [],
 
         init() {
-            // Synchronize active role based on current URL path
-            try {
-                const path = window.location.pathname;
-                if (path.startsWith('/admin')) {
-                    this.currentRole = 'admin';
-                    localStorage.setItem('pos_umkm_role', 'admin');
-                } else if (path.startsWith('/superadmin')) {
-                    this.currentRole = 'superadmin';
-                    localStorage.setItem('pos_umkm_role', 'superadmin');
-                } else if (path.startsWith('/user')) {
-                    this.currentRole = 'user';
-                    localStorage.setItem('pos_umkm_role', 'user');
-                }
-            } catch (e) {
-                console.warn('URL role sync error', e);
+            if (window.__AUTH_USER__) {
+                this.currentUser = window.__AUTH_USER__;
+                this.currentRole = window.__AUTH_USER__.role;
             }
-
-            // Save initial defaults if empty
-            if (!localStorage.getItem('pos_umkm_events')) setStoredData('events', this.events);
-            if (!localStorage.getItem('pos_umkm_stores')) setStoredData('stores', this.stores);
-            if (!localStorage.getItem('pos_umkm_products')) setStoredData('products', this.products);
-            if (!localStorage.getItem('pos_umkm_transactions')) setStoredData('transactions', this.transactions);
-            if (!localStorage.getItem('pos_umkm_helpdesk')) setStoredData('helpdesk', this.helpdesk);
-        },
-
-        // Switch role method for testing
-        switchRole(newRole) {
-            this.currentRole = newRole;
-            localStorage.setItem('pos_umkm_role', newRole);
-            this.notify('info', 'Beralih Peran', `Anda sekarang login sebagai ${this.getRoleLabel(newRole)}`);
-            
-            // Redirect smoothly to corresponding home path
-            setTimeout(() => {
-                if (newRole === 'user') {
-                    window.location.href = '/user/kasir';
-                } else if (newRole === 'admin') {
-                    window.location.href = '/admin/dashboard';
-                } else if (newRole === 'superadmin') {
-                    window.location.href = '/superadmin/dashboard';
-                }
-            }, 300);
+            if (window.__ACTIVE_EVENT__) {
+                this.activeEvent = window.__ACTIVE_EVENT__;
+            }
         },
 
         getRoleLabel(role) {
             if (role === 'user') return 'Pemilik Warung (User)';
-            if (role === 'admin') return 'Admin EO Nusantara';
+            if (role === 'admin') return 'Admin EO';
             if (role === 'superadmin') return 'Super Admin Platform';
             return role;
         },
 
         getCurrentUser() {
-            if (this.currentRole === 'superadmin') return this.users.find(u => u.role === 'superadmin') || { name: 'Super Admin', email: 'superadmin@gmail.com', role: 'superadmin' };
-            if (this.currentRole === 'admin') return this.users.find(u => u.role === 'admin') || { name: 'Admin EO', email: 'admin@gmail.com', role: 'admin' };
-            return this.users.find(u => u.role === 'user') || { name: 'Pemilik Warung', email: 'user@umkm.id', role: 'user' };
+            return this.currentUser || window.__AUTH_USER__ || { name: 'User', email: '', role: this.currentRole };
         },
 
         getActiveEvent() {
-            return this.events.find(e => e.is_active) || this.events[0] || { name: 'Event Bazar UMKM 2026' };
+            return this.activeEvent || window.__ACTIVE_EVENT__ || { name: 'Event Belum Aktif' };
         },
 
         getCurrentStore() {
             const user = this.getCurrentUser();
-            if (user && user.store_id) {
-                return this.stores.find(s => s.id === user.store_id) || this.stores[0] || { name: 'Warung Stand UMKM', booth_number: 'Stand A-01' };
+            if (user && user.store_name) {
+                return {
+                    id: user.store_id,
+                    name: user.store_name,
+                    booth_number: user.booth_number || 'Stand A-01'
+                };
             }
-            return this.stores[0] || { name: 'Warung Stand UMKM', booth_number: 'Stand A-01' };
+            return this.stores[0] || null;
         },
 
         // Toast notifications

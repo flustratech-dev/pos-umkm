@@ -283,8 +283,18 @@
                     </template>
                 </div>
             </div>
-        </template>
     </div>
+
+    <!-- Empty State -->
+    <template x-if="filteredTransactions.length === 0">
+        <div class="bg-white rounded-3xl border border-[#eff3f4] p-12 text-center max-w-md mx-auto my-6 shadow-2xs">
+            <div class="w-16 h-16 bg-[#e8f5fd] rounded-full text-[#1d9bf0] flex items-center justify-center mx-auto mb-3">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+            </div>
+            <h4 class="text-sm font-black text-[#0f1419]">Belum Ada Data Transaksi</h4>
+            <p class="text-xs text-[#536471] font-semibold mt-1">Transaksi penjualan yang dilakukan kasir stand akan tercatat dan dihitung otomatis di sini.</p>
+        </div>
+    </template>
 
     <!-- CANCEL TRANSACTION MODAL WITH MANDATORY REASON & CHECKBOX (SLIDE UP BOTTOM SHEET ON MOBILE) -->
     <div 

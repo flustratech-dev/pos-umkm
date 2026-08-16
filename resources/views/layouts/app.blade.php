@@ -15,6 +15,26 @@
     <!-- Vite Styles & Scripts -->
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     
+    <script>
+        window.__AUTH_USER__ = @json(auth()->user() ? [
+            'id' => auth()->user()->id,
+            'name' => auth()->user()->name,
+            'username' => auth()->user()->username,
+            'email' => auth()->user()->email,
+            'role' => auth()->user()->role,
+            'store_id' => auth()->user()->store_id,
+            'store_name' => auth()->user()->store ? auth()->user()->store->name : null,
+            'booth_number' => auth()->user()->store ? auth()->user()->store->booth_number : null,
+        ] : null);
+        window.__ACTIVE_EVENT__ = @json(\App\Models\Event::getActive() ? [
+            'id' => \App\Models\Event::getActive()->id,
+            'name' => \App\Models\Event::getActive()->name,
+            'slug' => \App\Models\Event::getActive()->slug,
+            'location' => \App\Models\Event::getActive()->location,
+            'is_active' => \App\Models\Event::getActive()->is_active,
+        ] : null);
+    </script>
+
     <style>
         [x-cloak] { display: none !important; }
         body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
