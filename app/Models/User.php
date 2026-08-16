@@ -28,6 +28,7 @@ class User extends Authenticatable
         'role',
         'store_id',
         'password',
+        'avatar',
     ];
 
     /**

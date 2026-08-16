@@ -23,6 +23,8 @@ class Product extends Model
         'is_active',
     ];
 
+    protected $appends = ['photo_url'];
+
     protected function casts(): array
     {
         return [
@@ -33,15 +35,19 @@ class Product extends Model
 
     public function getPhotoUrlAttribute(): string
     {
-        if ($this->photo && str_starts_with($this->photo, 'http')) {
+        if (!$this->photo) {
+            return 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80';
+        }
+
+        if (str_starts_with($this->photo, 'http') || str_starts_with($this->photo, 'data:')) {
             return $this->photo;
         }
 
-        if ($this->photo && \Illuminate\Support\Facades\Storage::disk('public')->exists($this->photo)) {
-            return asset('storage/' . $this->photo);
+        if (str_starts_with($this->photo, '/')) {
+            return $this->photo;
         }
 
-        return 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80';
+        return '/storage/' . $this->photo;
     }
 
     // Relations

@@ -32,7 +32,7 @@ class ProductController extends Controller
         $user = Auth::user();
         $store = $user->store ?: Store::where('owner_id', $user->id)->firstOrFail();
 
-        $photoPath = null;
+        $photoPath = $request->input('photo');
         if ($request->hasFile('photo')) {
             $photoPath = $request->file('photo')->store('products', 'public');
         }
@@ -48,11 +48,16 @@ class ProductController extends Controller
             'is_active' => $request->boolean('is_active', true),
         ]);
 
+        $productData = array_merge($product->toArray(), [
+            'photo' => $product->photo_url,
+            'photo_url' => $product->photo_url,
+        ]);
+
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json([
                 'success' => true,
                 'message' => 'Produk menu berhasil ditambahkan!',
-                'product' => $product,
+                'product' => $productData,
             ]);
         }
 
@@ -62,7 +67,8 @@ class ProductController extends Controller
     public function update(ProductRequest $request, Product $product): JsonResponse|RedirectResponse
     {
         $user = Auth::user();
-        if ($product->store_id !== ($user->store_id ?: $user->ownedStore?->id)) {
+        $userStoreId = $user->store_id ?: ($user->store?->id ?: $user->ownedStore?->id);
+        if (!$userStoreId || $product->store_id !== $userStoreId) {
             abort(403, 'Akses ditolak.');
         }
 
@@ -75,6 +81,10 @@ class ProductController extends Controller
             'is_active' => $request->boolean('is_active', true),
         ];
 
+        if ($request->has('photo') && !is_file($request->photo)) {
+            $data['photo'] = $request->input('photo');
+        }
+
         if ($request->hasFile('photo')) {
             if ($product->photo && Storage::disk('public')->exists($product->photo)) {
                 Storage::disk('public')->delete($product->photo);
@@ -84,11 +94,16 @@ class ProductController extends Controller
 
         $product->update($data);
 
+        $productData = array_merge($product->fresh()->toArray(), [
+            'photo' => $product->fresh()->photo_url,
+            'photo_url' => $product->fresh()->photo_url,
+        ]);
+
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json([
                 'success' => true,
                 'message' => 'Produk menu berhasil diperbarui!',
-                'product' => $product,
+                'product' => $productData,
             ]);
         }
 
@@ -98,7 +113,8 @@ class ProductController extends Controller
     public function destroy(Product $product): JsonResponse|RedirectResponse
     {
         $user = Auth::user();
-        if ($product->store_id !== ($user->store_id ?: $user->ownedStore?->id)) {
+        $userStoreId = $user->store_id ?: ($user->store?->id ?: $user->ownedStore?->id);
+        if (!$userStoreId || $product->store_id !== $userStoreId) {
             abort(403, 'Akses ditolak.');
         }
 

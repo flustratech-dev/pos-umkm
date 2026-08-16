@@ -10,7 +10,7 @@
         <div>
             <div class="flex items-center gap-2">
                 <span class="px-3.5 py-1 rounded-full bg-[#e8f5fd] text-[#1d9bf0] text-xs font-black uppercase border border-[#bde2f9]">Super Admin Multi-Event</span>
-                <span class="text-xs text-[#0f1419] font-semibold">Lisensi Sistem POS UMKM</span>
+                <span class="text-xs text-[#0f1419] font-semibold">Lisensi Sistem JADISATU</span>
             </div>
             <h2 class="text-xl sm:text-2xl font-black text-[#0f1419] tracking-tight mt-1.5 flex items-center gap-1.5">
                 <span>Platform Owner & Multi-Tenant Control</span>

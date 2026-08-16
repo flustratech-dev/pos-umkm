@@ -59,7 +59,7 @@
                 <!-- Store & Event Info -->
                 <div class="flex items-start justify-between pb-3 border-b border-[#eff3f4]">
                     <div>
-                        <h4 class="font-black text-sm text-[#0f1419]" x-text="$store.app.activeReceiptTransaction?.store_name || 'Warung Bu Siti'"></h4>
+                        <h4 class="font-black text-sm text-[#0f1419]" x-text="$store.app.activeReceiptTransaction?.store_name || '-'"></h4>
                         <p class="text-[11px] text-[#536471] mt-0.5 font-medium" x-text="$store.app.getActiveEvent()?.name"></p>
                     </div>
                     <span 
@@ -82,7 +82,7 @@
 
                 <!-- Items List -->
                 <div class="space-y-1.5 py-2 border-y border-[#eff3f4]">
-                    <template x-for="item in ($store.app.activeReceiptTransaction?.items || [])" :key="item.product_id">
+                    <template x-for="(item, index) in ($store.app.activeReceiptTransaction?.items || [])" :key="item.id || item.product_id || index">
                         <div class="flex items-center justify-between text-xs">
                             <div class="truncate max-w-[200px]">
                                 <span class="font-bold text-[#0f1419]" x-text="item.title"></span>

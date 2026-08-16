@@ -113,11 +113,15 @@ class AuthController extends Controller
                 'password' => Hash::make($request->password),
             ]);
 
+            // Hitung nomor urut stand pada event aktif saat ini (mulai dari Stand 01)
+            $existingBoothCount = Store::where('event_id', $activeEvent->id)->count() + 1;
+            $autoBoothNumber = 'Stand ' . str_pad($existingBoothCount, 2, '0', STR_PAD_LEFT);
+
             $store = Store::create([
                 'event_id' => $activeEvent->id,
                 'owner_id' => $user->id,
                 'name' => $request->store_name,
-                'booth_number' => $request->booth_number ?: 'Stand A-01',
+                'booth_number' => $request->booth_number ?: $autoBoothNumber,
                 'category' => $request->category ?: 'Makanan & Minuman',
                 'is_active' => true,
             ]);

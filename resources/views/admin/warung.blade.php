@@ -68,7 +68,7 @@
                 <div>
                     <!-- Top Info -->
                     <div class="flex items-center justify-between">
-                        <span class="px-2.5 py-0.5 rounded-full bg-[#f7f9f9] font-mono text-[10px] font-bold text-[#0f1419] border border-[#eff3f4]" x-text="store.booth_number || 'Stand A-01'"></span>
+                        <span class="px-2.5 py-0.5 rounded-full bg-[#f7f9f9] font-mono text-[10px] font-bold text-[#0f1419] border border-[#eff3f4]" x-text="store.booth_number || 'Stand 01'"></span>
                         <span class="px-3 py-0.5 rounded-full text-[10px] font-black bg-[#e8f5fd] text-[#1d9bf0] border border-[#bde2f9]">
                             Aktif Jualan
                         </span>

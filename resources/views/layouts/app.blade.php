@@ -5,7 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>@yield('title', 'POS Kasir UMKM Event') — Sistem Kasir & Bagi Hasil Event UMKM</title>
+    <title>@yield('title', 'Kasir JADISATU') — JADISATU</title>
+
+    <!-- Favicon (High Curvature Squircle) -->
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('images/favicon-32x32.png') }}?v=3">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('images/favicon-16x16.png') }}?v=3">
+    <link rel="icon" type="image/png" sizes="192x192" href="{{ asset('images/favicon.png') }}?v=3">
+    <link rel="apple-touch-icon" href="{{ asset('images/apple-touch-icon.png') }}?v=3">
 
     <!-- Google Fonts: Plus Jakarta Sans & Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -17,15 +23,18 @@
     
     @php
         $authUser = auth()->user();
+        $userStore = $authUser ? ($authUser->store ?: $authUser->ownedStore) : null;
+        $userStoreId = $userStore ? $userStore->id : null;
+
         $jsAuthUser = $authUser ? [
             'id' => $authUser->id,
             'name' => $authUser->name,
             'username' => $authUser->username,
             'email' => $authUser->email,
             'role' => $authUser->role,
-            'store_id' => $authUser->store_id,
-            'store_name' => $authUser->store ? $authUser->store->name : null,
-            'booth_number' => $authUser->store ? $authUser->store->booth_number : null,
+            'store_id' => $userStoreId,
+            'store_name' => $userStore ? $userStore->name : null,
+            'booth_number' => $userStore ? $userStore->booth_number : null,
         ] : null;
 
         $activeEv = \App\Models\Event::getActive();
@@ -35,10 +44,17 @@
             'slug' => $activeEv->slug,
             'location' => $activeEv->location,
             'is_active' => $activeEv->is_active,
+            'qris_image_url' => $activeEv->qris_image_url,
         ] : null;
 
         $dbEvents = \App\Models\Event::all();
-        $dbStores = \App\Models\Store::with('owner')->get()->map(function($s) {
+        
+        // Stores Query (Tenants only see their own store, Admin/Superadmin see all)
+        $storesQuery = \App\Models\Store::with('owner');
+        if ($authUser && $authUser->isUser()) {
+            $storesQuery->where('id', $userStoreId ?: 0);
+        }
+        $dbStores = $storesQuery->get()->map(function($s) {
             return [
                 'id' => $s->id,
                 'event_id' => $s->event_id,
@@ -51,7 +67,13 @@
                 'is_active' => $s->is_active,
             ];
         });
-        $dbProducts = \App\Models\Product::where('is_active', true)->get()->map(function($p) {
+
+        // Products Query (Tenants only see their own products, Admin/Superadmin see all)
+        $productsQuery = \App\Models\Product::where('is_active', true);
+        if ($authUser && $authUser->isUser()) {
+            $productsQuery->where('store_id', $userStoreId ?: 0);
+        }
+        $dbProducts = $productsQuery->get()->map(function($p) {
             return [
                 'id' => $p->id,
                 'store_id' => $p->store_id,
@@ -64,7 +86,13 @@
                 'is_active' => $p->is_active,
             ];
         });
-        $dbTransactions = \App\Models\Transaction::with(['items', 'store', 'paymentProof', 'revenueSplit'])->orderBy('id', 'desc')->get()->map(function($t) {
+
+        // Transactions Query (Tenants only see their own transactions, Admin/Superadmin see all)
+        $txQuery = \App\Models\Transaction::with(['items', 'store', 'paymentProof', 'revenueSplit'])->orderBy('id', 'desc');
+        if ($authUser && $authUser->isUser()) {
+            $txQuery->where('store_id', $userStoreId ?: 0);
+        }
+        $dbTransactions = $txQuery->get()->map(function($t) {
             return [
                 'id' => $t->id,
                 'invoice_code' => $t->invoice_code,
@@ -98,7 +126,13 @@
                 ] : null,
             ];
         });
-        $dbTickets = \App\Models\HelpdeskTicket::with(['user', 'store', 'replies.user'])->orderBy('id', 'desc')->get()->map(function($tk) {
+
+        // Helpdesk Tickets (Tenants only see their own tickets)
+        $ticketsQuery = \App\Models\HelpdeskTicket::with(['user', 'store', 'replies.user'])->orderBy('id', 'desc');
+        if ($authUser && $authUser->isUser()) {
+            $ticketsQuery->where('user_id', $authUser->id);
+        }
+        $dbTickets = $ticketsQuery->get()->map(function($tk) {
             return [
                 'id' => $tk->id,
                 'ticket_code' => $tk->ticket_code,
@@ -131,6 +165,21 @@
         window.__INITIAL_PRODUCTS__ = @json($dbProducts);
         window.__INITIAL_TRANSACTIONS__ = @json($dbTransactions);
         window.__INITIAL_HELPDESK__ = @json($dbTickets);
+        window.__LOGO_URL__ = @json(asset('images/logo_jadisatu.png'));
+        @php
+            $logoPath = public_path('images/logo_jadisatu.png');
+            $logoData = file_exists($logoPath) ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath)) : '';
+        @endphp
+        window.__LOGO_BASE64__ = @json($logoData);
+        @if(session('success'))
+            window.__FLASH_SUCCESS__ = @json(session('success'));
+        @endif
+        @if(session('error'))
+            window.__FLASH_ERROR__ = @json(session('error'));
+        @endif
+        @if($errors->any())
+            window.__FLASH_ERROR__ = @json($errors->first());
+        @endif
     </script>
 
     <style>

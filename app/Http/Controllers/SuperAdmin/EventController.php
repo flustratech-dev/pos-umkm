@@ -4,6 +4,7 @@ namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CreateEventRequest;
+use App\Http\Requests\UpdateEventRequest;
 use App\Models\Event;
 use App\Services\EventService;
 use Exception;
@@ -66,6 +67,57 @@ class EventController extends Controller
             }
 
             return redirect()->route('superadmin.events.index')->with('success', "Event '{$event->name}' sekarang aktif!");
+        } catch (Exception $e) {
+            if (request()->expectsJson() || request()->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $e->getMessage(),
+                ], 422);
+            }
+
+            return redirect()->back()->with('error', $e->getMessage());
+        }
+    }
+
+    public function update(UpdateEventRequest $request, Event $event): JsonResponse|RedirectResponse
+    {
+        try {
+            $event = $this->eventService->updateEvent($event, $request->validated());
+
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => "Event '{$event->name}' berhasil diupdate!",
+                    'event' => $event,
+                ]);
+            }
+
+            return redirect()->route('superadmin.events.index')->with('success', "Event '{$event->name}' berhasil diupdate!");
+        } catch (Exception $e) {
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $e->getMessage(),
+                ], 422);
+            }
+
+            return redirect()->back()->with('error', $e->getMessage());
+        }
+    }
+
+    public function destroy(Event $event): JsonResponse|RedirectResponse
+    {
+        try {
+            $this->eventService->deleteEvent($event);
+
+            if (request()->expectsJson() || request()->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => "Event berhasil dihapus!",
+                ]);
+            }
+
+            return redirect()->route('superadmin.events.index')->with('success', "Event berhasil dihapus!");
         } catch (Exception $e) {
             if (request()->expectsJson() || request()->ajax()) {
                 return response()->json([

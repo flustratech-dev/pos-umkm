@@ -89,11 +89,25 @@
         }
     </style>
 </head>
-<body>
+    @php
+        $logoPath = public_path('images/logo_jadisatu.png');
+        $logoBase64 = file_exists($logoPath) ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath)) : '';
+    @endphp
     <div class="header">
-        <div class="title">{{ $store->name }}</div>
-        <div class="subtitle">{{ $activeEvent?->name ?: 'Bazar UMKM' }} | {{ $store->booth_number ?: 'Stand Tenant' }}</div>
-        <div class="subtitle">Pemilik: {{ $user->name }} ({{ $user->phone ?: '-' }})</div>
+        <table style="width: 100%; border: none; margin-bottom: 4px;">
+            <tr>
+                @if($logoBase64)
+                    <td style="width: 55px; border: none; text-align: left; vertical-align: middle; padding: 0;">
+                        <img src="{{ $logoBase64 }}" style="height: 48px; width: auto; object-fit: contain;">
+                    </td>
+                @endif
+                <td style="border: none; text-align: {{ $logoBase64 ? 'left' : 'center' }}; vertical-align: middle; padding: 0 0 0 10px;">
+                    <div class="title" style="margin: 0; font-size: 15px;">LAPORAN PENJUALAN & BAGI HASIL STAND</div>
+                    <div class="subtitle" style="font-weight: bold; color: #0f1419; font-size: 11px;">{{ $store->name }} ({{ $store->booth_number ?: 'Stand Tenant' }}) &bull; {{ $activeEvent?->name ?: 'Bazar UMKM' }}</div>
+                    <div class="subtitle">Pemilik: {{ $user->name }} ({{ $user->phone ?: '-' }}) &bull; JADISATU Event System</div>
+                </td>
+            </tr>
+        </table>
     </div>
 
     <table class="kpi-cards">
@@ -159,7 +173,7 @@
     </table>
 
     <div class="footer">
-        Dicetak otomatis pada: {{ now()->format('d/m/Y H:i:s') }} | POS Kasir UMKM Event
+        Dicetak otomatis pada: {{ now()->format('d/m/Y H:i:s') }} | JADISATU Event System
     </div>
 </body>
 </html>

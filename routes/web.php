@@ -39,6 +39,11 @@ Route::get('/register', [AuthController::class, 'showRegister'])->name('register
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
+// Global Authenticated Routes
+Route::middleware(['auth'])->group(function () {
+    Route::get('/profile', [\App\Http\Controllers\ProfileController::class, 'edit'])->name('profile.edit');
+    Route::put('/profile', [\App\Http\Controllers\ProfileController::class, 'update'])->name('profile.update');
+});
 // Shared Receipts / Public Print Routes
 Route::get('/receipt/{transaction}', [ReceiptController::class, 'show'])->name('receipt.show');
 Route::get('/receipt/{transaction}/print', [ReceiptController::class, 'print'])->name('receipt.print');
@@ -51,7 +56,7 @@ Route::prefix('user')->name('user.')->middleware(['auth', 'role:user'])->group(f
 
     Route::get('/produk', [UserProductController::class, 'index'])->name('produk');
     Route::post('/produk', [UserProductController::class, 'store'])->name('produk.store');
-    Route::post('/produk/{product}', [UserProductController::class, 'update'])->name('produk.update');
+    Route::match(['put', 'post'], '/produk/{product}', [UserProductController::class, 'update'])->name('produk.update');
     Route::delete('/produk/{product}', [UserProductController::class, 'destroy'])->name('produk.destroy');
 
     Route::get('/laporan', [UserReportController::class, 'index'])->name('laporan');
@@ -67,7 +72,11 @@ Route::prefix('user')->name('user.')->middleware(['auth', 'role:user'])->group(f
 // 2. Admin (EO - Event Organizer) Routes
 Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
-    Route::get('/events', [AdminEventController::class, 'index'])->name('events');
+    Route::get('/events', [AdminEventController::class, 'index'])->name('events.index');
+    Route::post('/events', [AdminEventController::class, 'store'])->name('events.store');
+    Route::match(['put', 'post'], '/events/{event}', [AdminEventController::class, 'update'])->name('events.update');
+    Route::delete('/events/{event}', [AdminEventController::class, 'destroy'])->name('events.destroy');
+    Route::post('/events/{event}/activate', [AdminEventController::class, 'activate'])->name('events.activate');
 
     Route::get('/verifikasi-qris', [AdminQrisVerificationController::class, 'index'])->name('verifikasi-qris.index');
     Route::post('/verifikasi-qris/{transaction}/approve', [AdminQrisVerificationController::class, 'approve'])->name('verifikasi-qris.approve');
@@ -95,6 +104,8 @@ Route::prefix('superadmin')->name('superadmin.')->middleware(['auth', 'role:supe
 
     Route::get('/events', [SuperAdminEventController::class, 'index'])->name('events.index');
     Route::post('/events', [SuperAdminEventController::class, 'store'])->name('events.store');
+    Route::match(['put', 'post'], '/events/{event}', [SuperAdminEventController::class, 'update'])->name('events.update');
+    Route::delete('/events/{event}', [SuperAdminEventController::class, 'destroy'])->name('events.destroy');
     Route::post('/events/{event}/activate', [SuperAdminEventController::class, 'activate'])->name('events.activate');
 
     Route::get('/laporan', [SuperAdminPlatformReportController::class, 'index'])->name('laporan');

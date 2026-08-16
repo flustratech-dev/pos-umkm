@@ -6,6 +6,7 @@
 <div x-data="{
     name: '',
     username: '',
+    email: '',
     store_name: '',
     phone: '',
     password: '',
@@ -25,6 +26,7 @@
     get isFormValid() {
         return this.name.trim() && 
                this.username.trim() && 
+               this.email.trim() &&
                this.store_name.trim() && 
                this.phone.trim() && 
                this.password.length >= 8 && 
@@ -42,7 +44,6 @@
 
         try {
             const token = document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || '';
-            const emailGenerated = `${this.username.trim()}@umkm.id`;
 
             const res = await fetch('/register', {
                 method: 'POST',
@@ -55,7 +56,7 @@
                     name: this.name.trim(),
                     store_name: this.store_name.trim(),
                     username: this.username.trim(),
-                    email: emailGenerated,
+                    email: this.email.trim(),
                     phone: this.phone.trim(),
                     password: this.password,
                     password_confirmation: this.password_confirmation
@@ -103,33 +104,33 @@
                     x-model="name" 
                     required 
                     class="w-full px-3 py-2 bg-[#f7f9f9] border border-[#eff3f4] rounded-xl text-xs text-[#0f1419] placeholder-[#536471] focus:outline-none focus:ring-2 focus:ring-[#1d9bf0] focus:bg-white transition-all font-semibold"
-                    placeholder="Contoh: Siti Rahmawati"
+                    placeholder="Nama Lengkap"
                 >
             </div>
             <div>
-                <label for="username" class="block text-xs font-bold text-[#0f1419] mb-1">Username Kasir</label>
+                <label for="username" class="block text-xs font-bold text-[#0f1419] mb-1">Username (Tanpa Spasi)</label>
                 <input 
                     id="username" 
                     type="text" 
                     x-model="username" 
                     required 
                     class="w-full px-3 py-2 bg-[#f7f9f9] border border-[#eff3f4] rounded-xl text-xs text-[#0f1419] placeholder-[#536471] focus:outline-none focus:ring-2 focus:ring-[#1d9bf0] focus:bg-white transition-all font-semibold"
-                    placeholder="sitirahma123"
+                    placeholder="Username"
                 >
             </div>
         </div>
 
-        <!-- Nama Toko & Nomor HP/WA -->
+        <!-- Alamat Email & Nomor WhatsApp (2 Columns on SM) -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-                <label for="store_name" class="block text-xs font-bold text-[#0f1419] mb-1">Nama Toko / Warung</label>
+                <label for="email" class="block text-xs font-bold text-[#0f1419] mb-1">Alamat Email</label>
                 <input 
-                    id="store_name" 
-                    type="text" 
-                    x-model="store_name" 
+                    id="email" 
+                    type="email" 
+                    x-model="email" 
                     required 
                     class="w-full px-3 py-2 bg-[#f7f9f9] border border-[#eff3f4] rounded-xl text-xs text-[#0f1419] placeholder-[#536471] focus:outline-none focus:ring-2 focus:ring-[#1d9bf0] focus:bg-white transition-all font-semibold"
-                    placeholder="Warung Nasi & Kopi"
+                    placeholder="nama@email.com"
                 >
             </div>
             <div>
@@ -140,73 +141,89 @@
                     x-model="phone" 
                     required 
                     class="w-full px-3 py-2 bg-[#f7f9f9] border border-[#eff3f4] rounded-xl text-xs text-[#0f1419] placeholder-[#536471] focus:outline-none focus:ring-2 focus:ring-[#1d9bf0] focus:bg-white transition-all font-semibold"
-                    placeholder="081234567890"
+                    placeholder="Nomor WhatsApp"
                 >
             </div>
         </div>
 
-        <!-- Kata Sandi -->
+        <!-- Nama Toko / Warung -->
         <div>
-            <label for="reg-password" class="block text-xs font-bold text-[#0f1419] mb-1">Kata Sandi</label>
+            <label for="store_name" class="block text-xs font-bold text-[#0f1419] mb-1">Nama Toko / Warung</label>
             <input 
-                id="reg-password" 
-                type="password" 
-                x-model="password" 
+                id="store_name" 
+                type="text" 
+                x-model="store_name" 
                 required 
                 class="w-full px-3 py-2 bg-[#f7f9f9] border border-[#eff3f4] rounded-xl text-xs text-[#0f1419] placeholder-[#536471] focus:outline-none focus:ring-2 focus:ring-[#1d9bf0] focus:bg-white transition-all font-semibold"
-                placeholder="Minimal 8 karakter..."
+                placeholder="Nama Toko"
             >
-            
-            <!-- LIVE PASSWORD STRENGTH METER (Twitter UI Style) -->
-            <div class="mt-2 p-3 bg-[#f7f9f9] rounded-2xl border border-[#eff3f4] space-y-1.5" x-show="password.length > 0" x-transition>
-                <div class="flex items-center justify-between text-[11px]">
-                    <span class="text-[#536471] font-bold">Kekuatan Sandi:</span>
-                    <span class="font-black uppercase tracking-wider text-[#1d9bf0]" x-text="strength.label"></span>
+        </div>
+
+        <!-- Kata Sandi & Konfirmasi -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <!-- Kata Sandi -->
+            <div>
+                <label for="reg-password" class="block text-xs font-bold text-[#0f1419] mb-1">Kata Sandi</label>
+                <input 
+                    id="reg-password" 
+                    type="password" 
+                    x-model="password" 
+                    required 
+                    class="w-full px-3 py-2 bg-[#f7f9f9] border border-[#eff3f4] rounded-xl text-xs text-[#0f1419] placeholder-[#536471] focus:outline-none focus:ring-2 focus:ring-[#1d9bf0] focus:bg-white transition-all font-semibold"
+                    placeholder="Kata Sandi"
+                >
+            </div>
+
+            <!-- Konfirmasi Kata Sandi -->
+            <div>
+                <div class="flex items-center justify-between mb-1">
+                    <label for="password_confirmation" class="block text-xs font-bold text-[#0f1419]">Ulangi Kata Sandi</label>
+                    <!-- Real-time Match Indicator -->
+                    <template x-if="password_confirmation.length > 0">
+                        <span class="text-[11px] font-black" :class="isMatch ? 'text-[#1d9bf0]' : 'text-[#f4212e]'" x-text="isMatch ? '✓ Cocok' : '✗ Belum Cocok'"></span>
+                    </template>
                 </div>
-                <!-- Strength Meter Bar -->
-                <div class="w-full bg-[#eff3f4] rounded-full h-1.5 overflow-hidden">
-                    <div class="h-1.5 rounded-full transition-all duration-300 bg-[#1d9bf0]" :style="`width: ${strength.width}`"></div>
-                </div>
-                <!-- Live Checklist Indicator -->
-                <div class="grid grid-cols-2 gap-1 text-[10px] pt-1">
-                    <div class="flex items-center gap-1.5 font-bold" :class="strength.checks?.length ? 'text-[#1d9bf0]' : 'text-[#536471]'">
-                        <span>✓</span> <span>Min. 8 karakter</span>
-                    </div>
-                    <div class="flex items-center gap-1.5 font-bold" :class="strength.checks?.uppercase && strength.checks?.lowercase ? 'text-[#1d9bf0]' : 'text-[#536471]'">
-                        <span>✓</span> <span>Huruf besar & kecil</span>
-                    </div>
-                    <div class="flex items-center gap-1.5 font-bold" :class="strength.checks?.number ? 'text-[#1d9bf0]' : 'text-[#536471]'">
-                        <span>✓</span> <span>Mengandung angka</span>
-                    </div>
-                    <div class="flex items-center gap-1.5 font-bold" :class="strength.checks?.special ? 'text-[#1d9bf0]' : 'text-[#536471]'">
-                        <span>✓</span> <span>Simbol khusus (@, #, $)</span>
-                    </div>
-                </div>
+                <input 
+                    id="password_confirmation" 
+                    type="password" 
+                    x-model="password_confirmation" 
+                    required 
+                    class="w-full px-3 py-2 bg-[#f7f9f9] border rounded-xl text-xs text-[#0f1419] placeholder-[#536471] focus:outline-none focus:ring-2 focus:ring-[#1d9bf0] focus:bg-white transition-all font-semibold"
+                    :class="{
+                        'border-[#eff3f4]': isMatch === null,
+                        'border-[#1d9bf0] bg-[#e8f5fd]/30': isMatch === true,
+                        'border-[#f4212e] bg-rose-50/30': isMatch === false
+                    }"
+                    placeholder="Ulangi Kata Sandi"
+                >
             </div>
         </div>
 
-        <!-- Konfirmasi Kata Sandi -->
-        <div>
-            <div class="flex items-center justify-between mb-1">
-                <label for="password_confirmation" class="block text-xs font-bold text-[#0f1419]">Ulangi Kata Sandi</label>
-                <!-- Real-time Match Indicator -->
-                <template x-if="password_confirmation.length > 0">
-                    <span class="text-[11px] font-black" :class="isMatch ? 'text-[#1d9bf0]' : 'text-[#f4212e]'" x-text="isMatch ? '✓ Cocok' : '✗ Belum Cocok'"></span>
-                </template>
+        <!-- LIVE PASSWORD STRENGTH METER (Twitter UI Style) -->
+        <div class="mt-2 p-3 bg-[#f7f9f9] rounded-2xl border border-[#eff3f4] space-y-1.5" x-show="password.length > 0" x-transition>
+            <div class="flex items-center justify-between text-[11px]">
+                <span class="text-[#536471] font-bold">Kekuatan Sandi:</span>
+                <span class="font-black uppercase tracking-wider text-[#1d9bf0]" x-text="strength.label"></span>
             </div>
-            <input 
-                id="password_confirmation" 
-                type="password" 
-                x-model="password_confirmation" 
-                required 
-                class="w-full px-3 py-2 bg-[#f7f9f9] border rounded-xl text-xs text-[#0f1419] placeholder-[#536471] focus:outline-none focus:ring-2 focus:ring-[#1d9bf0] focus:bg-white transition-all font-semibold"
-                :class="{
-                    'border-[#eff3f4]': isMatch === null,
-                    'border-[#1d9bf0] bg-[#e8f5fd]/30': isMatch === true,
-                    'border-[#f4212e] bg-rose-50/30': isMatch === false
-                }"
-                placeholder="Ulangi kata sandi di atas..."
-            >
+            <!-- Strength Meter Bar -->
+            <div class="w-full bg-[#eff3f4] rounded-full h-1.5 overflow-hidden">
+                <div class="h-1.5 rounded-full transition-all duration-300 bg-[#1d9bf0]" :style="`width: ${strength.width}`"></div>
+            </div>
+            <!-- Live Checklist Indicator -->
+            <div class="grid grid-cols-2 gap-1 text-[10px] pt-1">
+                <div class="flex items-center gap-1.5 font-bold" :class="strength.checks?.length ? 'text-[#1d9bf0]' : 'text-[#536471]'">
+                    <span>✓</span> <span>Min. 8 karakter</span>
+                </div>
+                <div class="flex items-center gap-1.5 font-bold" :class="strength.checks?.uppercase && strength.checks?.lowercase ? 'text-[#1d9bf0]' : 'text-[#536471]'">
+                    <span>✓</span> <span>Huruf besar & kecil</span>
+                </div>
+                <div class="flex items-center gap-1.5 font-bold" :class="strength.checks?.number ? 'text-[#1d9bf0]' : 'text-[#536471]'">
+                    <span>✓</span> <span>Mengandung angka</span>
+                </div>
+                <div class="flex items-center gap-1.5 font-bold" :class="strength.checks?.special ? 'text-[#1d9bf0]' : 'text-[#536471]'">
+                    <span>✓</span> <span>Simbol khusus (@, #, $)</span>
+                </div>
+            </div>
         </div>
 
         <!-- Agreement Terms -->

@@ -78,31 +78,27 @@
         </div>
     </div>
 
-    <!-- Product Grid / Mobile Horizontal Cards (Kanan-Kiri, Twitter UI) -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
+    <!-- Product Grid (2 Cards Side-by-Side on Mobile & Desktop Grid) -->
+    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5 sm:gap-3.5">
         <template x-for="product in allProducts" :key="product.id">
-            <div class="bg-white rounded-2xl sm:rounded-3xl border border-[#eff3f4] overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-row sm:flex-col justify-between group p-3 sm:p-0 gap-3 sm:gap-0">
-                <!-- Thumbnail (Kiri di Mobile, Atas di Desktop) -->
-                <div class="relative w-24 h-24 sm:w-full sm:h-40 bg-[#f7f9f9] rounded-xl sm:rounded-none overflow-hidden shrink-0">
-                    <img :src="product.photo" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
-                    <span class="hidden sm:inline-block absolute top-3 left-3 px-3 py-1 rounded-full text-[10px] font-black bg-[#1d9bf0] text-white shadow-xs" x-text="product.category"></span>
+            <div class="bg-white rounded-2xl border border-[#eff3f4] overflow-hidden shadow-2xs hover:shadow-md transition-all flex flex-col justify-between group p-2.5 sm:p-3">
+                <!-- Thumbnail -->
+                <div>
+                    <div class="relative w-full h-28 sm:h-36 bg-[#f7f9f9] rounded-xl overflow-hidden mb-2">
+                        <img :src="$store.app.getProductPhoto(product.photo)" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
+                        <span class="absolute top-1.5 right-1.5 px-2 py-0.5 rounded-full text-[9px] font-black bg-[#1d9bf0] text-white shadow-xs" x-text="product.category"></span>
+                    </div>
+
+                    <!-- Product Details -->
+                    <div>
+                        <span class="text-[9px] font-black text-[#1d9bf0] uppercase tracking-wider truncate block" x-text="getStoreName(product.store_id)"></span>
+                        <h4 class="font-black text-[#0f1419] text-xs sm:text-sm mt-0.5 leading-tight truncate group-hover:text-[#1d9bf0] transition-colors" x-text="product.title"></h4>
+                        <p class="text-[10px] text-[#536471] mt-0.5 line-clamp-1 font-medium" x-text="product.description || 'Menu pilihan stand event'"></p>
+                    </div>
                 </div>
 
-                <!-- Product Details (Kanan di Mobile, Bawah di Desktop) -->
-                <div class="flex-1 min-w-0 flex flex-col justify-between sm:p-4">
-                    <div>
-                        <div class="flex items-center gap-1.5 mb-1 sm:mb-0">
-                            <span class="text-[10px] font-black text-[#1d9bf0] uppercase tracking-wider truncate" x-text="getStoreName(product.store_id)"></span>
-                            <span class="sm:hidden text-[9px] px-2 py-0.5 rounded-full bg-[#f7f9f9] text-[#0f1419] font-bold border border-[#eff3f4]" x-text="product.category"></span>
-                        </div>
-                        <h4 class="font-black text-[#0f1419] text-xs sm:text-sm mt-0.5 line-clamp-1" x-text="product.title"></h4>
-                        <p class="text-[11px] sm:text-xs text-[#536471] mt-0.5 line-clamp-1 sm:line-clamp-2 font-medium" x-text="product.description || 'Menu pilihan stand event'"></p>
-                    </div>
-
-                    <div class="pt-2 sm:pt-4 sm:mt-2 sm:border-t sm:border-[#eff3f4] flex items-center justify-between">
-                        <span class="text-[10px] text-[#536471] font-semibold hidden sm:inline">Harga:</span>
-                        <span class="text-xs sm:text-sm font-black text-[#0f1419]" x-text="formatRupiah(product.price)"></span>
-                    </div>
+                <div class="pt-2 mt-2 border-t border-[#eff3f4] flex items-center justify-between">
+                    <span class="text-xs sm:text-sm font-black text-[#0f1419]" x-text="formatRupiah(product.price)"></span>
                 </div>
             </div>
         </template>

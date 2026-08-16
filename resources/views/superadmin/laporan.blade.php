@@ -29,17 +29,44 @@
                 <span class="text-xs text-[#0f1419] font-semibold">Flat Fee Rp1.000 / Tx</span>
             </div>
             <h2 class="text-xl sm:text-2xl font-black text-[#0f1419] tracking-tight mt-1">Laporan Fee Super Admin</h2>
-            <p class="text-xs sm:text-sm text-[#0f1419] font-medium mt-0.5">Rekapitulasi pendapatan lisensi sistem POS UMKM berbasis potongan tetap Rp1.000 per transaksi paid</p>
+            <p class="text-xs sm:text-sm text-[#0f1419] font-medium mt-0.5">Rekapitulasi pendapatan lisensi sistem JADISATU berbasis potongan tetap Rp1.000 per transaksi paid</p>
         </div>
 
-        <button 
-            @click="window.print()"
-            type="button" 
-            class="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white text-xs sm:text-sm font-black shadow-md shadow-[#1d9bf0]/25 transition-all cursor-pointer active:scale-95"
-        >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
-            <span>Cetak Rekap Super Admin</span>
-        </button>
+        <!-- Export Action Buttons (PDF, Word, Excel) -->
+        <div class="flex flex-wrap items-center gap-2">
+            <!-- PDF Export Button -->
+            <button 
+                @click="$store.app.printSuperAdminReport(reportTransactions)"
+                type="button" 
+                class="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full bg-[#0f1419] hover:bg-[#272c30] text-white text-xs font-black shadow-xs transition-all cursor-pointer active:scale-95"
+                title="Cetak Rekap atau Simpan PDF (Hitam Putih)"
+            >
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                <span>PDF / Cetak</span>
+            </button>
+
+            <!-- Word Export Button -->
+            <button 
+                @click="$store.app.exportSuperAdminReportWord(reportTransactions)"
+                type="button" 
+                class="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white text-xs font-black shadow-xs transition-all cursor-pointer active:scale-95"
+                title="Unduh Dokumen Word (.doc) Lengkap dengan TTD"
+            >
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                <span>Word (.doc)</span>
+            </button>
+
+            <!-- Excel Export Button -->
+            <button 
+                @click="$store.app.exportSuperAdminReportExcel(reportTransactions)"
+                type="button" 
+                class="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full bg-[#00ba7c] hover:bg-[#00a36d] text-white text-xs font-black shadow-xs transition-all cursor-pointer active:scale-95"
+                title="Unduh Rekap Spreadsheet Excel (.xls)"
+            >
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                <span>Excel (.xls)</span>
+            </button>
+        </div>
     </div>
 
     <!-- KPI Metric Cards (Twitter Blue Accents & Crisp Black Font) -->

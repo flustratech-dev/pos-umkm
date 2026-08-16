@@ -4,60 +4,86 @@
         <!-- Left: Brand & Active Event Pill -->
         <div class="flex items-center gap-3">
             <a href="/" class="flex items-center gap-2.5 lg:hidden">
-                <div class="w-8 h-8 rounded-full bg-[#1d9bf0] flex items-center justify-center text-white font-black text-base shadow-sm shadow-[#1d9bf0]/20">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                <div class="w-8 h-8 rounded-xl overflow-hidden shrink-0 flex items-center justify-center shadow-xs bg-white border border-[#eff3f4]">
+                    <img src="{{ asset('images/logo_jadisatu.png') }}" alt="Logo JADISATU" class="w-full h-full object-contain p-0.5">
                 </div>
-                <span class="font-black text-[#0f1419] tracking-tight text-sm">POS UMKM</span>
+                <div class="flex flex-col">
+                    <span class="font-black text-[#0f1419] tracking-tight text-sm leading-none">Kasir</span>
+                    <span class="text-[10px] text-[#536471] font-bold">JADISATU</span>
+                </div>
             </a>
 
-            <!-- Active Event Badge -->
-            @php
-                $activeEvent = \App\Models\Event::getActive();
-            @endphp
-            <div class="hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#f7f9f9] border border-[#eff3f4] text-xs text-[#0f1419]">
-                <span class="w-2 h-2 rounded-full {{ $activeEvent ? 'bg-[#1d9bf0] animate-pulse' : 'bg-slate-400' }}"></span>
-                <span class="font-bold text-[#536471]">Event:</span>
-                <span class="font-black text-[#0f1419] truncate max-w-[260px]">{{ $activeEvent ? $activeEvent->name : 'Tidak Ada Event Aktif' }}</span>
-                @if($activeEvent)
-                    <svg class="w-3.5 h-3.5 text-[#1d9bf0]" fill="currentColor" viewBox="0 0 24 24"><path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.79-4-4-4-.495 0-.965.084-1.4.238C14.55 2.475 13.18 1.6 11.6 1.6c-1.58 0-2.95.875-3.6 2.148-.435-.154-.905-.238-1.4-.238-2.21 0-4 1.79-4 4 0 .495.084.965.238 1.4C1.575 9.55.7 10.92.7 12.5c0 1.58.875 2.95 2.148 3.6-.154.435-.238.905-.238 1.4 0 2.21 1.79 4 4 4 .495 0 .965-.084 1.4-.238.65 1.273 2.02 2.148 3.6 2.148 1.58 0 2.95-.875 3.6-2.148.435.154.905.238 1.4.238 2.21 0 4-1.79 4-4 0-.495-.084-.965-.238-1.4 1.273-.65 2.148-2.02 2.148-3.6zm-12.28 4.22l-4.22-4.22 1.414-1.414 2.806 2.806 6.806-6.806 1.414 1.414-8.22 8.22z"></path></svg>
-                @endif
-            </div>
         </div>
 
         <!-- Right: Authenticated User Profile & Logout -->
         <div class="flex items-center gap-3">
             @auth
-                <!-- User Info Badge -->
-                <div class="flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-[#f7f9f9] border border-[#eff3f4]">
-                    <div class="w-7 h-7 rounded-full bg-[#1d9bf0] text-white flex items-center justify-center font-black text-xs shadow-xs">
-                        {{ strtoupper(substr(auth()->user()->name, 0, 1)) }}
-                    </div>
-                    <div class="text-left hidden sm:block">
-                        <p class="text-xs font-black text-[#0f1419] leading-tight">{{ auth()->user()->name }}</p>
-                        <p class="text-[10px] text-[#536471] font-bold leading-tight">
-                            @if(auth()->user()->isSuperAdmin())
-                                👑 Super Admin Platform
-                            @elseif(auth()->user()->isAdmin())
-                                🛡️ Panitia Admin EO
-                            @else
-                                🛒 {{ auth()->user()->store->name ?? 'Kasir Stand' }}
-                            @endif
-                        </p>
+                <!-- User Dropdown Menu -->
+                <div x-data="{ openDropdown: false }" class="relative">
+                    <button 
+                        @click="openDropdown = !openDropdown"
+                        @click.outside="openDropdown = false"
+                        class="w-9 h-9 rounded-full bg-[#1d9bf0] text-white flex items-center justify-center font-black text-sm shadow-xs hover:ring-2 hover:ring-offset-2 hover:ring-[#1d9bf0] transition-all cursor-pointer overflow-hidden border-2 border-transparent hover:border-white"
+                        title="Menu Pengguna"
+                    >
+                        @if(auth()->user()->avatar)
+                            <img src="{{ asset('storage/' . auth()->user()->avatar) }}" alt="Avatar" class="w-full h-full object-cover">
+                        @else
+                            {{ strtoupper(substr(auth()->user()->name, 0, 1)) }}
+                        @endif
+                    </button>
+
+                    <!-- Dropdown -->
+                    <div 
+                        x-show="openDropdown"
+                        x-cloak
+                        x-transition:enter="transition ease-out duration-100"
+                        x-transition:enter-start="transform opacity-0 scale-95"
+                        x-transition:enter-end="transform opacity-100 scale-100"
+                        x-transition:leave="transition ease-in duration-75"
+                        x-transition:leave-start="transform opacity-100 scale-100"
+                        x-transition:leave-end="transform opacity-0 scale-95"
+                        class="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-[#eff3f4] py-1 z-50 overflow-hidden"
+                    >
+                        <!-- User Info Snippet -->
+                        <div class="px-4 py-3 border-b border-[#eff3f4] mb-1 flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-[#1d9bf0] text-white flex items-center justify-center font-black text-sm shrink-0 overflow-hidden">
+                                @if(auth()->user()->avatar)
+                                    <img src="{{ asset('storage/' . auth()->user()->avatar) }}" alt="Avatar" class="w-full h-full object-cover">
+                                @else
+                                    {{ strtoupper(substr(auth()->user()->name, 0, 1)) }}
+                                @endif
+                            </div>
+                            <div class="truncate">
+                                <p class="text-sm font-black text-[#0f1419] truncate">{{ auth()->user()->name }}</p>
+                                <p class="text-[10px] text-[#536471] font-bold truncate mt-0.5">
+                                    @if(auth()->user()->isSuperAdmin())
+                                        👑 Super Admin
+                                    @elseif(auth()->user()->isAdmin())
+                                        🛡️ Admin EO
+                                    @else
+                                        🛒 {{ auth()->user()->store->name ?? 'Kasir Stand' }}
+                                    @endif
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Profil Link -->
+                        <a href="{{ route('profile.edit') }}" class="flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-[#0f1419] hover:bg-[#f7f9f9] transition-colors">
+                            <svg class="w-4 h-4 text-[#536471]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                            Profil
+                        </a>
+
+                        <!-- Logout Form -->
+                        <form action="{{ route('logout') }}" method="POST" class="block w-full border-t border-[#eff3f4] mt-1">
+                            @csrf
+                            <button type="submit" class="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-[#f4212e] hover:bg-[#fff3f4] transition-colors text-left cursor-pointer">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                                Keluar
+                            </button>
+                        </form>
                     </div>
                 </div>
-
-                <!-- Secure Logout Form -->
-                <form action="{{ route('logout') }}" method="POST" class="inline">
-                    @csrf
-                    <button 
-                        type="submit" 
-                        class="px-3.5 py-1.5 rounded-full bg-[#eff3f4] hover:bg-rose-50 text-[#536471] hover:text-[#f4212e] text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer"
-                        title="Keluar dari akun"
-                    >
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
-                        <span class="hidden md:inline">Keluar</span>
-                    </button>
-                </form>
             @endauth
         </div>
     </div>
