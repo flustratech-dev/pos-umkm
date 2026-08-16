@@ -10,10 +10,11 @@
     selectedMethod: 'all',
 
     get filteredTransactions() {
-        return $store.app.transactions.filter(t => {
-            const matchesSearch = t.invoice_code.toLowerCase().includes(this.searchQuery.toLowerCase()) || 
-                                  t.store_name.toLowerCase().includes(this.searchQuery.toLowerCase());
-            const matchesStore = this.selectedStoreId === 'all' || t.store_id === parseInt(this.selectedStoreId);
+        const txs = this.$store?.app?.transactions || [];
+        return txs.filter(t => {
+            const matchesSearch = (t.invoice_code || '').toLowerCase().includes(this.searchQuery.toLowerCase()) || 
+                                  (t.store_name || '').toLowerCase().includes(this.searchQuery.toLowerCase());
+            const matchesStore = this.selectedStoreId === 'all' || t.store_id == this.selectedStoreId;
             const matchesStatus = this.selectedStatus === 'all' || t.status === this.selectedStatus;
             const matchesMethod = this.selectedMethod === 'all' || t.payment_method === this.selectedMethod;
             return matchesSearch && matchesStore && matchesStatus && matchesMethod;
@@ -21,7 +22,16 @@
     },
 
     get stats() {
-        return $store.app.getAdminReportStats();
+        return this.$store?.app?.getAdminReportStats?.() || {
+            totalGross: 0,
+            ownerTotal: 0,
+            adminGross: 0,
+            adminNet: 0,
+            superadminTotal: 0,
+            paidCount: 0,
+            cashCount: 0,
+            qrisCount: 0
+        };
     },
 
     proofModalOpen: false,
@@ -35,14 +45,41 @@
             <p class="text-xs sm:text-sm text-[#0f1419] font-medium mt-0.5" x-text="`Rekapitulasi seluruh tenant ${$store.app.getActiveEvent()?.name}`"></p>
         </div>
 
-        <button 
-            @click="window.print()"
-            type="button" 
-            class="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white text-xs sm:text-sm font-black shadow-md shadow-[#1d9bf0]/25 transition-all cursor-pointer active:scale-95"
-        >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
-            <span>Ekspor PDF Laporan EO</span>
-        </button>
+        <!-- Export Action Buttons (PDF, Word, Excel) -->
+        <div class="flex flex-wrap items-center gap-2">
+            <!-- PDF Export Button -->
+            <button 
+                @click="$store.app.printAdminReport(filteredTransactions)"
+                type="button" 
+                class="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full bg-[#0f1419] hover:bg-[#272c30] text-white text-xs font-black shadow-xs transition-all cursor-pointer active:scale-95"
+                title="Cetak Dokumen atau Simpan PDF Resmi (Hitam Putih)"
+            >
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                <span>PDF / Cetak</span>
+            </button>
+
+            <!-- Word Export Button -->
+            <button 
+                @click="$store.app.exportAdminReportWord(filteredTransactions)"
+                type="button" 
+                class="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white text-xs font-black shadow-xs transition-all cursor-pointer active:scale-95"
+                title="Unduh Dokumen Word (.doc) Lengkap dengan Kolom TTD"
+            >
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                <span>Word (.doc)</span>
+            </button>
+
+            <!-- Excel Export Button -->
+            <button 
+                @click="$store.app.exportAdminReportExcel(filteredTransactions)"
+                type="button" 
+                class="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full bg-[#00ba7c] hover:bg-[#00a36d] text-white text-xs font-black shadow-xs transition-all cursor-pointer active:scale-95"
+                title="Unduh Rekap Spreadsheet Excel (.xls)"
+            >
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                <span>Excel (.xls)</span>
+            </button>
+        </div>
     </div>
 
     <!-- 4-Tier Revenue Summary Cards (Twitter Blue Accents & Crisp Black Font) -->
@@ -68,12 +105,103 @@
             <p class="text-[11px] text-white/90 mt-2 font-medium">Gross 25% - Rp1.000 platform</p>
         </div>
 
-        <!-- 4. Super Admin Platform Fee -->
+        <!-- 4. Developer Platform Fee -->
         <div class="bg-white rounded-3xl p-5 border border-[#eff3f4] shadow-xs">
-            <span class="text-xs font-bold text-[#0f1419] uppercase tracking-wider block">Platform Fee Superadmin</span>
+            <span class="text-xs font-bold text-[#0f1419] uppercase tracking-wider block">Fee Developer</span>
             <h3 class="text-xl font-black text-[#0f1419] mt-1" x-text="formatRupiah(stats.superadminTotal)"></h3>
             <p class="text-[11px] text-[#536471] mt-2 font-medium">Rp1.000 × transaksi paid</p>
         </div>
+    </div>
+
+    <!-- SETTLEMENT / SERAH-TERIMA SECTION -->
+    <div class="bg-white rounded-3xl border border-[#eff3f4] shadow-xs overflow-hidden">
+        <div class="p-5 pb-4 border-b border-[#eff3f4]">
+            <div class="flex items-center gap-2.5">
+                <div class="w-9 h-9 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
+                </div>
+                <div>
+                    <h3 class="text-sm font-black text-[#0f1419]">Rekap Settlement per Warung</h3>
+                    <p class="text-[11px] text-[#536471] font-medium">Berapa yang harus admin transfer ke tiap warung setelah offset Cash vs QRIS</p>
+                </div>
+            </div>
+
+            <!-- Global Settlement Summary -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mt-4">
+                <div class="bg-[#f7f9f9] rounded-2xl p-3 text-center">
+                    <span class="text-[10px] font-bold text-[#536471] uppercase block">💵 Total Cash</span>
+                    <span class="text-sm font-black text-[#0f1419] mt-0.5 block" x-text="formatRupiah(stats.totalCash)"></span>
+                    <span class="text-[10px] text-[#536471] font-medium block">Dipegang warung</span>
+                </div>
+                <div class="bg-[#f7f9f9] rounded-2xl p-3 text-center">
+                    <span class="text-[10px] font-bold text-[#536471] uppercase block">📱 Total QRIS</span>
+                    <span class="text-sm font-black text-[#1d9bf0] mt-0.5 block" x-text="formatRupiah(stats.totalQris)"></span>
+                    <span class="text-[10px] text-[#536471] font-medium block">Dipegang admin</span>
+                </div>
+                <div class="bg-[#f7f9f9] rounded-2xl p-3 text-center">
+                    <span class="text-[10px] font-bold text-[#536471] uppercase block">Hak Admin di Cash</span>
+                    <span class="text-sm font-black text-[#0f1419] mt-0.5 block" x-text="formatRupiah(stats.cashHakAdmin)"></span>
+                    <span class="text-[10px] text-[#536471] font-medium block">25% dari cash</span>
+                </div>
+                <div class="rounded-2xl p-3 text-center" :class="stats.netSettlement >= 0 ? 'bg-emerald-50 border border-emerald-200' : 'bg-amber-50 border border-amber-200'">
+                    <span class="text-[10px] font-bold uppercase block" :class="stats.netSettlement >= 0 ? 'text-emerald-600' : 'text-amber-600'" x-text="stats.netSettlement >= 0 ? '🔄 Admin → Warung' : '🔄 Warung → Admin'"></span>
+                    <span class="text-sm font-black mt-0.5 block" :class="stats.netSettlement >= 0 ? 'text-emerald-700' : 'text-amber-700'" x-text="formatRupiah(Math.abs(stats.netSettlement))"></span>
+                    <span class="text-[10px] font-medium block" :class="stats.netSettlement >= 0 ? 'text-emerald-500' : 'text-amber-500'" x-text="stats.netSettlement >= 0 ? 'Total transfer ke warung' : 'Total warung setor ke admin'"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Per-Store Settlement Table -->
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs text-[#0f1419]">
+                <thead class="bg-[#f7f9f9] border-b border-[#eff3f4] text-[10px] uppercase font-black text-[#0f1419] tracking-wider">
+                    <tr>
+                        <th class="px-4 py-3">Warung</th>
+                        <th class="px-4 py-3 text-right">Omzet</th>
+                        <th class="px-4 py-3 text-right">💵 Cash</th>
+                        <th class="px-4 py-3 text-right">📱 QRIS</th>
+                        <th class="px-4 py-3 text-right">Hak Warung (75%)</th>
+                        <th class="px-4 py-3 text-right">Hak EO (25%)</th>
+                        <th class="px-4 py-3 text-center">Serah Terima</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-[#eff3f4] font-medium">
+                    <template x-for="s in $store.app.getSettlementPerStore()" :key="s.store_id">
+                        <tr class="hover:bg-[#f7f9f9] transition-colors">
+                            <td class="px-4 py-3">
+                                <span class="font-black text-[#0f1419]" x-text="s.store_name"></span>
+                                <span class="text-[10px] text-[#536471] block" x-text="`${s.txCount} transaksi`"></span>
+                            </td>
+                            <td class="px-4 py-3 text-right font-black" x-text="formatRupiah(s.totalGross)"></td>
+                            <td class="px-4 py-3 text-right" x-text="formatRupiah(s.totalCash)"></td>
+                            <td class="px-4 py-3 text-right text-[#1d9bf0] font-bold" x-text="formatRupiah(s.totalQris)"></td>
+                            <td class="px-4 py-3 text-right text-[#1d9bf0] font-black" x-text="formatRupiah(s.hakWarung)"></td>
+                            <td class="px-4 py-3 text-right font-black" x-text="formatRupiah(s.hakAdmin)"></td>
+                            <td class="px-4 py-3 text-center">
+                                <div x-show="s.netSettlement > 0" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200">
+                                    <span class="text-[10px] font-bold text-emerald-600">Admin bayar</span>
+                                    <span class="text-[10px] font-black text-emerald-700" x-text="formatRupiah(s.netSettlement)"></span>
+                                </div>
+                                <div x-show="s.netSettlement < 0" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200">
+                                    <span class="text-[10px] font-bold text-amber-600">Warung setor</span>
+                                    <span class="text-[10px] font-black text-amber-700" x-text="formatRupiah(Math.abs(s.netSettlement))"></span>
+                                </div>
+                                <div x-show="s.netSettlement === 0" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100">
+                                    <span class="text-[10px] font-bold text-slate-500">Lunas</span>
+                                </div>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Empty State -->
+        <template x-if="$store.app.getSettlementPerStore().length === 0">
+            <div class="p-8 text-center">
+                <p class="text-xs text-[#536471] font-semibold">Belum ada transaksi paid untuk dihitung</p>
+            </div>
+        </template>
     </div>
 
     <!-- Filter Bar (Twitter UI) -->
@@ -102,6 +230,16 @@
                 </template>
             </select>
 
+            <!-- Filter Metode -->
+            <select 
+                x-model="selectedMethod" 
+                class="px-4 py-2 bg-[#f7f9f9] border border-[#eff3f4] rounded-full text-xs font-black text-[#0f1419] focus:ring-2 focus:ring-[#1d9bf0] focus:outline-none cursor-pointer"
+            >
+                <option value="all">Semua Metode</option>
+                <option value="cash">💵 Cash</option>
+                <option value="qris">📱 QRIS</option>
+            </select>
+
             <!-- Filter Status -->
             <select 
                 x-model="selectedStatus" 
@@ -128,7 +266,7 @@
                         <th class="px-3.5 py-3.5">Total Belanja</th>
                         <th class="px-3.5 py-3.5 text-[#1d9bf0]">Warung (75%)</th>
                         <th class="px-3.5 py-3.5 text-[#1d9bf0]">EO Gross (25%)</th>
-                        <th class="px-3.5 py-3.5">Fee Superadmin</th>
+                        <th class="px-3.5 py-3.5">Fee Developer</th>
                         <th class="px-3.5 py-3.5 text-[#0f1419] font-black">EO Net</th>
                         <th class="px-3.5 py-3.5">Status</th>
                         <th class="px-3.5 py-3.5 text-center">Aksi / Cancel</th>
@@ -170,9 +308,9 @@
                             <td class="px-3.5 py-3 text-center">
                                 <div class="flex items-center justify-center gap-1.5">
                                     <!-- QRIS Proof Button -->
-                                    <template x-if="tx.payment_method === 'qris' && tx.proof_image">
+                                    <template x-if="tx.payment_method === 'qris' && (tx.proof_image || tx.payment_proof)">
                                         <button 
-                                            @click="selectedProofUrl = tx.proof_image; proofModalOpen = true"
+                                            @click="selectedProofUrl = tx.proof_image || tx.payment_proof; proofModalOpen = true"
                                             type="button" 
                                             class="p-2 text-[#1d9bf0] hover:bg-[#e8f5fd] rounded-full transition-colors cursor-pointer"
                                             title="Lihat Bukti QRIS"
@@ -211,61 +349,63 @@
         </div>
     </div>
 
-    <!-- MOBILE CARD LIST (< lg, Twitter UI) -->
-    <div class="lg:hidden space-y-3">
+    <!-- MOBILE CARD LIST (< lg, 2-Column Grid Kanan-Kiri) -->
+    <div class="lg:hidden grid grid-cols-2 gap-2.5 sm:gap-3.5">
         <template x-for="tx in filteredTransactions" :key="tx.id">
-            <div class="bg-white rounded-2xl border border-[#eff3f4] p-4 shadow-xs space-y-3">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <span class="font-black text-xs text-[#0f1419]" x-text="tx.invoice_code"></span>
-                        <span class="text-[10px] text-[#536471] block font-medium" x-text="`${tx.store_name} • ${formatDateTime(tx.created_at)}`"></span>
+            <div class="bg-white rounded-2xl border border-[#eff3f4] p-3 sm:p-4 shadow-xs flex flex-col justify-between space-y-2.5 hover:border-[#bde2f9] transition-all">
+                <div class="space-y-2">
+                    <div class="flex items-start justify-between gap-1">
+                        <div class="min-w-0 flex-1">
+                            <span class="font-black text-[11px] sm:text-xs text-[#0f1419] truncate block" x-text="tx.invoice_code"></span>
+                            <span class="text-[9px] sm:text-[10px] text-[#536471] block font-medium truncate" x-text="`${tx.store_name} • ${formatDateTime(tx.created_at)}`"></span>
+                        </div>
+
+                        <span 
+                            class="px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold shrink-0"
+                            :class="{
+                                'bg-[#e8f5fd] text-[#1d9bf0] border border-[#bde2f9]': tx.status === 'paid',
+                                'bg-amber-50 text-[#ff7a00] border border-amber-200': tx.status === 'pending_verification',
+                                'bg-rose-50 text-[#f4212e] border border-rose-200': tx.status === 'rejected',
+                                'bg-slate-100 text-slate-500': tx.status === 'cancelled'
+                            }"
+                            x-text="tx.status === 'pending_verification' ? 'Pending' : tx.status"
+                        ></span>
                     </div>
 
-                    <span 
-                        class="px-2.5 py-0.5 rounded-full text-[10px] font-bold"
-                        :class="{
-                            'bg-[#e8f5fd] text-[#1d9bf0] border border-[#bde2f9]': tx.status === 'paid',
-                            'bg-amber-50 text-[#ff7a00] border border-amber-200': tx.status === 'pending_verification',
-                            'bg-rose-50 text-[#f4212e] border border-rose-200': tx.status === 'rejected',
-                            'bg-slate-100 text-slate-500': tx.status === 'cancelled'
-                        }"
-                        x-text="tx.status === 'pending_verification' ? 'Pending' : tx.status"
-                    ></span>
-                </div>
-
-                <!-- Breakdown Grid -->
-                <div class="grid grid-cols-2 gap-2 text-xs py-2 border-y border-[#eff3f4]">
-                    <div>
-                        <span class="text-[10px] text-[#536471] block font-semibold">Total Omzet</span>
-                        <span class="font-black text-[#0f1419]" x-text="formatRupiah(tx.total_amount)"></span>
-                    </div>
-                    <div>
-                        <span class="text-[10px] text-[#536471] block font-semibold">Metode</span>
-                        <span class="font-black uppercase text-[11px] text-[#1d9bf0]" x-text="tx.payment_method"></span>
-                    </div>
-                    <div>
-                        <span class="text-[10px] text-[#536471] block font-semibold">Hak Warung (75%)</span>
-                        <span class="font-black text-[#1d9bf0]" x-text="tx.status === 'paid' ? formatRupiah(tx.revenue_split?.owner_share || tx.total_amount * 0.75) : '-'"></span>
-                    </div>
-                    <div>
-                        <span class="text-[10px] text-[#536471] block font-semibold">Net EO</span>
-                        <span class="font-black text-[#0f1419]" x-text="tx.status === 'paid' ? formatRupiah(tx.revenue_split?.admin_net_share || (tx.total_amount * 0.25) - 1000) : '-'"></span>
+                    <!-- Breakdown Grid -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs py-1.5 sm:py-2 border-y border-[#eff3f4]">
+                        <div>
+                            <span class="text-[9px] sm:text-[10px] text-[#536471] block font-semibold">Total Omzet</span>
+                            <span class="font-black text-[11px] sm:text-xs text-[#0f1419] truncate block" x-text="formatRupiah(tx.total_amount)"></span>
+                        </div>
+                        <div>
+                            <span class="text-[9px] sm:text-[10px] text-[#536471] block font-semibold">Metode</span>
+                            <span class="font-black uppercase text-[10px] sm:text-[11px] text-[#1d9bf0]" x-text="tx.payment_method"></span>
+                        </div>
+                        <div>
+                            <span class="text-[9px] sm:text-[10px] text-[#536471] block font-semibold">Hak Warung (75%)</span>
+                            <span class="font-black text-[11px] sm:text-xs text-[#1d9bf0] truncate block" x-text="tx.status === 'paid' ? formatRupiah(tx.revenue_split?.owner_share || tx.total_amount * 0.75) : '-'"></span>
+                        </div>
+                        <div>
+                            <span class="text-[9px] sm:text-[10px] text-[#536471] block font-semibold">Net EO</span>
+                            <span class="font-black text-[11px] sm:text-xs text-[#0f1419] truncate block" x-text="tx.status === 'paid' ? formatRupiah(tx.revenue_split?.admin_net_share || (tx.total_amount * 0.25) - 1000) : '-'"></span>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Footer Actions -->
-                <div class="flex items-center justify-between pt-1">
-                    <div class="flex gap-2">
+                <div class="flex flex-wrap items-center justify-between gap-1.5 pt-1">
+                    <div class="flex gap-1.5">
                         <button 
                             @click="$store.app.openReceipt(tx)"
-                            class="px-4 py-1 bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white text-xs font-black rounded-full shadow-xs cursor-pointer"
+                            class="px-3 sm:px-4 py-1 bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white text-[10px] sm:text-xs font-black rounded-full shadow-xs cursor-pointer"
                         >
                             Struk
                         </button>
-                        <template x-if="tx.payment_method === 'qris' && tx.proof_image">
+                        <template x-if="tx.payment_method === 'qris' && (tx.proof_image || tx.payment_proof)">
                             <button 
-                                @click="selectedProofUrl = tx.proof_image; proofModalOpen = true"
-                                class="px-4 py-1 bg-[#e8f5fd] text-[#1d9bf0] hover:bg-[#1d9bf0] hover:text-white text-xs font-black rounded-full transition-colors cursor-pointer"
+                                @click="selectedProofUrl = tx.proof_image || tx.payment_proof; proofModalOpen = true"
+                                class="px-2.5 sm:px-4 py-1 bg-[#e8f5fd] text-[#1d9bf0] hover:bg-[#1d9bf0] hover:text-white text-[10px] sm:text-xs font-black rounded-full transition-colors cursor-pointer"
                             >
                                 Bukti
                             </button>
@@ -276,13 +416,14 @@
                         <button 
                             @click="$store.app.openCancelTransactionModal(tx)"
                             type="button" 
-                            class="px-3.5 py-1 bg-rose-50 hover:bg-[#f4212e] text-[#f4212e] hover:text-white text-xs font-black rounded-full transition-colors cursor-pointer"
+                            class="px-2.5 sm:px-3.5 py-1 bg-rose-50 hover:bg-[#f4212e] text-[#f4212e] hover:text-white text-[10px] sm:text-xs font-black rounded-full transition-colors cursor-pointer"
                         >
                             Batalkan
                         </button>
                     </template>
                 </div>
             </div>
+        </template>
     </div>
 
     <!-- Empty State -->

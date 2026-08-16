@@ -2,6 +2,10 @@
 
 @section('title', 'Kelola Multi-Event Platform')
 
+@php
+    $rolePrefix = auth()->user()->isSuperAdmin() ? 'superadmin' : 'admin';
+@endphp
+
 @section('content')
 <div x-data class="space-y-6">
 
@@ -56,7 +60,7 @@
                 <div class="space-y-2 text-xs text-[#536471] p-3.5 bg-[#f7f9f9] rounded-2xl border border-[#eff3f4]">
                     <div class="flex items-center gap-2">
                         <span class="text-[#536471]">📅</span>
-                        <span class="font-bold text-[#0f1419]" x-text="`${event.start_date} s/d ${event.end_date}`"></span>
+                        <span class="font-bold text-[#0f1419]" x-text="(event.start_date && event.end_date) ? `${(event.start_date||'').substring(0,10)} s/d ${(event.end_date||'').substring(0,10)}` : 'Jadwal belum diatur'"></span>
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="text-[#536471]">📍</span>
@@ -65,21 +69,34 @@
                 </div>
 
                 <!-- Activate Action (Twitter UI Pill) -->
-                <div class="pt-2 border-t border-[#eff3f4] flex items-center justify-between">
+                <div class="pt-2 border-t border-[#eff3f4] flex items-center justify-between gap-2">
                     <template x-if="event.is_active">
                         <span class="text-xs font-black text-[#1d9bf0] flex items-center gap-1">
                             ✓ Event Aktif Saat Ini
                         </span>
                     </template>
 
-                    <template x-if="!event.is_active">
+                    <div class="flex items-center gap-2">
                         <button 
-                            @click="$store.app.openActivateEventModal(event)"
+                            @click="$store.app.openEditEventModal(event)"
                             type="button" 
-                            class="w-full py-2.5 px-3 bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white text-xs font-black rounded-full transition-colors text-center shadow-xs cursor-pointer"
+                            class="p-2 bg-[#f7f9f9] hover:bg-[#eff3f4] text-[#0f1419] rounded-full transition-colors cursor-pointer"
+                            title="Edit Event"
                         >
-                            Aktifkan Event Ini &rarr;
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
                         </button>
+                    </div>
+
+                    <template x-if="!event.is_active">
+                        <form :action="`/{{ $rolePrefix }}/events/${event.id}/activate`" method="POST" class="w-full mt-3 sm:mt-0 sm:w-auto">
+                            @csrf
+                            <button 
+                                type="submit" 
+                                class="w-full py-2.5 px-3 bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white text-xs font-black rounded-full transition-colors text-center shadow-xs cursor-pointer"
+                            >
+                                Aktifkan Event Ini &rarr;
+                            </button>
+                        </form>
                     </template>
                 </div>
             </div>
@@ -124,30 +141,56 @@
                 <div class="w-12 h-1.5 bg-[#cfd9de] rounded-full mx-auto mb-2 sm:hidden"></div>
 
                 <div class="flex items-center justify-between pb-3 border-b border-[#eff3f4]">
-                    <h3 class="text-base font-black text-[#0f1419]">Buat Event UMKM Baru</h3>
+                    <h3 class="text-base font-black text-[#0f1419]" x-text="$store.app.isEditingEvent ? 'Edit Event' : 'Buat Event Baru'"></h3>
                     <button @click="$store.app.eventModalOpen = false" class="text-[#0f1419] hover:text-[#1d9bf0] p-1.5 rounded-full hover:bg-[#eff3f4] cursor-pointer">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                     </button>
                 </div>
 
-                <form @submit.prevent="$store.app.saveNewEvent()" class="space-y-3.5">
+                <form 
+                    :action="$store.app.isEditingEvent ? `/{{ $rolePrefix }}/events/${$store.app.eventFormData.id}` : '{{ route($rolePrefix . '.events.store') }}'" 
+                    method="POST" 
+                    enctype="multipart/form-data" 
+                    class="space-y-3.5"
+                >
+                    @csrf
+                    <input type="hidden" name="_method" :value="$store.app.isEditingEvent ? 'PUT' : 'POST'">
                     <div>
                         <label class="block text-xs font-bold text-[#0f1419] mb-1">Nama Event</label>
                         <input 
                             type="text" 
+                            name="name"
                             x-model="$store.app.eventFormData.name"
                             required
-                            placeholder="Contoh: Festival Kuliner Senayan 2026" 
+                            placeholder="Nama event" 
                             class="w-full px-3.5 py-2.5 bg-[#f7f9f9] border border-[#eff3f4] rounded-xl text-xs text-[#0f1419] focus:ring-2 focus:ring-[#1d9bf0] focus:outline-none font-semibold"
                         >
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-[#0f1419] mb-1">Gambar QRIS (Opsional)</label>
+                        <template x-if="$store.app.isEditingEvent && $store.app.eventFormData.qris_image_url">
+                            <div class="mb-3">
+                                <p class="text-[10px] text-[#536471] mb-1">QRIS Saat Ini:</p>
+                                <img :src="$store.app.eventFormData.qris_image_url" alt="QRIS Event" class="w-24 h-24 object-contain rounded-xl border border-[#eff3f4] bg-white p-1">
+                            </div>
+                        </template>
+                        <input 
+                            type="file" 
+                            name="qris_image"
+                            accept="image/*"
+                            class="w-full text-xs text-[#0f1419] file:mr-3 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-black file:bg-[#e8f5fd] file:text-[#1d9bf0] hover:file:bg-[#d8eefc] cursor-pointer"
+                        >
+                        <p class="text-[10px] text-[#536471] mt-1">Kosongkan jika tidak ingin mengubah QRIS.</p>
                     </div>
 
                     <div>
                         <label class="block text-xs font-bold text-[#0f1419] mb-1">Lokasi Penyelenggaraan</label>
                         <input 
                             type="text" 
+                            name="location"
                             x-model="$store.app.eventFormData.location"
-                            placeholder="Contoh: Parkir Barat GBK, Jakarta Pusat" 
+                            placeholder="Lokasi event" 
                             class="w-full px-3.5 py-2.5 bg-[#f7f9f9] border border-[#eff3f4] rounded-xl text-xs text-[#0f1419] focus:ring-2 focus:ring-[#1d9bf0] focus:outline-none font-semibold"
                         >
                     </div>
@@ -157,6 +200,7 @@
                             <label class="block text-xs font-bold text-[#0f1419] mb-1">Tanggal Mulai</label>
                             <input 
                                 type="date" 
+                                name="start_date"
                                 x-model="$store.app.eventFormData.start_date"
                                 class="w-full px-3.5 py-2.5 bg-[#f7f9f9] border border-[#eff3f4] rounded-xl text-xs text-[#0f1419] focus:ring-2 focus:ring-[#1d9bf0] focus:outline-none font-semibold"
                             >
@@ -165,6 +209,7 @@
                             <label class="block text-xs font-bold text-[#0f1419] mb-1">Tanggal Selesai</label>
                             <input 
                                 type="date" 
+                                name="end_date"
                                 x-model="$store.app.eventFormData.end_date"
                                 class="w-full px-3.5 py-2.5 bg-[#f7f9f9] border border-[#eff3f4] rounded-xl text-xs text-[#0f1419] focus:ring-2 focus:ring-[#1d9bf0] focus:outline-none font-semibold"
                             >

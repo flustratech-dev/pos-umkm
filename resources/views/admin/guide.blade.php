@@ -42,7 +42,7 @@
             </div>
             <h4 class="font-extrabold text-base text-[#0f1419]">3. Bagi Hasil 75/25</h4>
             <p class="text-xs text-[#536471] leading-relaxed">
-                Porsi hak warung adalah 75% dari total transaksi Paid. Porsi EO adalah 25% dikurangi flat lisensi Rp1.000 per transaksi yang menjadi hak Super Admin.
+                Porsi hak warung adalah 75% dari total transaksi Paid. Porsi EO adalah 25% dikurangi flat lisensi Rp1.000 per transaksi yang menjadi hak Developer.
             </p>
         </div>
     </div>

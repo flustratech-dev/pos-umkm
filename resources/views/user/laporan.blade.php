@@ -9,10 +9,12 @@
     selectedMethod: 'all',
 
     get myTransactions() {
-        const storeId = $store.app.getCurrentStore()?.id || 1;
-        return $store.app.transactions.filter(t => {
-            const matchesStore = t.store_id === storeId;
-            const matchesSearch = t.invoice_code.toLowerCase().includes(this.searchInvoice.toLowerCase());
+        const store = this.$store?.app?.getCurrentStore?.();
+        const storeId = store ? store.id : null;
+        const txs = this.$store?.app?.transactions || [];
+        return txs.filter(t => {
+            const matchesStore = storeId ? (t.store_id == storeId) : true;
+            const matchesSearch = !this.searchInvoice || (t.invoice_code || '').toLowerCase().includes(this.searchInvoice.toLowerCase());
             const matchesStatus = this.selectedStatus === 'all' || t.status === this.selectedStatus;
             const matchesMethod = this.selectedMethod === 'all' || t.payment_method === this.selectedMethod;
             return matchesStore && matchesSearch && matchesStatus && matchesMethod;
@@ -20,34 +22,68 @@
     },
 
     get stats() {
-        return $store.app.getUserReportStats($store.app.getCurrentStore()?.id || 1);
+        const store = this.$store?.app?.getCurrentStore?.();
+        return this.$store?.app?.getUserReportStats?.(store ? store.id : null) || {
+            totalGross: 0,
+            netIncome: 0,
+            totalCount: 0,
+            cancelledCount: 0,
+            pendingCount: 0
+        };
     }
 }" class="space-y-6">
 
-    <!-- Header & Print Action (Twitter Blue Button) -->
+    <!-- Header & Export Action Buttons (Twitter UI) -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
             <h2 class="text-xl sm:text-2xl font-black text-[#0f1419] tracking-tight">Laporan & Riwayat Penjualan</h2>
-            <p class="text-xs sm:text-sm text-[#0f1419] font-medium mt-0.5" x-text="`Rekapitulasi transaksi ${$store.app.getCurrentStore()?.name}`"></p>
+            <p class="text-xs sm:text-sm text-[#536471] font-semibold mt-0.5" x-text="`Rekapitulasi transaksi ${$store.app.getCurrentStore()?.name || 'Stand Saya'}`"></p>
         </div>
 
-        <button 
-            @click="window.print()"
-            type="button" 
-            class="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white text-xs sm:text-sm font-black shadow-md shadow-[#1d9bf0]/25 transition-all cursor-pointer active:scale-95"
-        >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
-            <span>Cetak Rekap / PDF</span>
-        </button>
+        <!-- Export Action Buttons (PDF, Word, Excel) -->
+        <div class="flex flex-wrap items-center gap-2">
+            <!-- PDF Export Button -->
+            <button 
+                @click="$store.app.printUserReport(myTransactions)"
+                type="button" 
+                class="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full bg-[#0f1419] hover:bg-[#272c30] text-white text-xs font-black shadow-xs transition-all cursor-pointer active:scale-95"
+                title="Cetak Dokumen atau Simpan PDF (Hitam Putih)"
+            >
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                <span>PDF / Cetak</span>
+            </button>
+
+            <!-- Word Export Button -->
+            <button 
+                @click="$store.app.exportUserReportWord(myTransactions)"
+                type="button" 
+                class="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white text-xs font-black shadow-xs transition-all cursor-pointer active:scale-95"
+                title="Unduh Dokumen Word (.doc) Lengkap dengan TTD"
+            >
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                <span>Word (.doc)</span>
+            </button>
+
+            <!-- Excel Export Button -->
+            <button 
+                @click="$store.app.exportUserReportExcel(myTransactions)"
+                type="button" 
+                class="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full bg-[#00ba7c] hover:bg-[#00a36d] text-white text-xs font-black shadow-xs transition-all cursor-pointer active:scale-95"
+                title="Unduh Rekap Spreadsheet Excel (.xls)"
+            >
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                <span>Excel (.xls)</span>
+            </button>
+        </div>
     </div>
 
     <!-- Revenue Summary Cards (Twitter UI Style) -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <!-- Net Share 75% (Twitter Blue Gradient) -->
+        <!-- Net Share (Twitter Blue Gradient) -->
         <div class="bg-gradient-to-br from-[#1d9bf0] to-[#1271b3] rounded-3xl p-5 text-white shadow-lg shadow-[#1d9bf0]/25 col-span-2 sm:col-span-1">
-            <span class="text-xs font-bold text-white/90 uppercase tracking-wider block">Pendapatan Bersih (75%)</span>
+            <span class="text-xs font-bold text-white/90 uppercase tracking-wider block">Pendapatan Bersih</span>
             <h3 class="text-xl sm:text-2xl font-black mt-1 tracking-tight text-white" x-text="formatRupiah(stats.netIncome)"></h3>
-            <p class="text-[11px] text-white/90 mt-2 font-medium">Porsi 75% dari transaksi berstatus Paid</p>
+            <p class="text-[11px] text-white/90 mt-2 font-medium">Dari transaksi berstatus Paid</p>
         </div>
 
         <!-- Gross Volume -->
@@ -122,7 +158,7 @@
                         <th class="px-4 py-3.5">Total Belanja</th>
                         <th class="px-4 py-3.5">Uang Diterima (Cash)</th>
                         <th class="px-4 py-3.5">Kembalian (Cash)</th>
-                        <th class="px-4 py-3.5">Porsi Warung (75%)</th>
+                        <th class="px-4 py-3.5">Porsi Warung</th>
                         <th class="px-4 py-3.5">Status</th>
                         <th class="px-4 py-3.5 text-center">Aksi</th>
                     </tr>
@@ -179,63 +215,65 @@
         </div>
     </div>
 
-    <!-- MOBILE CARD LIST VIEW (< lg) (Twitter UI) -->
-    <div class="lg:hidden space-y-3">
+    <!-- MOBILE CARD LIST VIEW (< lg) (2-Column Grid Kanan-Kiri) -->
+    <div class="lg:hidden grid grid-cols-2 gap-2.5 sm:gap-3.5">
         <template x-for="tx in myTransactions" :key="tx.id">
-            <div class="bg-white rounded-2xl border border-[#eff3f4] p-4 shadow-xs space-y-2.5">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <span class="font-black text-xs text-[#0f1419]" x-text="tx.invoice_code"></span>
-                        <span class="text-[10px] text-[#536471] block font-medium" x-text="formatDateTime(tx.paid_at || tx.created_at)"></span>
+            <div class="bg-white rounded-2xl border border-[#eff3f4] p-3 sm:p-4 shadow-xs flex flex-col justify-between space-y-2.5 hover:border-[#bde2f9] transition-all">
+                <div class="space-y-2">
+                    <div class="flex items-start justify-between gap-1">
+                        <div class="min-w-0 flex-1">
+                            <span class="font-black text-[11px] sm:text-xs text-[#0f1419] truncate block" x-text="tx.invoice_code"></span>
+                            <span class="text-[9px] sm:text-[10px] text-[#536471] block font-medium truncate" x-text="formatDateTime(tx.paid_at || tx.created_at)"></span>
+                        </div>
+
+                        <span 
+                            class="px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold shrink-0"
+                            :class="{
+                                'bg-[#e8f5fd] text-[#1d9bf0] border border-[#bde2f9]': tx.status === 'paid',
+                                'bg-amber-50 text-[#ff7a00] border border-amber-200': tx.status === 'pending_verification',
+                                'bg-rose-50 text-[#f4212e] border border-rose-200': tx.status === 'rejected',
+                                'bg-slate-100 text-slate-500': tx.status === 'cancelled'
+                            }"
+                            x-text="tx.status === 'pending_verification' ? 'Pending' : tx.status"
+                        ></span>
                     </div>
 
-                    <span 
-                        class="px-2.5 py-0.5 rounded-full text-[10px] font-bold"
-                        :class="{
-                            'bg-[#e8f5fd] text-[#1d9bf0] border border-[#bde2f9]': tx.status === 'paid',
-                            'bg-amber-50 text-[#ff7a00] border border-amber-200': tx.status === 'pending_verification',
-                            'bg-rose-50 text-[#f4212e] border border-rose-200': tx.status === 'rejected',
-                            'bg-slate-100 text-slate-500': tx.status === 'cancelled'
-                        }"
-                        x-text="tx.status === 'pending_verification' ? 'Pending' : tx.status"
-                    ></span>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs py-1.5 sm:py-2 border-y border-[#eff3f4]">
+                        <div>
+                            <span class="text-[9px] sm:text-[10px] text-[#536471] block font-semibold">Total Transaksi</span>
+                            <span class="font-black text-[11px] sm:text-xs text-[#0f1419] truncate block" x-text="formatRupiah(tx.total_amount)"></span>
+                        </div>
+                        <div>
+                            <span class="text-[9px] sm:text-[10px] text-[#536471] block font-semibold">Metode Bayar</span>
+                            <span class="font-black uppercase text-[10px] sm:text-[11px] text-[#1d9bf0]" x-text="tx.payment_method"></span>
+                        </div>
+
+                        <template x-if="tx.payment_method === 'cash'">
+                            <div>
+                                <span class="text-[9px] sm:text-[10px] text-[#536471] block font-semibold">Uang Diterima</span>
+                                <span class="font-black text-[11px] sm:text-xs text-[#0f1419] truncate block" x-text="formatRupiah(tx.amount_paid)"></span>
+                            </div>
+                        </template>
+                        <template x-if="tx.payment_method === 'cash'">
+                            <div>
+                                <span class="text-[9px] sm:text-[10px] text-[#536471] block font-semibold">Kembalian</span>
+                                <span class="font-black text-[11px] sm:text-xs text-[#1d9bf0] truncate block" x-text="formatRupiah(tx.change_due)"></span>
+                            </div>
+                        </template>
+                    </div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-2 text-xs py-2 border-y border-[#eff3f4]">
-                    <div>
-                        <span class="text-[10px] text-[#536471] block font-semibold">Total Transaksi</span>
-                        <span class="font-black text-[#0f1419]" x-text="formatRupiah(tx.total_amount)"></span>
-                    </div>
-                    <div>
-                        <span class="text-[10px] text-[#536471] block font-semibold">Metode Bayar</span>
-                        <span class="font-black uppercase text-[11px] text-[#1d9bf0]" x-text="tx.payment_method"></span>
-                    </div>
-
-                    <template x-if="tx.payment_method === 'cash'">
-                        <div>
-                            <span class="text-[10px] text-[#536471] block font-semibold">Uang Diterima</span>
-                            <span class="font-black text-[#0f1419]" x-text="formatRupiah(tx.amount_paid)"></span>
-                        </div>
-                    </template>
-                    <template x-if="tx.payment_method === 'cash'">
-                        <div>
-                            <span class="text-[10px] text-[#536471] block font-semibold">Kembalian</span>
-                            <span class="font-black text-[#1d9bf0]" x-text="formatRupiah(tx.change_due)"></span>
-                        </div>
-                    </template>
-                </div>
-
-                <div class="flex items-center justify-between pt-1">
-                    <div>
-                        <span class="text-[10px] text-[#536471] font-semibold">Bagian Warung (75%):</span>
-                        <span class="text-xs font-black text-[#1d9bf0] ml-1" x-text="tx.status === 'paid' ? formatRupiah(tx.revenue_split?.owner_share || tx.total_amount * 0.75) : '-'"></span>
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 pt-1">
+                    <div class="min-w-0">
+                        <span class="text-[9px] sm:text-[10px] text-[#536471] font-semibold block">Bagian Warung:</span>
+                        <span class="text-[11px] sm:text-xs font-black text-[#1d9bf0] truncate block" x-text="tx.status === 'paid' ? formatRupiah(tx.revenue_split?.owner_share || tx.total_amount * 0.75) : '-'"></span>
                     </div>
 
                     <!-- Twitter Blue Struk Button -->
                     <button 
                         @click="$store.app.openReceipt(tx)"
                         type="button" 
-                        class="px-4 py-1 bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white font-black text-xs rounded-full transition-colors cursor-pointer shadow-xs"
+                        class="w-full sm:w-auto px-3 sm:px-4 py-1 bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white font-black text-[10px] sm:text-xs rounded-full transition-colors cursor-pointer shadow-xs text-center"
                     >
                         Struk
                     </button>

@@ -81,11 +81,25 @@
         }
     </style>
 </head>
-<body>
+    @php
+        $logoPath = public_path('images/logo_jadisatu.png');
+        $logoBase64 = file_exists($logoPath) ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath)) : '';
+    @endphp
     <div class="header">
-        <div class="title">REKAPITULASI LAPORAN KEUANGAN PANITIA EO</div>
-        <div class="subtitle">{{ $activeEvent?->name ?: 'Bazar UMKM' }} | Lokasi: {{ $activeEvent?->location ?: 'Venue Event' }}</div>
-        <div class="subtitle">Periode: {{ $activeEvent?->start_date?->format('d/m/Y') }} s/d {{ $activeEvent?->end_date?->format('d/m/Y') }}</div>
+        <table style="width: 100%; border: none; margin-bottom: 4px;">
+            <tr>
+                @if($logoBase64)
+                    <td style="width: 55px; border: none; text-align: left; vertical-align: middle; padding: 0;">
+                        <img src="{{ $logoBase64 }}" style="height: 48px; width: auto; object-fit: contain;">
+                    </td>
+                @endif
+                <td style="border: none; text-align: {{ $logoBase64 ? 'left' : 'center' }}; vertical-align: middle; padding: 0 0 0 10px;">
+                    <div class="title" style="margin: 0; font-size: 15px;">REKAPITULASI LAPORAN KEUANGAN PANITIA EO</div>
+                    <div class="subtitle" style="font-weight: bold; color: #0f1419; font-size: 11px;">{{ $activeEvent?->name ?: 'Bazar UMKM' }} &bull; {{ $activeEvent?->location ?: 'Venue Event' }}</div>
+                    <div class="subtitle">Periode: {{ $activeEvent?->start_date?->format('d/m/Y') }} s/d {{ $activeEvent?->end_date?->format('d/m/Y') }} &bull; JADISATU Event System</div>
+                </td>
+            </tr>
+        </table>
     </div>
 
     <table class="kpi-cards">
@@ -110,7 +124,7 @@
             </td>
             <td width="25%" style="padding-left: 4px;">
                 <div class="kpi-card">
-                    <div class="kpi-title">Fee Super Admin</div>
+                    <div class="kpi-title">Fee Developer</div>
                     <div class="kpi-value" style="color: #0f1419;">Rp {{ number_format($stats['superadmin_total'], 0, ',', '.') }}</div>
                 </div>
             </td>
@@ -166,8 +180,27 @@
         </tbody>
     </table>
 
+    <table style="width: 100%; border: none; margin-top: 25px; page-break-inside: avoid;">
+        <tr>
+            <td style="width: 50%; border: none; text-align: center; font-size: 9px; vertical-align: top;">
+                <div>Dibuat & Divalidasi Oleh:</div>
+                <div style="font-weight: bold; margin-top: 2px;">Admin Event Organizer</div>
+                <div style="height: 45px;"></div>
+                <div>( __________________________ )</div>
+                <div style="font-size: 8px; color: #536471; margin-top: 2px;">Panitia Pelaksana EO</div>
+            </td>
+            <td style="width: 50%; border: none; text-align: center; font-size: 9px; vertical-align: top;">
+                <div>Mengetahui & Menyetujui:</div>
+                <div style="font-weight: bold; margin-top: 2px;">Penanggung Jawab / Ketua EO</div>
+                <div style="height: 45px;"></div>
+                <div>( __________________________ )</div>
+                <div style="font-size: 8px; color: #536471; margin-top: 2px;">Event Organizer Lead</div>
+            </td>
+        </tr>
+    </table>
+
     <div class="footer">
-        Dicetak otomatis pada: {{ now()->format('d/m/Y H:i:s') }} | POS Kasir UMKM Event
+        Dicetak otomatis pada: {{ now()->format('d/m/Y H:i:s') }} | JADISATU Event System
     </div>
 </body>
 </html>

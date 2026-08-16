@@ -48,6 +48,10 @@ class KasirController extends Controller
         $user = Auth::user();
         $store = $user->store ?: Store::where('owner_id', $user->id)->firstOrFail();
 
+        if (!$store->event->is_active) {
+            return response()->json(['success' => false, 'message' => 'Kasir ditutup karena event sudah inaktif.'], 403);
+        }
+
         try {
             $transaction = $this->checkoutService->processCashCheckout(
                 $store,
@@ -73,6 +77,10 @@ class KasirController extends Controller
     {
         $user = Auth::user();
         $store = $user->store ?: Store::where('owner_id', $user->id)->firstOrFail();
+        
+        if (!$store->event->is_active) {
+            return response()->json(['success' => false, 'message' => 'Kasir ditutup karena event sudah inaktif.'], 403);
+        }
 
         try {
             $transaction = $this->checkoutService->processQrisCheckout(
@@ -93,5 +101,19 @@ class KasirController extends Controller
                 'message' => $e->getMessage(),
             ], 422);
         }
+    }
+
+    public function switchStore(Request $request)
+    {
+        $request->validate(['store_id' => 'required|exists:stores,id']);
+        $user = Auth::user();
+        
+        $targetStore = Store::where('id', $request->store_id)
+            ->where('owner_id', $user->id)
+            ->firstOrFail();
+            
+        $user->update(['store_id' => $targetStore->id]);
+        
+        return redirect()->back()->with('success', 'Berhasil beralih ke warung: ' . $targetStore->event->name);
     }
 }

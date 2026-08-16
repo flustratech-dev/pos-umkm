@@ -19,8 +19,11 @@ class Event extends Model
         'end_date',
         'location',
         'is_active',
+        'qris_image',
         'created_by',
     ];
+
+    protected $appends = ['qris_image_url'];
 
     protected function casts(): array
     {
@@ -62,5 +65,16 @@ class Event extends Model
     public function stores(): HasMany
     {
         return $this->hasMany(Store::class);
+    }
+
+    public function getQrisImageUrlAttribute(): ?string
+    {
+        if ($this->qris_image) {
+            if (Str::startsWith($this->qris_image, ['http://', 'https://'])) {
+                return $this->qris_image;
+            }
+            return asset('storage/' . $this->qris_image);
+        }
+        return null;
     }
 }

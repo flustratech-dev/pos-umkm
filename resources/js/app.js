@@ -1,12 +1,91 @@
 import './bootstrap';
 import Alpine from 'alpinejs';
 import Chart from 'chart.js/auto';
-import { initialEvents, initialUsers, initialStores, initialProducts, initialTransactions, initialHelpdeskTickets, staticQrisData } from './dummy-data';
+import Swal from 'sweetalert2';
+import 'sweetalert2/dist/sweetalert2.min.css';
 import { evaluatePasswordStrength } from './password-meter';
+
+// Helper for making API calls with CSRF
+const apiFetch = async (url, options = {}) => {
+    const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    const headers = {
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+        ...(options.headers || {})
+    };
+    
+    if (token) {
+        headers['X-CSRF-TOKEN'] = token;
+    }
+
+    if (!(options.body instanceof FormData)) {
+        headers['Content-Type'] = 'application/json';
+        if (options.body && typeof options.body === 'object') {
+            options.body = JSON.stringify(options.body);
+        }
+    }
+
+    const res = await fetch(url, { ...options, headers });
+    const data = await res.json().catch(() => ({ success: false, message: 'Terjadi kesalahan pada server.' }));
+    
+    if (!res.ok) {
+        throw new Error(data.message || 'Terjadi kesalahan pada server.');
+    }
+    
+    return data;
+};
 
 window.Alpine = Alpine;
 window.Chart = Chart;
+window.Swal = Swal;
 window.evaluatePasswordStrength = evaluatePasswordStrength;
+
+// Modern custom SweetAlert helper functions matching Twitter/JADISATU design theme:
+const swalCustomClass = {
+    popup: 'rounded-3xl shadow-2xl border border-[#eff3f4] font-sans p-6 text-center',
+    title: 'text-lg sm:text-xl font-black text-[#0f1419] tracking-tight',
+    htmlContainer: 'text-xs sm:text-sm text-[#536471] font-medium leading-relaxed mt-2',
+    confirmButton: 'px-6 py-2.5 rounded-full bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white text-xs sm:text-sm font-black shadow-md shadow-[#1d9bf0]/25 transition-all cursor-pointer mx-1.5 active:scale-95',
+    cancelButton: 'px-6 py-2.5 rounded-full bg-[#eff3f4] hover:bg-slate-200 text-[#0f1419] text-xs sm:text-sm font-black transition-all cursor-pointer mx-1.5 active:scale-95'
+};
+
+export const showSwal = (type = 'success', title = '', text = '', timer = null) => {
+    let icon = type;
+    if (type === 'danger') icon = 'error';
+    if (type === 'warn') icon = 'warning';
+
+    const defaultTimer = type === 'success' ? 2200 : (type === 'info' ? 3000 : undefined);
+    const finalTimer = timer !== null ? timer : defaultTimer;
+
+    return Swal.fire({
+        icon,
+        title: title || (type === 'success' ? 'Berhasil' : (type === 'error' ? 'Perhatian' : 'Pemberitahuan')),
+        text: text || '',
+        buttonsStyling: false,
+        customClass: swalCustomClass,
+        timer: finalTimer,
+        timerProgressBar: !!finalTimer,
+        confirmButtonText: 'Oke, Mengerti'
+    });
+};
+
+export const showConfirm = async (title = 'Konfirmasi', text = '', confirmText = 'Ya, Lanjutkan', cancelText = 'Batal') => {
+    const result = await Swal.fire({
+        title,
+        text,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: confirmText,
+        cancelButtonText: cancelText,
+        buttonsStyling: false,
+        customClass: swalCustomClass,
+        reverseButtons: true
+    });
+    return result.isConfirmed;
+};
+
+window.showSwal = showSwal;
+window.showConfirm = showConfirm;
 
 // Utility formatters
 export const formatRupiah = (number) => {
@@ -19,9 +98,59 @@ export const formatRupiah = (number) => {
     }).format(number);
 };
 
+export const compressImage = (file, maxWidth = 800, maxHeight = 800, quality = 0.7) => {
+    return new Promise((resolve, reject) => {
+        if (!file || !file.type.startsWith('image/')) {
+            return reject(new Error('File is not an image'));
+        }
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height) {
+                    if (width > maxWidth) {
+                        height = Math.round((height *= maxWidth / width));
+                        width = maxWidth;
+                    }
+                } else {
+                    if (height > maxHeight) {
+                        width = Math.round((width *= maxHeight / height));
+                        height = maxHeight;
+                    }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+
+                canvas.toBlob((blob) => {
+                    resolve({
+                        file: new File([blob], file.name, {
+                            type: 'image/jpeg',
+                            lastModified: Date.now()
+                        }),
+                        previewUrl: canvas.toDataURL('image/jpeg', quality)
+                    });
+                }, 'image/jpeg', quality);
+            };
+            img.onerror = (e) => reject(e);
+        };
+        reader.onerror = (e) => reject(e);
+    });
+};
+
 export const formatNumber = (number) => {
-    if (!number || isNaN(number)) return '0';
-    return new Intl.NumberFormat('id-ID').format(number);
+    if (number === null || number === undefined || number === '') return '';
+    const parsed = typeof number === 'string' ? parseFloat(number.replace(/\D/g, '')) : number;
+    if (isNaN(parsed)) return '';
+    return new Intl.NumberFormat('id-ID').format(parsed);
 };
 
 export const formatDateTime = (dateStr) => {
@@ -58,15 +187,21 @@ Alpine.store('app', {
         // Authenticated Session State (Strictly Server Driven)
         currentUser: window.__AUTH_USER__ || null,
         currentRole: window.__AUTH_USER__?.role || 'user',
+        sidebarOpen: false,
+        user: window.__AUTH_USER__ || null,
+        userStores: window.__USER_STORES__ || [],
         activeEvent: window.__ACTIVE_EVENT__ || null,
-        staticQris: staticQrisData,
-
-        // Real database data from Laravel backend
         events: window.__INITIAL_EVENTS__ || [],
         stores: window.__INITIAL_STORES__ || [],
         products: window.__INITIAL_PRODUCTS__ || [],
         transactions: window.__INITIAL_TRANSACTIONS__ || [],
-        helpdesk: window.__INITIAL_HELPDESK__ || [],
+        helpdeskTickets: window.__INITIAL_TICKETS__ || [],
+
+        get activeStoreEventActive() {
+            if (!this.user || this.user.role !== 'user' || !this.user.store_id) return true;
+            const userStore = this.userStores.find(s => s.id === this.user.store_id);
+            return userStore ? userStore.event_is_active : false;
+        },
 
         // Cart state for User POS
         cart: [],
@@ -113,6 +248,7 @@ Alpine.store('app', {
 
         // Event Management Modal for Super Admin
         eventModalOpen: false,
+        isEditingEvent: false,
         eventFormData: {
             name: '',
             slug: '',
@@ -146,15 +282,50 @@ Alpine.store('app', {
             }
             if (window.__INITIAL_EVENTS__) this.events = window.__INITIAL_EVENTS__;
             if (window.__INITIAL_STORES__) this.stores = window.__INITIAL_STORES__;
-            if (window.__INITIAL_PRODUCTS__) this.products = window.__INITIAL_PRODUCTS__;
+            if (window.__INITIAL_PRODUCTS__) {
+                this.products = window.__INITIAL_PRODUCTS__.map(p => ({
+                    ...p,
+                    photo: this.getProductPhoto(p.photo)
+                }));
+            }
             if (window.__INITIAL_TRANSACTIONS__) this.transactions = window.__INITIAL_TRANSACTIONS__;
             if (window.__INITIAL_HELPDESK__) this.helpdesk = window.__INITIAL_HELPDESK__;
+
+            if (window.__FLASH_SUCCESS__) {
+                this.notify('success', 'Berhasil', window.__FLASH_SUCCESS__);
+            }
+            if (window.__FLASH_ERROR__) {
+                this.notify('error', 'Perhatian', window.__FLASH_ERROR__);
+            }
+        },
+
+        formatRupiah(n) {
+            return formatRupiah(n);
+        },
+
+        formatDateTime(d) {
+            return formatDateTime(d);
+        },
+
+        formatNumber(n) {
+            return formatNumber(n);
+        },
+
+        getProductPhoto(photo) {
+            if (!photo) return 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80';
+            if (photo.startsWith('http://') || photo.startsWith('https://') || photo.startsWith('data:')) {
+                return photo;
+            }
+            if (photo.startsWith('/')) {
+                return photo;
+            }
+            return '/storage/' + photo;
         },
 
         getRoleLabel(role) {
             if (role === 'user') return 'Pemilik Warung (User)';
             if (role === 'admin') return 'Admin EO';
-            if (role === 'superadmin') return 'Super Admin Platform';
+            if (role === 'superadmin') return 'Developer Platform';
             return role;
         },
 
@@ -168,27 +339,23 @@ Alpine.store('app', {
 
         getCurrentStore() {
             const user = this.getCurrentUser();
-            if (user && user.store_name) {
+            if (user && (user.store_id || user.store_name)) {
                 return {
                     id: user.store_id,
-                    name: user.store_name,
-                    booth_number: user.booth_number || 'Stand A-01'
+                    name: user.store_name || 'Stand Saya',
+                    booth_number: user.booth_number || '-'
                 };
             }
             return this.stores[0] || null;
         },
 
-        // Toast notifications
+        // SweetAlert notifications
         notify(type = 'success', title = 'Pemberitahuan', message = '') {
-            const id = Date.now() + Math.random().toString(36).substring(2, 6);
-            this.toasts.push({ id, type, title, message });
-            setTimeout(() => {
-                this.removeToast(id);
-            }, 4500);
+            showSwal(type, title, message);
         },
 
         removeToast(id) {
-            this.toasts = this.toasts.filter(t => t.id !== id);
+            // Deprecated
         },
 
         // CART MANAGEMENT (for User POS)
@@ -251,109 +418,68 @@ Alpine.store('app', {
         },
 
         // CHECKOUT SUBMISSION
-        processCashCheckout() {
+        async processCashCheckout() {
             if (!this.isCashValid) {
                 this.notify('error', 'Validasi Gagal', 'Nominal uang diterima kurang dari total tagihan.');
                 return;
             }
 
-            const total = this.cartTotal;
-            const paid = parseFloat(this.cashAmountPaid);
-            const change = paid - total;
-            const store = this.getCurrentStore();
-            const user = this.getCurrentUser();
+            try {
+                const payload = {
+                    items: this.cart.map(c => ({
+                        product_id: c.product.id,
+                        qty: c.qty
+                    })),
+                    amount_paid: parseFloat(this.cashAmountPaid)
+                };
 
-            // Revenue calculation according to PRD section 3.1
-            const ownerShare = total * 0.75;
-            const adminGross = total * 0.25;
-            const superadminShare = 1000;
-            const adminNet = adminGross - superadminShare;
+                const data = await apiFetch('/user/kasir/checkout-cash', {
+                    method: 'POST',
+                    body: payload
+                });
 
-            const newTx = {
-                id: Date.now(),
-                invoice_code: `INV/${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}${String(new Date().getDate()).padStart(2, '0')}/${String(Math.floor(Math.random() * 900) + 100)}`,
-                store_id: store.id,
-                store_name: store.name,
-                cashier_id: user.id,
-                cashier_name: user.name,
-                total_amount: total,
-                payment_method: 'cash',
-                amount_paid: paid,
-                change_due: change,
-                status: 'paid',
-                paid_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
-                created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
-                items: this.cart.map(c => ({
-                    product_id: c.product.id,
-                    title: c.product.title,
-                    price: c.product.price,
-                    qty: c.qty,
-                    subtotal: c.product.price * c.qty
-                })),
-                revenue_split: {
-                    owner_share: ownerShare,
-                    admin_gross_share: adminGross,
-                    superadmin_share: superadminShare,
-                    admin_net_share: adminNet
+                if (data.success && data.transaction) {
+                    this.transactions.unshift(data.transaction);
+                    this.activeReceiptTransaction = data.transaction;
+                    this.receiptModalOpen = true;
+                    this.isCheckoutOpen = false;
+                    this.clearCart();
+                    this.notify('success', 'Transaksi Berhasil!', `Pembayaran Cash sukses. Kembalian: ${formatRupiah(data.transaction.change_due)}`);
                 }
-            };
-
-            this.transactions.unshift(newTx);
-            setStoredData('transactions', this.transactions);
-
-            this.activeReceiptTransaction = newTx;
-            this.receiptModalOpen = true;
-            this.isCheckoutOpen = false;
-            this.clearCart();
-
-            this.notify('success', 'Transaksi Berhasil!', `Pembayaran Cash sukses. Kembalian: ${formatRupiah(change)}`);
+            } catch (error) {
+                this.notify('error', 'Gagal', error.message);
+            }
         },
 
-        processQrisCheckout() {
-            if (!this.qrisProofPreview) {
+        async processQrisCheckout() {
+            if (!this.qrisProofFile) {
                 this.notify('error', 'Bukti Diperlukan', 'Harap unggah screenshot bukti transfer QRIS terlebih dahulu.');
                 return;
             }
 
-            const total = this.cartTotal;
-            const store = this.getCurrentStore();
-            const user = this.getCurrentUser();
+            try {
+                const formData = new FormData();
+                formData.append('proof_image', this.qrisProofFile);
+                
+                this.cart.forEach((c, index) => {
+                    formData.append(`items[${index}][product_id]`, c.product.id);
+                    formData.append(`items[${index}][qty]`, c.qty);
+                });
 
-            const newTx = {
-                id: Date.now(),
-                invoice_code: `INV/${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}${String(new Date().getDate()).padStart(2, '0')}/${String(Math.floor(Math.random() * 900) + 100)}`,
-                store_id: store.id,
-                store_name: store.name,
-                cashier_id: user.id,
-                cashier_name: user.name,
-                total_amount: total,
-                payment_method: 'qris',
-                amount_paid: null,
-                change_due: null,
-                status: 'pending_verification',
-                paid_at: null,
-                verified_by: null,
-                verified_at: null,
-                created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
-                proof_image: this.qrisProofPreview,
-                items: this.cart.map(c => ({
-                    product_id: c.product.id,
-                    title: c.product.title,
-                    price: c.product.price,
-                    qty: c.qty,
-                    subtotal: c.product.price * c.qty
-                })),
-                revenue_split: null
-            };
+                const data = await apiFetch('/user/kasir/checkout-qris', {
+                    method: 'POST',
+                    body: formData
+                });
 
-            this.transactions.unshift(newTx);
-            setStoredData('transactions', this.transactions);
-
-            this.isCheckoutOpen = false;
-            this.clearCart();
-
-            // Compliance with PRD section 2.2 / 3.3
-            this.notify('warning', 'Bukti Terkirim', 'Menunggu verifikasi admin EO — transaksi belum berhasil.');
+                if (data.success && data.transaction) {
+                    this.transactions.unshift(data.transaction);
+                    this.isCheckoutOpen = false;
+                    this.clearCart();
+                    this.notify('warning', 'Bukti Terkirim', 'Menunggu verifikasi admin EO — transaksi belum berhasil.');
+                }
+            } catch (error) {
+                this.notify('error', 'Gagal', error.message);
+            }
         },
 
         // ADMIN QRIS VERIFICATION
@@ -362,30 +488,23 @@ Alpine.store('app', {
             this.qrisModalOpen = true;
         },
 
-        approveQris(txId) {
-            const tx = this.transactions.find(t => t.id === txId);
-            if (!tx) return;
-
-            const total = tx.total_amount;
-            const ownerShare = total * 0.75;
-            const adminGross = total * 0.25;
-            const superadminShare = 1000;
-            const adminNet = adminGross - superadminShare;
-
-            tx.status = 'paid';
-            tx.paid_at = new Date().toISOString().replace('T', ' ').substring(0, 19);
-            tx.verified_by = 2;
-            tx.verified_at = tx.paid_at;
-            tx.revenue_split = {
-                owner_share: ownerShare,
-                admin_gross_share: adminGross,
-                superadmin_share: superadminShare,
-                admin_net_share: adminNet
-            };
-
-            setStoredData('transactions', this.transactions);
-            this.qrisModalOpen = false;
-            this.notify('success', 'Verifikasi Disetujui', `Transaksi ${tx.invoice_code} berhasil disetujui & revenue split dihitung.`);
+        async approveQris(txId) {
+            try {
+                const data = await apiFetch(`/admin/verifikasi-qris/${txId}/approve`, {
+                    method: 'POST'
+                });
+                
+                if (data.success) {
+                    const idx = this.transactions.findIndex(t => t.id === txId);
+                    if (idx !== -1) {
+                        this.transactions[idx] = data.transaction;
+                    }
+                    this.qrisModalOpen = false;
+                    this.notify('success', 'Berhasil', data.message);
+                }
+            } catch (error) {
+                this.notify('error', 'Gagal', error.message);
+            }
         },
 
         openRejectModal(tx) {
@@ -394,26 +513,31 @@ Alpine.store('app', {
             this.rejectModalOpen = true;
         },
 
-        confirmRejectQris() {
-            if (!this.selectedQrisTransaction) return;
+        async confirmRejectQris() {
             if (!this.rejectionReason.trim()) {
-                this.notify('error', 'Alasan Wajib', 'Harap isi alasan penolakan bukti verifikasi.');
+                this.notify('error', 'Alasan Wajib', 'Harap masukkan alasan penolakan.');
                 return;
             }
-
-            const tx = this.transactions.find(t => t.id === this.selectedQrisTransaction.id);
-            if (tx) {
-                tx.status = 'rejected';
-                tx.rejection_reason = this.rejectionReason.trim();
-                tx.verified_by = 2;
-                tx.verified_at = new Date().toISOString().replace('T', ' ').substring(0, 19);
-                tx.revenue_split = null;
-                setStoredData('transactions', this.transactions);
+            if (this.selectedQrisTransaction) {
+                try {
+                    const data = await apiFetch(`/admin/verifikasi-qris/${this.selectedQrisTransaction.id}/reject`, {
+                        method: 'POST',
+                        body: { reason: this.rejectionReason }
+                    });
+                    
+                    if (data.success) {
+                        const idx = this.transactions.findIndex(t => t.id === this.selectedQrisTransaction.id);
+                        if (idx !== -1) {
+                            this.transactions[idx] = data.transaction;
+                        }
+                        this.rejectModalOpen = false;
+                        this.qrisModalOpen = false;
+                        this.notify('success', 'Ditolak', data.message);
+                    }
+                } catch (error) {
+                    this.notify('error', 'Gagal', error.message);
+                }
             }
-
-            this.rejectModalOpen = false;
-            this.qrisModalOpen = false;
-            this.notify('info', 'QRIS Ditolak', `Transaksi ${tx.invoice_code} ditolak dengan alasan: ${tx.rejection_reason}`);
         },
 
         // ADMIN CANCEL PAID TRANSACTION (PRD Section 3.4 & 2.3)
@@ -425,7 +549,7 @@ Alpine.store('app', {
             this.cancelModalOpen = true;
         },
 
-        confirmCancelTransaction() {
+        async confirmCancelTransaction() {
             if (!this.transactionToCancel) return;
             if (!this.cancelRefundConfirmed) {
                 this.notify('error', 'Konfirmasi Diperlukan', 'Harap centang checkbox konfirmasi koordinasi refund.');
@@ -436,24 +560,30 @@ Alpine.store('app', {
                 return;
             }
 
-            const tx = this.transactions.find(t => t.id === this.transactionToCancel.id);
-            if (tx) {
-                const fullReason = this.cancelReasonCategory === 'Lainnya (isi manual)' 
-                    ? `Lainnya: ${this.cancelCustomNote.trim()}`
-                    : (this.cancelCustomNote.trim() ? `${this.cancelReasonCategory} (${this.cancelCustomNote.trim()})` : this.cancelReasonCategory);
+            const fullReason = this.cancelReasonCategory === 'Lainnya (isi manual)' 
+                ? `Lainnya: ${this.cancelCustomNote.trim()}`
+                : (this.cancelCustomNote.trim() ? `${this.cancelReasonCategory} (${this.cancelCustomNote.trim()})` : this.cancelReasonCategory);
 
-                tx.status = 'cancelled';
-                tx.cancelled_by = 2;
-                tx.cancelled_by_name = 'Admin EO Nusantara';
-                tx.cancelled_at = new Date().toISOString().replace('T', ' ').substring(0, 19);
-                tx.cancellation_reason = fullReason;
-                tx.refund_ack_confirmed = true;
-
-                setStoredData('transactions', this.transactions);
+            try {
+                const data = await apiFetch(`/admin/transaksi/${this.transactionToCancel.id}/cancel`, {
+                    method: 'POST',
+                    body: { 
+                        cancellation_reason: fullReason,
+                        refund_ack_confirmed: this.cancelRefundConfirmed
+                    }
+                });
+                
+                if (data.success) {
+                    const idx = this.transactions.findIndex(t => t.id === this.transactionToCancel.id);
+                    if (idx !== -1) {
+                        this.transactions[idx] = data.transaction;
+                    }
+                    this.cancelModalOpen = false;
+                    this.notify('warning', 'Transaksi Dibatalkan', data.message);
+                }
+            } catch (error) {
+                this.notify('error', 'Gagal', error.message);
             }
-
-            this.cancelModalOpen = false;
-            this.notify('warning', 'Transaksi Dibatalkan', `Transaksi ${tx.invoice_code} telah berstatus Cancelled dan dikeluarkan dari kalkulasi pendapatan.`);
         },
 
         // PRODUCT MANAGEMENT (User)
@@ -466,6 +596,8 @@ Alpine.store('app', {
                 category: 'Makanan',
                 description: '',
                 photo: '',
+                photoFile: null,
+                photoPreview: '',
                 stock_badge: 'Tersedia'
             };
             this.productModalOpen = true;
@@ -480,51 +612,83 @@ Alpine.store('app', {
                 category: product.category || 'Makanan',
                 description: product.description || '',
                 photo: product.photo || '',
+                photoFile: null,
+                photoPreview: product.photo_url || product.photo || '',
                 stock_badge: product.stock_badge || 'Tersedia'
             };
             this.productModalOpen = true;
         },
 
-        saveProduct() {
+        async handleProductPhotoUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            try {
+                this.notify('info', 'Memproses Foto', 'Sedang mengompres gambar...', 2000);
+                const compressed = await compressImage(file);
+                this.productFormData.photoFile = compressed.file;
+                this.productFormData.photoPreview = compressed.previewUrl;
+            } catch (error) {
+                this.notify('error', 'Gagal', 'Gagal memproses gambar: ' + error.message);
+            }
+        },
+
+        async saveProduct() {
             if (!this.productFormData.title.trim() || !this.productFormData.price) {
                 this.notify('error', 'Validasi Form', 'Judul produk dan harga wajib diisi.');
                 return;
             }
 
-            const store = this.getCurrentStore();
-
-            if (this.isEditingProduct) {
-                const index = this.products.findIndex(p => p.id === this.productFormData.id);
-                if (index > -1) {
-                    this.products[index] = {
-                        ...this.products[index],
+            try {
+                const url = this.isEditingProduct ? `/user/produk/${this.productFormData.id}` : '/user/produk';
+                
+                let payload;
+                if (this.productFormData.photoFile) {
+                    payload = new FormData();
+                    payload.append('title', this.productFormData.title.trim());
+                    payload.append('price', this.productFormData.price);
+                    payload.append('category', this.productFormData.category);
+                    payload.append('description', this.productFormData.description || '');
+                    payload.append('stock_badge', this.productFormData.stock_badge);
+                    payload.append('photo', this.productFormData.photoFile);
+                    if (this.isEditingProduct) {
+                        payload.append('_method', 'PUT'); // Laravel form spoofing
+                    }
+                } else {
+                    payload = {
                         title: this.productFormData.title.trim(),
                         price: parseFloat(this.productFormData.price),
                         category: this.productFormData.category,
                         description: this.productFormData.description,
-                        photo: this.productFormData.photo || '',
                         stock_badge: this.productFormData.stock_badge
                     };
-                    this.notify('success', 'Produk Diperbarui', `Menu ${this.productFormData.title} berhasil diupdate.`);
                 }
-            } else {
-                const newProd = {
-                    id: Date.now(),
-                    store_id: store ? store.id : null,
-                    title: this.productFormData.title.trim(),
-                    price: parseFloat(this.productFormData.price),
-                    category: this.productFormData.category,
-                    description: this.productFormData.description,
-                    photo: this.productFormData.photo || '',
-                    is_active: true,
-                    stock_badge: this.productFormData.stock_badge
-                };
-                this.products.unshift(newProd);
-                this.notify('success', 'Produk Ditambahkan', `Menu ${newProd.title} siap dijual di kasir.`);
-            }
 
-            setStoredData('products', this.products);
-            this.productModalOpen = false;
+                // If using FormData and PUT method, we must send POST to Laravel and spoof it via _method inside the FormData body.
+                // Wait, our apiFetch doesn't automatically convert method to POST if using PUT with FormData.
+                // Let's do it here just in case.
+                const method = (this.isEditingProduct && this.productFormData.photoFile) ? 'POST' : (this.isEditingProduct ? 'PUT' : 'POST');
+
+                const data = await apiFetch(url, {
+                    method: method,
+                    body: payload
+                });
+
+                if (data.success && data.product) {
+                    if (this.isEditingProduct) {
+                        const index = this.products.findIndex(p => p.id === this.productFormData.id);
+                        if (index > -1) {
+                            this.products[index] = data.product;
+                        }
+                    } else {
+                        this.products.unshift(data.product);
+                    }
+                    this.productModalOpen = false;
+                    this.notify('success', 'Berhasil', data.message);
+                }
+            } catch (error) {
+                this.notify('error', 'Gagal', error.message);
+            }
         },
 
         openDeleteProductModal(product) {
@@ -532,23 +696,49 @@ Alpine.store('app', {
             this.deleteProductConfirmOpen = true;
         },
 
-        confirmDeleteProduct() {
+        async confirmDeleteProduct() {
             if (!this.productToDelete) return;
-            this.products = this.products.filter(p => p.id !== this.productToDelete.id);
-            setStoredData('products', this.products);
-            this.deleteProductConfirmOpen = false;
-            this.notify('info', 'Produk Dihapus', `Menu ${this.productToDelete.title} telah dinonaktifkan.`);
-            this.productToDelete = null;
+            
+            try {
+                const data = await apiFetch(`/user/produk/${this.productToDelete.id}`, {
+                    method: 'DELETE'
+                });
+                
+                if (data.success) {
+                    this.products = this.products.filter(p => p.id !== this.productToDelete.id);
+                    this.deleteProductConfirmOpen = false;
+                    this.notify('warning', 'Terhapus', data.message);
+                    this.productToDelete = null;
+                }
+            } catch (error) {
+                this.notify('error', 'Gagal', error.message);
+            }
         },
 
         // EVENT MANAGEMENT (Super Admin Multi-Event)
         openCreateEventModal() {
+            this.isEditingEvent = false;
             this.eventFormData = {
+                id: null,
                 name: '',
                 slug: '',
                 start_date: '',
                 end_date: '',
                 location: ''
+            };
+            this.eventModalOpen = true;
+        },
+
+        openEditEventModal(ev) {
+            this.isEditingEvent = true;
+            this.eventFormData = {
+                id: ev.id,
+                name: ev.name,
+                slug: ev.slug,
+                start_date: ev.start_date || '',
+                end_date: ev.end_date || '',
+                location: ev.location || '',
+                qris_image_url: ev.qris_image_url || null
             };
             this.eventModalOpen = true;
         },
@@ -567,7 +757,7 @@ Alpine.store('app', {
                 slug,
                 start_date: this.eventFormData.start_date || new Date().toISOString().substring(0, 10),
                 end_date: this.eventFormData.end_date || new Date().toISOString().substring(0, 10),
-                location: this.eventFormData.location || 'Lokasi Event',
+                location: this.eventFormData.location || '-',
                 is_active: false,
                 created_by: 1,
                 created_at: new Date().toISOString().replace('T', ' ').substring(0, 19)
@@ -608,71 +798,78 @@ Alpine.store('app', {
             this.ticketModalOpen = true;
         },
 
-        saveNewTicket() {
+        async saveNewTicket() {
             if (!this.ticketFormData.subject.trim() || !this.ticketFormData.message.trim()) {
                 this.notify('error', 'Form Tidak Lengkap', 'Subjek dan rincian kendala wajib diisi.');
                 return;
             }
 
-            const user = this.getCurrentUser();
-            const store = this.getCurrentStore();
-
-            const newTicket = {
-                id: Date.now(),
-                ticket_code: `TCK-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}${String(new Date().getDate()).padStart(2, '0')}-${String(Math.floor(Math.random() * 90) + 10)}`,
-                user_id: user.id,
-                user_name: user.name,
-                store_name: store.name,
-                category: this.ticketFormData.category,
-                subject: this.ticketFormData.subject.trim(),
-                status: 'open',
-                created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
-                messages: [
-                    {
-                        sender_role: 'user',
-                        sender_name: user.name,
-                        message: this.ticketFormData.message.trim(),
-                        time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+            try {
+                const data = await apiFetch('/user/helpdesk', {
+                    method: 'POST',
+                    body: {
+                        category: this.ticketFormData.category,
+                        subject: this.ticketFormData.subject.trim(),
+                        message: this.ticketFormData.message.trim()
                     }
-                ]
-            };
-
-            this.helpdesk.unshift(newTicket);
-            setStoredData('helpdesk', this.helpdesk);
-            this.ticketModalOpen = false;
-            this.notify('success', 'Tiket Terkirim', `Tiket ${newTicket.ticket_code} berhasil dibuat.`);
-        },
-
-        sendTicketReply() {
-            if (!this.selectedTicket || !this.ticketReplyText.trim()) return;
-            const role = this.currentRole;
-            const user = this.getCurrentUser();
-
-            const t = this.helpdesk.find(x => x.id === this.selectedTicket.id);
-            if (t) {
-                t.messages.push({
-                    sender_role: role === 'admin' || role === 'superadmin' ? 'admin' : 'user',
-                    sender_name: user.name,
-                    message: this.ticketReplyText.trim(),
-                    time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
                 });
 
-                if (role === 'admin' || role === 'superadmin') {
-                    if (t.status === 'open') t.status = 'in_progress';
+                if (data.success && data.ticket) {
+                    this.helpdesk.unshift(data.ticket);
+                    this.ticketModalOpen = false;
+                    this.notify('success', 'Tiket Terkirim', `Tiket ${data.ticket.ticket_code} berhasil dibuat.`);
                 }
-
-                setStoredData('helpdesk', this.helpdesk);
-                this.ticketReplyText = '';
-                this.notify('success', 'Balasan Terkirim', 'Pesan berhasil dikirim.');
+            } catch (error) {
+                this.notify('error', 'Gagal', error.message);
             }
         },
 
-        changeTicketStatus(ticketId, newStatus) {
-            const t = this.helpdesk.find(x => x.id === ticketId);
-            if (t) {
-                t.status = newStatus;
-                setStoredData('helpdesk', this.helpdesk);
-                this.notify('info', 'Status Tiket Diubah', `Status tiket kini: ${newStatus}`);
+        async sendTicketReply() {
+            if (!this.selectedTicket || !this.ticketReplyText.trim()) return;
+            const role = this.currentRole;
+            const url = role === 'admin' || role === 'superadmin' 
+                ? `/admin/helpdesk/${this.selectedTicket.id}/reply` 
+                : `/user/helpdesk/${this.selectedTicket.id}/reply`;
+
+            try {
+                const data = await apiFetch(url, {
+                    method: 'POST',
+                    body: { message: this.ticketReplyText.trim() }
+                });
+
+                if (data.success && data.ticket) {
+                    const tIndex = this.helpdesk.findIndex(x => x.id === this.selectedTicket.id);
+                    if (tIndex !== -1) {
+                        this.helpdesk[tIndex] = data.ticket;
+                        this.selectedTicket = data.ticket; // update modal view
+                    }
+                    this.ticketReplyText = '';
+                    this.notify('success', 'Balasan Terkirim', data.message || 'Pesan berhasil dikirim.');
+                }
+            } catch (error) {
+                this.notify('error', 'Gagal', error.message);
+            }
+        },
+
+        async changeTicketStatus(ticketId, newStatus) {
+            try {
+                const data = await apiFetch(`/admin/helpdesk/${ticketId}/status`, {
+                    method: 'POST',
+                    body: { status: newStatus }
+                });
+                
+                if (data.success && data.ticket) {
+                    const tIndex = this.helpdesk.findIndex(x => x.id === ticketId);
+                    if (tIndex !== -1) {
+                        this.helpdesk[tIndex] = data.ticket;
+                        if (this.selectedTicket && this.selectedTicket.id === ticketId) {
+                            this.selectedTicket = data.ticket;
+                        }
+                    }
+                    this.notify('info', 'Status Tiket Diubah', data.message || `Status tiket kini: ${newStatus}`);
+                }
+            } catch (error) {
+                this.notify('error', 'Gagal', error.message);
             }
         },
 
@@ -888,7 +1085,7 @@ Alpine.store('app', {
                         <div>
                             <div class="store-name">${tx.store_name || store.name}</div>
                             <div class="event-name">${event ? event.name : 'Bazar UMKM Kuliner Nusantara 2026'}</div>
-                            <div class="store-sub">Stand: ${store.booth_number || 'Stand A-01'} • ${event ? event.location : 'Lokasi Event'} • Telp/WA: ${store.phone || '0812-3456-7890'}</div>
+                            <div class="store-sub">Stand: ${store.booth_number || '-'} • ${event ? event.location : '-'} • Telp/WA: ${store.phone || '-'}</div>
                         </div>
                         <div class="invoice-info">
                             <div class="badge-paid">BUKTI PEMBAYARAN SAH</div>
@@ -937,13 +1134,17 @@ Alpine.store('app', {
                                     <td style="padding: 4px 0; color: #64748b;">Subtotal Item:</td>
                                     <td style="padding: 4px 0; text-align: right; font-weight: 600;">${formatRupiah(tx.total_amount)}</td>
                                 </tr>
-                                <tr>
-                                    <td style="padding: 4px 0; color: #64748b;">Pajak & Layanan:</td>
-                                    <td style="padding: 4px 0; text-align: right; color: #64748b;">Rp 0</td>
-                                </tr>
                                 <tr class="total-row">
                                     <td>TOTAL TAGIHAN:</td>
-                                    <td style="text-align: right; color: #059669;">${formatRupiah(tx.total_amount)}</td>
+                                    <td style="text-align: right; color: #1d9bf0;">${formatRupiah(tx.total_amount)}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 4px 0; color: #ef4444; font-size: 11px;">Potongan EO (25%):</td>
+                                    <td style="padding: 4px 0; text-align: right; color: #ef4444; font-size: 11px; font-weight: 600;">- ${formatRupiah(tx.revenue_split?.admin_gross_share || (tx.total_amount * 0.25))}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 4px 0; color: #1d9bf0; font-weight: 700;">Hak Bersih Warung (75%):</td>
+                                    <td style="padding: 4px 0; text-align: right; color: #1d9bf0; font-weight: 800;">${formatRupiah(tx.revenue_split?.owner_share || (tx.total_amount * 0.75))}</td>
                                 </tr>
                                 ${paymentSummary}
                             </table>
@@ -970,6 +1171,11 @@ Alpine.store('app', {
             </html>
             `;
 
+            this.printDocument(receiptHtml);
+        },
+
+        // Universal Iframe / Window Printable Document Generator (Crisp Monochrome B&W)
+        printDocument(htmlContent) {
             try {
                 const printFrame = document.createElement('iframe');
                 printFrame.style.position = 'fixed';
@@ -982,7 +1188,7 @@ Alpine.store('app', {
 
                 const frameDoc = printFrame.contentWindow.document;
                 frameDoc.open();
-                frameDoc.write(receiptHtml);
+                frameDoc.write(htmlContent);
                 frameDoc.close();
 
                 setTimeout(() => {
@@ -990,36 +1196,1624 @@ Alpine.store('app', {
                     printFrame.contentWindow.print();
                     setTimeout(() => {
                         document.body.removeChild(printFrame);
-                    }, 1000);
-                }, 250);
+                    }, 1500);
+                }, 300);
             } catch (e) {
                 console.warn('Iframe print fallback to window.open', e);
-                const win = window.open('', '_blank', 'width=700,height=800');
+                const win = window.open('', '_blank', 'width=900,height=1000');
                 if (win) {
                     win.document.open();
-                    win.document.write(receiptHtml);
+                    win.document.write(htmlContent);
                     win.document.close();
+                    setTimeout(() => {
+                        win.focus();
+                        win.print();
+                    }, 400);
                 } else {
                     window.print();
                 }
             }
         },
 
+        // PROPER FORMAL MONOCHROME (B&W) EO REPORT EXPORT
+        printAdminReport(customTxList = null) {
+            const txList = customTxList || this.transactions;
+            const event = this.getActiveEvent() || { name: 'Event Bazaar UMKM', location: '-' };
+            const stats = this.getAdminReportStats();
+            const dateNow = new Date().toLocaleDateString('id-ID', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            // Per-store breakdown calculations
+            const storeSummaries = this.stores.map(st => {
+                const stTx = txList.filter(t => t.store_id === st.id && t.status === 'paid');
+                const stGross = stTx.reduce((sum, t) => sum + t.total_amount, 0);
+                const stOwner = stTx.reduce((sum, t) => sum + (t.revenue_split?.owner_share || t.total_amount * 0.75), 0);
+                const stAdmin = stTx.reduce((sum, t) => sum + (t.revenue_split?.admin_gross_share || t.total_amount * 0.25), 0);
+                return {
+                    name: st.name,
+                    booth: st.booth_number || '-',
+                    count: stTx.length,
+                    gross: stGross,
+                    owner: stOwner,
+                    admin: stAdmin
+                };
+            });
+
+            const storeRows = storeSummaries.map((s, idx) => `
+                <tr>
+                    <td style="text-align: center; border: 1px solid #000; padding: 6px 8px;">${idx + 1}</td>
+                    <td style="border: 1px solid #000; padding: 6px 8px; font-weight: bold;">${s.name}</td>
+                    <td style="text-align: center; border: 1px solid #000; padding: 6px 8px;">${s.booth}</td>
+                    <td style="text-align: center; border: 1px solid #000; padding: 6px 8px;">${s.count}</td>
+                    <td style="text-align: right; border: 1px solid #000; padding: 6px 8px; font-weight: bold;">${formatRupiah(s.gross)}</td>
+                    <td style="text-align: right; border: 1px solid #000; padding: 6px 8px;">${formatRupiah(s.owner)}</td>
+                    <td style="text-align: right; border: 1px solid #000; padding: 6px 8px;">${formatRupiah(s.admin)}</td>
+                </tr>
+            `).join('');
+
+            const txRows = txList.map((t, idx) => `
+                <tr style="${t.status === 'cancelled' ? 'text-decoration: line-through; color: #555;' : ''}">
+                    <td style="text-align: center; border: 1px solid #000; padding: 5px 6px;">${idx + 1}</td>
+                    <td style="border: 1px solid #000; padding: 5px 6px; font-family: monospace; font-weight: bold;">${t.invoice_code}</td>
+                    <td style="border: 1px solid #000; padding: 5px 6px; font-size: 11px;">${formatDateTime(t.paid_at || t.created_at)}</td>
+                    <td style="border: 1px solid #000; padding: 5px 6px;">${t.store_name || '-'}</td>
+                    <td style="text-align: center; border: 1px solid #000; padding: 5px 6px; text-transform: uppercase; font-size: 11px;">${t.payment_method}</td>
+                    <td style="text-align: right; border: 1px solid #000; padding: 5px 6px; font-weight: bold;">${formatRupiah(t.total_amount)}</td>
+                    <td style="text-align: right; border: 1px solid #000; padding: 5px 6px;">${t.status === 'paid' ? formatRupiah(t.revenue_split?.owner_share || t.total_amount * 0.75) : '-'}</td>
+                    <td style="text-align: right; border: 1px solid #000; padding: 5px 6px;">${t.status === 'paid' ? formatRupiah(t.revenue_split?.admin_net_share || (t.total_amount * 0.25) - 1000) : '-'}</td>
+                    <td style="text-align: center; border: 1px solid #000; padding: 5px 6px; font-weight: bold; font-size: 11px;">${t.status.toUpperCase()}</td>
+                </tr>
+            `).join('');
+
+            const logoImg = window.__LOGO_BASE64__ || window.__LOGO_URL__ || '';
+
+            const reportHtml = `
+            <!DOCTYPE html>
+            <html lang="id">
+            <head>
+                <meta charset="UTF-8">
+                <title>Laporan Keuangan & Bagi Hasil EO — ${event.name}</title>
+                <style>
+                    @page {
+                        size: A4 portrait;
+                        margin: 15mm 12mm 15mm 12mm;
+                    }
+                    * {
+                        box-sizing: border-box;
+                        -webkit-print-color-adjust: exact;
+                        print-color-adjust: exact;
+                    }
+                    body {
+                        font-family: 'Arial', 'Helvetica', sans-serif;
+                        font-size: 12px;
+                        line-height: 1.4;
+                        color: #000;
+                        background: #fff;
+                        margin: 0;
+                        padding: 0;
+                    }
+                    .header {
+                        border-bottom: 3px double #000;
+                        padding-bottom: 8px;
+                        margin-bottom: 14px;
+                    }
+                    .header h1 {
+                        font-size: 15px;
+                        font-weight: 900;
+                        text-transform: uppercase;
+                        margin: 0 0 2px 0;
+                        letter-spacing: 0.5px;
+                    }
+                    .header h2 {
+                        font-size: 12px;
+                        font-weight: bold;
+                        margin: 0 0 3px 0;
+                    }
+                    .header .meta {
+                        font-size: 10px;
+                        color: #333;
+                    }
+                    .section-title {
+                        font-size: 12px;
+                        font-weight: bold;
+                        text-transform: uppercase;
+                        margin: 16px 0 6px 0;
+                        border-bottom: 1px solid #000;
+                        padding-bottom: 3px;
+                    }
+                    .summary-grid {
+                        width: 100%;
+                        border-collapse: collapse;
+                        margin-bottom: 14px;
+                    }
+                    .summary-grid td {
+                        border: 1px solid #000;
+                        padding: 7px 9px;
+                        vertical-align: top;
+                    }
+                    .summary-label {
+                        font-size: 9.5px;
+                        text-transform: uppercase;
+                        font-weight: bold;
+                        color: #333;
+                        display: block;
+                    }
+                    .summary-value {
+                        font-size: 14px;
+                        font-weight: 900;
+                        margin-top: 2px;
+                        display: block;
+                    }
+                    .summary-sub {
+                        font-size: 9.5px;
+                        color: #444;
+                        margin-top: 1px;
+                        display: block;
+                    }
+                    table.data-table {
+                        width: 100%;
+                        border-collapse: collapse;
+                        font-size: 10.5px;
+                        margin-bottom: 14px;
+                    }
+                    table.data-table th {
+                        border: 1px solid #000;
+                        background-color: #eee !important;
+                        padding: 5px 7px;
+                        font-weight: bold;
+                        text-align: left;
+                        font-size: 9.5px;
+                        text-transform: uppercase;
+                    }
+                    .signature-table {
+                        width: 100%;
+                        margin-top: 28px;
+                        page-break-inside: avoid;
+                    }
+                    .signature-table td {
+                        width: 50%;
+                        text-align: center;
+                        vertical-align: top;
+                        font-size: 11px;
+                    }
+                    .signature-space {
+                        height: 55px;
+                    }
+                    .footer-note {
+                        margin-top: 20px;
+                        padding-top: 6px;
+                        border-top: 1px dashed #000;
+                        font-size: 9px;
+                        text-align: center;
+                        color: #444;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <table style="width: 100%; border: none;">
+                        <tr>
+                            ${logoImg ? `
+                                <td style="width: 65px; border: none; text-align: left; vertical-align: middle; padding: 0;">
+                                    <img src="${logoImg}" style="height: 50px; width: auto; object-fit: contain;">
+                                </td>
+                            ` : ''}
+                            <td style="border: none; text-align: ${logoImg ? 'left' : 'center'}; vertical-align: middle; padding: 0 0 0 10px;">
+                                <h1>Laporan Rekapitulasi Keuangan & Bagi Hasil Event</h1>
+                                <h2>${event.name} &bull; ${event.location || '-'}</h2>
+                                <div class="meta">
+                                    <span>Tanggal Cetak: <strong>${dateNow}</strong></span> &bull; 
+                                    <span>Penyelenggara: <strong>Panitia Event Organizer (EO)</strong></span> &bull;
+                                    <span>Sistem: <strong>JADISATU Event</strong></span>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+
+                <div class="section-title">1. Ringkasan Eksekutif Finansial</div>
+                <table class="summary-grid">
+                    <tr>
+                        <td style="width: 25%;">
+                            <span class="summary-label">Total Omzet Bruto</span>
+                            <span class="summary-value">${formatRupiah(stats.totalGross)}</span>
+                            <span class="summary-sub">${stats.paidCount} Transaksi Paid</span>
+                        </td>
+                        <td style="width: 25%;">
+                            <span class="summary-label">Porsi Stand/Warung (75%)</span>
+                            <span class="summary-value">${formatRupiah(stats.ownerTotal)}</span>
+                            <span class="summary-sub">Hak Seluruh Tenant</span>
+                        </td>
+                        <td style="width: 25%;">
+                            <span class="summary-label">Porsi EO Gross (25%)</span>
+                            <span class="summary-value">${formatRupiah(stats.adminGross)}</span>
+                            <span class="summary-sub">Sebelum Fee Platform</span>
+                        </td>
+                        <td style="width: 25%; background: #f2f2f2;">
+                            <span class="summary-label">Pendapatan Bersih EO</span>
+                            <span class="summary-value">${formatRupiah(stats.adminNet)}</span>
+                            <span class="summary-sub">Gross 25% - (Rp1.000 × ${stats.paidCount})</span>
+                        </td>
+                    </tr>
+                </table>
+
+                <div class="section-title">2. Rekapitulasi Pendapatan per Stand / Warung</div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th style="text-align: center; width: 30px;">No</th>
+                            <th>Nama Stand / Warung</th>
+                            <th style="text-align: center; width: 70px;">Stand</th>
+                            <th style="text-align: center; width: 60px;">Tx Paid</th>
+                            <th style="text-align: right; width: 95px;">Total Omzet</th>
+                            <th style="text-align: right; width: 95px;">Hak Warung (75%)</th>
+                            <th style="text-align: right; width: 95px;">EO Gross (25%)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${storeRows.length > 0 ? storeRows : '<tr><td colspan="7" style="text-align: center; padding: 8px; border: 1px solid #000;">Belum ada data stand/warung</td></tr>'}
+                    </tbody>
+                </table>
+
+                <div class="section-title">3. Rincian Data Transaksi (Total ${txList.length} Transaksi)</div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th style="text-align: center; width: 28px;">No</th>
+                            <th style="width: 105px;">Invoice</th>
+                            <th style="width: 85px;">Waktu</th>
+                            <th>Stand Warung</th>
+                            <th style="text-align: center; width: 50px;">Metode</th>
+                            <th style="text-align: right; width: 80px;">Nominal</th>
+                            <th style="text-align: right; width: 80px;">Warung (75%)</th>
+                            <th style="text-align: right; width: 80px;">Net EO</th>
+                            <th style="text-align: center; width: 60px;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${txRows.length > 0 ? txRows : '<tr><td colspan="9" style="text-align: center; padding: 8px; border: 1px solid #000;">Belum ada transaksi</td></tr>'}
+                    </tbody>
+                </table>
+
+                <table class="signature-table">
+                    <tr>
+                        <td>
+                            <div>Dibuat & Divalidasi Oleh:</div>
+                            <div style="font-weight: bold; margin-top: 2px;">Admin Event Organizer</div>
+                            <div class="signature-space"></div>
+                            <div>( __________________________ )</div>
+                            <div style="font-size: 10px; color: #555; margin-top: 2px;">Panitia Pelaksana EO</div>
+                        </td>
+                        <td>
+                            <div>Mengetahui & Menyetujui:</div>
+                            <div style="font-weight: bold; margin-top: 2px;">Penanggung Jawab / Ketua EO</div>
+                            <div class="signature-space"></div>
+                            <div>( __________________________ )</div>
+                            <div style="font-size: 10px; color: #555; margin-top: 2px;">Event Organizer Lead</div>
+                        </td>
+                    </tr>
+                </table>
+
+                <div class="footer-note">
+                    Dokumen ini digenerate otomatis oleh Sistem JADISATU &bull; Dokumen resmi untuk proses rekonsiliasi finansial dan pembagian hasil.
+                </div>
+            </body>
+            </html>
+            `;
+
+            this.printDocument(reportHtml);
+        },
+
+        // PROPER FORMAL MONOCHROME (B&W) USER/TENANT REPORT EXPORT (STANDARDIZED TEMPLATE, TANPA TTD)
+        printUserReport(customTxList = null) {
+            const store = this.getCurrentStore() || { id: 1, name: 'Stand Warung', booth_number: '-' };
+            const event = this.getActiveEvent() || { name: 'Event Bazaar UMKM', location: '-' };
+            const stats = this.getUserReportStats(store.id);
+            const txList = customTxList || this.transactions.filter(t => t.store_id === store.id);
+            const logoImg = window.__LOGO_BASE64__ || window.__LOGO_URL__ || '';
+            const dateNow = new Date().toLocaleDateString('id-ID', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            const txRows = txList.map((t, idx) => `
+                <tr style="${t.status === 'cancelled' ? 'text-decoration: line-through; color: #555;' : ''}">
+                    <td style="text-align: center; border: 1px solid #000; padding: 5px 6px;">${idx + 1}</td>
+                    <td style="border: 1px solid #000; padding: 5px 6px; font-family: monospace; font-weight: bold;">${t.invoice_code}</td>
+                    <td style="border: 1px solid #000; padding: 5px 6px; font-size: 11px;">${formatDateTime(t.paid_at || t.created_at)}</td>
+                    <td style="text-align: center; border: 1px solid #000; padding: 5px 6px; text-transform: uppercase; font-size: 11px;">${t.payment_method}</td>
+                    <td style="text-align: right; border: 1px solid #000; padding: 5px 6px; font-weight: bold;">${formatRupiah(t.total_amount)}</td>
+                    <td style="text-align: right; border: 1px solid #000; padding: 5px 6px; font-weight: bold;">${t.status === 'paid' ? formatRupiah(t.revenue_split?.owner_share || t.total_amount * 0.75) : '-'}</td>
+                    <td style="text-align: center; border: 1px solid #000; padding: 5px 6px; font-weight: bold; font-size: 11px;">${t.status.toUpperCase()}</td>
+                </tr>
+            `).join('');
+
+            const reportHtml = `
+            <!DOCTYPE html>
+            <html lang="id">
+            <head>
+                <meta charset="UTF-8">
+                <title>Laporan Penjualan Stand — ${store.name}</title>
+                <style>
+                    @page {
+                        size: A4 portrait;
+                        margin: 15mm 12mm 15mm 12mm;
+                    }
+                    * {
+                        box-sizing: border-box;
+                        -webkit-print-color-adjust: exact;
+                        print-color-adjust: exact;
+                    }
+                    body {
+                        font-family: 'Arial', 'Helvetica', sans-serif;
+                        font-size: 12px;
+                        line-height: 1.4;
+                        color: #000;
+                        background: #fff;
+                        margin: 0;
+                        padding: 0;
+                    }
+                    .header {
+                        border-bottom: 3px double #000;
+                        padding-bottom: 8px;
+                        margin-bottom: 14px;
+                    }
+                    .header h1 {
+                        font-size: 15px;
+                        font-weight: 900;
+                        text-transform: uppercase;
+                        margin: 0 0 2px 0;
+                        letter-spacing: 0.5px;
+                    }
+                    .header h2 {
+                        font-size: 12px;
+                        font-weight: bold;
+                        margin: 0 0 3px 0;
+                    }
+                    .header .meta {
+                        font-size: 10px;
+                        color: #333;
+                    }
+                    .section-title {
+                        font-size: 12px;
+                        font-weight: bold;
+                        text-transform: uppercase;
+                        margin: 16px 0 6px 0;
+                        border-bottom: 1px solid #000;
+                        padding-bottom: 3px;
+                    }
+                    .summary-grid {
+                        width: 100%;
+                        border-collapse: collapse;
+                        margin-bottom: 14px;
+                    }
+                    .summary-grid td {
+                        border: 1px solid #000;
+                        padding: 7px 9px;
+                        vertical-align: top;
+                    }
+                    .summary-label {
+                        font-size: 9.5px;
+                        text-transform: uppercase;
+                        font-weight: bold;
+                        color: #333;
+                        display: block;
+                    }
+                    .summary-value {
+                        font-size: 14px;
+                        font-weight: 900;
+                        margin-top: 2px;
+                        display: block;
+                    }
+                    table.data-table {
+                        width: 100%;
+                        border-collapse: collapse;
+                        font-size: 10.5px;
+                        margin-bottom: 14px;
+                    }
+                    table.data-table th {
+                        border: 1px solid #000;
+                        background-color: #eee !important;
+                        padding: 5px 7px;
+                        font-weight: bold;
+                        text-align: left;
+                        font-size: 9.5px;
+                        text-transform: uppercase;
+                    }
+                    .footer-note {
+                        margin-top: 24px;
+                        padding-top: 8px;
+                        border-top: 1px dashed #000;
+                        font-size: 9px;
+                        text-align: center;
+                        color: #444;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <table style="width: 100%; border: none;">
+                        <tr>
+                            ${logoImg ? `
+                                <td style="width: 65px; border: none; text-align: left; vertical-align: middle; padding: 0;">
+                                    <img src="${logoImg}" style="height: 50px; width: auto; object-fit: contain;">
+                                </td>
+                            ` : ''}
+                            <td style="border: none; text-align: ${logoImg ? 'left' : 'center'}; vertical-align: middle; padding: 0 0 0 10px;">
+                                <h1>Laporan Penjualan & Bagi Hasil Stand</h1>
+                                <h2>${store.name} (${store.booth_number || 'Stand Tenant'}) &bull; ${event.name}</h2>
+                                <div class="meta">
+                                    <span>Tanggal Cetak: <strong>${dateNow}</strong></span> &bull; 
+                                    <span>Lokasi: <strong>${event.location || '-'}</strong></span> &bull;
+                                    <span>Sistem: <strong>JADISATU Event</strong></span>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+
+                <div class="section-title">1. Ringkasan Omzet Stand</div>
+                <table class="summary-grid">
+                    <tr>
+                        <td style="width: 33.3%;">
+                            <span class="summary-label">Total Omzet Bruto</span>
+                            <span class="summary-value">${formatRupiah(stats.totalGross)}</span>
+                            <span style="font-size: 9.5px; color: #444;">${stats.totalCount} Transaksi Paid</span>
+                        </td>
+                        <td style="width: 33.3%; background: #f2f2f2;">
+                            <span class="summary-label">Hak Pemilik Warung (75%)</span>
+                            <span class="summary-value">${formatRupiah(stats.netIncome)}</span>
+                            <span style="font-size: 9.5px; color: #444;">Pendapatan Bersih Tenant</span>
+                        </td>
+                        <td style="width: 33.3%;">
+                            <span class="summary-label">Porsi Bagi Hasil EO (25%)</span>
+                            <span class="summary-value">${formatRupiah(stats.totalGross * 0.25)}</span>
+                            <span style="font-size: 9.5px; color: #444;">Penyelenggara & Platform</span>
+                        </td>
+                    </tr>
+                </table>
+
+                <div class="section-title">2. Rincian Riwayat Transaksi</div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th style="text-align: center; width: 30px;">No</th>
+                            <th style="width: 120px;">Invoice</th>
+                            <th style="width: 110px;">Waktu</th>
+                            <th style="text-align: center; width: 70px;">Metode</th>
+                            <th style="text-align: right; width: 110px;">Total Belanja</th>
+                            <th style="text-align: right; width: 110px;">Hak Warung (75%)</th>
+                            <th style="text-align: center; width: 75px;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${txRows.length > 0 ? txRows : '<tr><td colspan="7" style="text-align: center; padding: 8px; border: 1px solid #000;">Belum ada transaksi</td></tr>'}
+                    </tbody>
+                </table>
+
+                <div class="footer-note">
+                    Dokumen dicetak otomatis dari Sistem JADISATU &bull; Berlaku sah sebagai rekapitulasi penjualan stand.
+                </div>
+            </body>
+            </html>
+            `;
+
+            this.printDocument(reportHtml);
+        },
+
+        // PROPER FORMAL MONOCHROME (B&W) SUPERADMIN AUDIT REPORT EXPORT
+        printSuperAdminReport(customTxList = null) {
+            const stats = this.getSuperAdminStats();
+            const txList = customTxList || this.transactions.filter(t => t.status === 'paid');
+            const event = this.getActiveEvent() || { name: 'Multi-Event UMKM' };
+            const dateNow = new Date().toLocaleDateString('id-ID', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            const txRows = txList.map((t, idx) => `
+                <tr>
+                    <td style="text-align: center; border: 1px solid #000; padding: 5px 6px;">${idx + 1}</td>
+                    <td style="border: 1px solid #000; padding: 5px 6px; font-family: monospace; font-weight: bold;">${t.invoice_code}</td>
+                    <td style="border: 1px solid #000; padding: 5px 6px; font-size: 11px;">${formatDateTime(t.paid_at || t.created_at)}</td>
+                    <td style="border: 1px solid #000; padding: 5px 6px;">${t.store_name || '-'}</td>
+                    <td style="text-align: center; border: 1px solid #000; padding: 5px 6px; text-transform: uppercase; font-size: 11px;">${t.payment_method}</td>
+                    <td style="text-align: right; border: 1px solid #000; padding: 5px 6px; font-weight: bold;">${formatRupiah(t.total_amount)}</td>
+                    <td style="text-align: right; border: 1px solid #000; padding: 5px 6px; font-weight: bold; background: #f2f2f2;">${formatRupiah(1000)}</td>
+                    <td style="text-align: right; border: 1px solid #000; padding: 5px 6px;">${formatRupiah(t.revenue_split?.admin_net_share || (t.total_amount * 0.25) - 1000)}</td>
+                    <td style="text-align: right; border: 1px solid #000; padding: 5px 6px;">${formatRupiah(t.revenue_split?.owner_share || t.total_amount * 0.75)}</td>
+                </tr>
+            `).join('');
+
+            const logoImg = window.__LOGO_BASE64__ || window.__LOGO_URL__ || '';
+
+            const reportHtml = `
+            <!DOCTYPE html>
+            <html lang="id">
+            <head>
+                <meta charset="UTF-8">
+                <title>Laporan Platform Fee Developer — ${event.name}</title>
+                <style>
+                    @page {
+                        size: A4 portrait;
+                        margin: 15mm 12mm 15mm 12mm;
+                    }
+                    * {
+                        box-sizing: border-box;
+                        -webkit-print-color-adjust: exact;
+                        print-color-adjust: exact;
+                    }
+                    body {
+                        font-family: 'Arial', 'Helvetica', sans-serif;
+                        font-size: 12px;
+                        line-height: 1.4;
+                        color: #000;
+                        background: #fff;
+                        margin: 0;
+                        padding: 0;
+                    }
+                    .header {
+                        text-align: center;
+                        border-bottom: 3px double #000;
+                        padding-bottom: 10px;
+                        margin-bottom: 14px;
+                    }
+                    .header h1 {
+                        font-size: 16px;
+                        font-weight: 900;
+                        text-transform: uppercase;
+                        margin: 0 0 3px 0;
+                    }
+                    .header h2 {
+                        font-size: 13px;
+                        font-weight: bold;
+                        margin: 0 0 5px 0;
+                    }
+                    .header .meta {
+                        font-size: 10.5px;
+                        color: #222;
+                    }
+                    .section-title {
+                        font-size: 12px;
+                        font-weight: bold;
+                        text-transform: uppercase;
+                        margin: 16px 0 6px 0;
+                        border-bottom: 1px solid #000;
+                        padding-bottom: 3px;
+                    }
+                    .summary-grid {
+                        width: 100%;
+                        border-collapse: collapse;
+                        margin-bottom: 14px;
+                    }
+                    .summary-grid td {
+                        border: 1px solid #000;
+                        padding: 7px 9px;
+                        vertical-align: top;
+                    }
+                    .summary-label {
+                        font-size: 9.5px;
+                        text-transform: uppercase;
+                        font-weight: bold;
+                        color: #333;
+                        display: block;
+                    }
+                    .summary-value {
+                        font-size: 14px;
+                        font-weight: 900;
+                        margin-top: 2px;
+                        display: block;
+                    }
+                    table.data-table {
+                        width: 100%;
+                        border-collapse: collapse;
+                        font-size: 10.5px;
+                        margin-bottom: 14px;
+                    }
+                    table.data-table th {
+                        border: 1px solid #000;
+                        background-color: #eee !important;
+                        padding: 5px 7px;
+                        font-weight: bold;
+                        text-align: left;
+                        font-size: 9.5px;
+                        text-transform: uppercase;
+                    }
+                    .signature-table {
+                        width: 100%;
+                        margin-top: 28px;
+                        page-break-inside: avoid;
+                    }
+                    .signature-table td {
+                        width: 50%;
+                        text-align: center;
+                        vertical-align: top;
+                        font-size: 11px;
+                    }
+                    .signature-space {
+                        height: 55px;
+                    }
+                    .footer-note {
+                        margin-top: 20px;
+                        padding-top: 6px;
+                        border-top: 1px dashed #000;
+                        font-size: 9px;
+                        text-align: center;
+                        color: #444;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <table style="width: 100%; border: none;">
+                        <tr>
+                            ${logoImg ? `
+                                <td style="width: 65px; border: none; text-align: left; vertical-align: middle; padding: 0;">
+                                    <img src="${logoImg}" style="height: 50px; width: auto; object-fit: contain;">
+                                </td>
+                            ` : ''}
+                            <td style="border: none; text-align: ${logoImg ? 'left' : 'center'}; vertical-align: middle; padding: 0 0 0 10px;">
+                                <h1>Laporan Audit Finansial Platform Developer</h1>
+                                <h2>Flat License Fee Rp1.000 / Transaksi Paid &bull; ${event.name}</h2>
+                                <div class="meta">
+                                    <span>Tanggal Cetak: <strong>${dateNow}</strong></span> &bull; 
+                                    <span>Audit Platform POS Multi-Tenant UMKM &bull; <strong>JADISATU Platform</strong></span>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+
+                <div class="section-title">1. Ringkasan Pendapatan Platform</div>
+                <table class="summary-grid">
+                    <tr>
+                        <td style="width: 33.3%; background: #f2f2f2;">
+                            <span class="summary-label">Total Fee Developer</span>
+                            <span class="summary-value">${formatRupiah(stats.totalSuperAdminRevenue)}</span>
+                            <span style="font-size: 9.5px; color: #444;">Rp1.000 × ${stats.paidCount} Transaksi Paid</span>
+                        </td>
+                        <td style="width: 33.3%;">
+                            <span class="summary-label">Total Volume Transaksi Paid</span>
+                            <span class="summary-value">${formatRupiah(stats.totalVolume)}</span>
+                            <span style="font-size: 9.5px; color: #444;">Gross Volume Seluruh Stand</span>
+                        </td>
+                        <td style="width: 33.3%;">
+                            <span class="summary-label">Total Event Terdaftar</span>
+                            <span class="summary-value">${stats.totalEvents} Event</span>
+                            <span style="font-size: 9.5px; color: #444;">Sistem Aktif Multi-Tenant</span>
+                        </td>
+                    </tr>
+                </table>
+
+                <div class="section-title">2. Rincian Transaksi Paid & Potongan Flat Fee Platform</div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th style="text-align: center; width: 28px;">No</th>
+                            <th style="width: 105px;">Invoice</th>
+                            <th style="width: 85px;">Waktu</th>
+                            <th>Stand Tenant</th>
+                            <th style="text-align: center; width: 50px;">Metode</th>
+                            <th style="text-align: right; width: 85px;">Gross</th>
+                            <th style="text-align: right; width: 85px;">Developer</th>
+                            <th style="text-align: right; width: 85px;">Net EO</th>
+                            <th style="text-align: right; width: 85px;">Warung (75%)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${txRows.length > 0 ? txRows : '<tr><td colspan="9" style="text-align: center; padding: 8px; border: 1px solid #000;">Belum ada transaksi paid</td></tr>'}
+                    </tbody>
+                </table>
+
+                <table class="signature-table">
+                    <tr>
+                        <td>
+                            <div>Disusun Oleh:</div>
+                            <div style="font-weight: bold; margin-top: 2px;">Developer Platform</div>
+                            <div class="signature-space"></div>
+                            <div>( __________________________ )</div>
+                            <div style="font-size: 9px; color: #555; margin-top: 2px;">Administrator Developer</div>
+                        </td>
+                        <td>
+                            <div>Mengetahui & Menyetujui:</div>
+                            <div style="font-weight: bold; margin-top: 2px;">Auditor Finansial / Manajemen</div>
+                            <div class="signature-space"></div>
+                            <div>( __________________________ )</div>
+                            <div style="font-size: 9px; color: #555; margin-top: 2px;">Auditor Platform</div>
+                        </td>
+                    </tr>
+                </table>
+
+                <div class="footer-note">
+                    Dokumen resmi audit lisensi platform POS UMKM &bull; Dihasilkan langsung dari database transaksi terenkripsi.
+                </div>
+            </body>
+            </html>
+            `;
+
+            this.printDocument(reportHtml);
+        },
+
+        // EXPORT SUPERADMIN REPORT TO WORD (.DOC) WITH SIGNATURES
+        exportSuperAdminReportWord(customTxList = null) {
+            const stats = this.getSuperAdminStats();
+            const txList = customTxList || this.transactions.filter(t => t.status === 'paid');
+            const event = this.getActiveEvent() || { name: 'Multi-Event UMKM' };
+            const dateStr = new Date().toISOString().slice(0, 10);
+            const dateNow = new Date().toLocaleDateString('id-ID', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            const txRows = txList.map((t, idx) => `
+                <tr>
+                    <td style="text-align: center; border: 1pt solid #000; padding: 4pt 5pt;">${idx + 1}</td>
+                    <td style="border: 1pt solid #000; padding: 4pt 5pt; font-family: monospace; font-weight: bold;">${t.invoice_code}</td>
+                    <td style="border: 1pt solid #000; padding: 4pt 5pt; font-size: 8.5pt;">${formatDateTime(t.paid_at || t.created_at)}</td>
+                    <td style="border: 1pt solid #000; padding: 4pt 5pt;">${t.store_name || '-'}</td>
+                    <td style="text-align: center; border: 1pt solid #000; padding: 4pt 5pt; text-transform: uppercase; font-size: 8.5pt;">${t.payment_method}</td>
+                    <td style="text-align: right; border: 1pt solid #000; padding: 4pt 5pt; font-weight: bold;">${formatRupiah(t.total_amount)}</td>
+                    <td style="text-align: right; border: 1pt solid #000; padding: 4pt 5pt; font-weight: bold; background: #f2f2f2;">${formatRupiah(1000)}</td>
+                    <td style="text-align: right; border: 1pt solid #000; padding: 4pt 5pt;">${formatRupiah(t.revenue_split?.admin_net_share || (t.total_amount * 0.25) - 1000)}</td>
+                    <td style="text-align: right; border: 1pt solid #000; padding: 4pt 5pt;">${formatRupiah(t.revenue_split?.owner_share || t.total_amount * 0.75)}</td>
+                </tr>
+            `).join('');
+
+            const logoImg = window.__LOGO_BASE64__ || window.__LOGO_URL__ || '';
+
+            const wordContent = `
+            <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+            <head>
+                <meta charset="utf-8">
+                <title>Laporan_Platform_Fee_Developer_${dateStr}</title>
+                <!--[if gte mso 9]>
+                <xml>
+                <w:WordDocument>
+                    <w:View>Print</w:View>
+                    <w:Zoom>100</w:Zoom>
+                    <w:DoNotOptimizeForBrowser/>
+                </w:WordDocument>
+                </xml>
+                <![endif]-->
+                <style>
+                    @page Section1 {
+                        size: 595.3pt 841.9pt; /* A4 */
+                        margin: 42.5pt 42.5pt 42.5pt 42.5pt;
+                        mso-header-margin: 35.4pt;
+                        mso-footer-margin: 35.4pt;
+                        mso-paper-source: 0;
+                    }
+                    div.Section1 { page: Section1; }
+                    body { font-family: 'Arial', sans-serif; font-size: 9.5pt; color: #000; line-height: 1.3; }
+                    h1 { font-size: 14pt; font-weight: bold; text-transform: uppercase; margin: 0 0 2pt 0; }
+                    h2 { font-size: 11pt; font-weight: bold; color: #111; margin: 0 0 4pt 0; }
+                    .meta { font-size: 8.5pt; color: #333; }
+                    .section-title { font-size: 10pt; font-weight: bold; text-transform: uppercase; margin: 12pt 0 4pt 0; border-bottom: 1pt solid #000; padding-bottom: 2pt; }
+                    table { width: 100%; border-collapse: collapse; margin-bottom: 10pt; font-size: 9pt; }
+                    th { border: 1pt solid #000; background-color: #f2f2f2; padding: 4pt 5pt; font-weight: bold; text-align: left; text-transform: uppercase; font-size: 8.5pt; }
+                    td { border: 1pt solid #000; padding: 4pt 5pt; vertical-align: top; }
+                    .sig-table { width: 100%; border: none; margin-top: 24pt; }
+                    .sig-table td { border: none; width: 50%; text-align: center; vertical-align: top; }
+                    .sig-space { height: 48pt; }
+                    .footer-note { font-size: 8.5pt; text-align: center; color: #555; border-top: 1pt dashed #000; padding-top: 6pt; margin-top: 16pt; }
+                </style>
+            </head>
+            <body>
+                <div class="Section1">
+                    <div style="border-bottom: 2pt double #000; padding-bottom: 6pt; margin-bottom: 10pt;">
+                        <table style="width: 100%; border: none;">
+                            <tr>
+                                ${logoImg ? `
+                                    <td style="width: 60pt; border: none; text-align: left; vertical-align: middle; padding: 0;">
+                                        <img src="${logoImg}" style="height: 45pt; width: auto;" width="60" height="45">
+                                    </td>
+                                ` : ''}
+                                <td style="border: none; text-align: ${logoImg ? 'left' : 'center'}; vertical-align: middle; padding-left: 8pt;">
+                                    <h1 style="text-align: ${logoImg ? 'left' : 'center'};">Laporan Audit Finansial Platform Developer</h1>
+                                    <h2 style="text-align: ${logoImg ? 'left' : 'center'};">Flat License Fee Rp1.000 / Tx &bull; ${event.name}</h2>
+                                    <div class="meta" style="text-align: ${logoImg ? 'left' : 'center'};">
+                                        Tanggal Cetak: <strong>${dateNow}</strong> &bull; Sistem: <strong>JADISATU Platform Multi-Event</strong>
+                                    </div>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <div class="section-title">1. Ringkasan Pendapatan Platform</div>
+                    <table>
+                        <tr>
+                            <td style="width: 33.3%; background-color: #f2f2f2;">
+                                <div style="font-size: 8.5pt; font-weight: bold; text-transform: uppercase; color: #444;">Total Fee Developer</div>
+                                <div style="font-size: 12pt; font-weight: bold; margin-top: 2pt;">${formatRupiah(stats.totalSuperAdminRevenue)}</div>
+                                <div style="font-size: 8.5pt; color: #555;">Rp1.000 × ${stats.paidCount} Tx Paid</div>
+                            </td>
+                            <td style="width: 33.3%;">
+                                <div style="font-size: 8.5pt; font-weight: bold; text-transform: uppercase; color: #444;">Total Volume Transaksi</div>
+                                <div style="font-size: 12pt; font-weight: bold; margin-top: 2pt;">${formatRupiah(stats.totalVolume)}</div>
+                                <div style="font-size: 8.5pt; color: #555;">Gross Volume Seluruh Stand</div>
+                            </td>
+                            <td style="width: 33.3%;">
+                                <div style="font-size: 8.5pt; font-weight: bold; text-transform: uppercase; color: #444;">Total Event Terdaftar</div>
+                                <div style="font-size: 12pt; font-weight: bold; margin-top: 2pt;">${stats.totalEvents} Event</div>
+                                <div style="font-size: 8.5pt; color: #555;">Sistem Aktif Multi-Tenant</div>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <div class="section-title">2. Rincian Transaksi Paid & Potongan Flat Fee Platform</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="text-align: center; width: 25pt;">No</th>
+                                <th style="width: 80pt;">Invoice</th>
+                                <th style="width: 70pt;">Waktu</th>
+                                <th>Stand Tenant</th>
+                                <th style="text-align: center; width: 45pt;">Metode</th>
+                                <th style="text-align: right; width: 65pt;">Gross</th>
+                                <th style="text-align: right; width: 60pt;">Developer</th>
+                                <th style="text-align: right; width: 65pt;">Net EO</th>
+                                <th style="text-align: right; width: 65pt;">Warung (75%)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${txRows.length > 0 ? txRows : '<tr><td colspan="9" style="text-align: center; padding: 6pt;">Belum ada transaksi paid</td></tr>'}
+                        </tbody>
+                    </table>
+
+                    <table class="sig-table">
+                        <tr>
+                            <td>
+                                <div>Disusun Oleh:</div>
+                                <div style="font-weight: bold; margin-top: 2pt;">Developer Platform</div>
+                                <div class="sig-space"></div>
+                                <div>( __________________________ )</div>
+                                <div style="font-size: 8.5pt; color: #555; margin-top: 2pt;">Administrator Developer</div>
+                            </td>
+                            <td>
+                                <div>Mengetahui & Menyetujui:</div>
+                                <div style="font-weight: bold; margin-top: 2pt;">Auditor Finansial / Manajemen</div>
+                                <div class="sig-space"></div>
+                                <div>( __________________________ )</div>
+                                <div style="font-size: 8.5pt; color: #555; margin-top: 2pt;">Auditor Platform</div>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <div class="footer-note">
+                        Dokumen resmi audit lisensi platform POS UMKM &bull; Dihasilkan langsung dari database transaksi terenkripsi.
+                    </div>
+                </div>
+            </body>
+            </html>
+            `;
+
+            this.downloadReportFile(wordContent, `Laporan_Developer_${dateStr}.doc`, 'application/msword');
+        },
+
+        // EXPORT SUPERADMIN REPORT TO EXCEL (.XLS)
+        exportSuperAdminReportExcel(customTxList = null) {
+            const stats = this.getSuperAdminStats();
+            const txList = customTxList || this.transactions.filter(t => t.status === 'paid');
+            const event = this.getActiveEvent() || { name: 'Multi-Event UMKM' };
+            const dateStr = new Date().toISOString().slice(0, 10);
+            const dateNow = new Date().toLocaleDateString('id-ID', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            const txRows = txList.map((t, idx) => `
+                <tr>
+                    <td style="text-align: center; border: 1px solid #000;">${idx + 1}</td>
+                    <td style="border: 1px solid #000; font-family: monospace;">${t.invoice_code}</td>
+                    <td style="border: 1px solid #000;">${formatDateTime(t.paid_at || t.created_at)}</td>
+                    <td style="border: 1px solid #000;">${t.store_name || '-'}</td>
+                    <td style="text-align: center; border: 1px solid #000; text-transform: uppercase;">${t.payment_method}</td>
+                    <td style="text-align: right; border: 1px solid #000;">${t.total_amount}</td>
+                    <td style="text-align: right; border: 1px solid #000; font-weight: bold; background: #e6f2ff;">1000</td>
+                    <td style="text-align: right; border: 1px solid #000;">${t.revenue_split?.admin_net_share || (t.total_amount * 0.25) - 1000}</td>
+                    <td style="text-align: right; border: 1px solid #000;">${t.revenue_split?.owner_share || t.total_amount * 0.75}</td>
+                </tr>
+            `).join('');
+
+            const excelContent = `
+            <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+            <head>
+                <meta charset="utf-8">
+                <!--[if gte mso 9]>
+                <xml>
+                <x:ExcelWorkbook>
+                <x:ExcelWorksheets>
+                    <x:ExcelWorksheet>
+                    <x:Name>Laporan Developer</x:Name>
+                    <x:WorksheetOptions>
+                        <x:DisplayGridlines/>
+                    </x:WorksheetOptions>
+                    </x:ExcelWorksheet>
+                </x:ExcelWorksheets>
+                </x:ExcelWorkbook>
+                </xml>
+                <![endif]-->
+            </head>
+            <body>
+                <table>
+                    <tr><td colspan="9" style="font-size: 14pt; font-weight: bold;">LAPORAN AUDIT FINANSIAL DEVELOPER PLATFORM</td></tr>
+                    <tr><td colspan="9" style="font-size: 11pt; font-weight: bold; color: #1d9bf0;">SKEMA LISENSI FLAT FEE RP1.000 / TRANSAKSI PAID</td></tr>
+                    <tr><td colspan="9" style="font-size: 9pt; color: #555;">Tanggal Ekspor: ${dateNow} | Sistem: JADISATU Platform</td></tr>
+                    <tr><td colspan="9"></td></tr>
+                    <tr style="background-color: #f2f2f2; font-weight: bold;">
+                        <td colspan="3" style="border: 1px solid #000;">TOTAL FEE DEVELOPER (RP1.000/TX)</td>
+                        <td colspan="3" style="border: 1px solid #000;">TOTAL VOLUME GROSS TRANSAKSI</td>
+                        <td colspan="3" style="border: 1px solid #000;">TOTAL TRANSAKSI PAID</td>
+                    </tr>
+                    <tr style="font-weight: bold; font-size: 12pt;">
+                        <td colspan="3" style="border: 1px solid #000; color: #1d9bf0;">${formatRupiah(stats.totalSuperAdminRevenue)}</td>
+                        <td colspan="3" style="border: 1px solid #000;">${formatRupiah(stats.totalVolume)}</td>
+                        <td colspan="3" style="border: 1px solid #000;">${stats.paidCount} Transaksi</td>
+                    </tr>
+                    <tr><td colspan="9"></td></tr>
+                    <tr style="background-color: #0f1419; color: #ffffff; font-weight: bold; text-align: center;">
+                        <th style="border: 1px solid #000;">No</th>
+                        <th style="border: 1px solid #000;">Invoice</th>
+                        <th style="border: 1px solid #000;">Waktu</th>
+                        <th style="border: 1px solid #000;">Stand Tenant</th>
+                        <th style="border: 1px solid #000;">Metode</th>
+                        <th style="border: 1px solid #000;">Total Belanja (Gross)</th>
+                        <th style="border: 1px solid #000;">Fee Developer (Rp1.000)</th>
+                        <th style="border: 1px solid #000;">Net EO</th>
+                        <th style="border: 1px solid #000;">Hak Warung (75%)</th>
+                    </tr>
+                    ${txRows}
+                </table>
+            </body>
+            </html>
+            `;
+
+            this.downloadReportFile(excelContent, `Laporan_Developer_${dateStr}.xls`, 'application/vnd.ms-excel');
+        },
+
+        // Universal File Downloader
+        downloadReportFile(content, filename, mimeType) {
+            const blob = new Blob(['\ufeff' + content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 500);
+            this.notify('success', 'Ekspor Berhasil', `File ${filename} berhasil diunduh.`);
+        },
+
+        // EXPORT EO REPORT TO WORD (.DOC) WITH SIGNATURES
+        exportAdminReportWord(customTxList = null) {
+            const txList = customTxList || this.transactions;
+            const event = this.getActiveEvent() || { name: 'Event Bazaar UMKM', location: '-' };
+            const stats = this.getAdminReportStats();
+            const dateStr = new Date().toISOString().slice(0, 10);
+            const dateNow = new Date().toLocaleDateString('id-ID', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            const storeSummaries = this.stores.map(st => {
+                const stTx = txList.filter(t => t.store_id === st.id && t.status === 'paid');
+                const stGross = stTx.reduce((sum, t) => sum + t.total_amount, 0);
+                const stOwner = stTx.reduce((sum, t) => sum + (t.revenue_split?.owner_share || t.total_amount * 0.75), 0);
+                const stAdmin = stTx.reduce((sum, t) => sum + (t.revenue_split?.admin_gross_share || t.total_amount * 0.25), 0);
+                return {
+                    name: st.name,
+                    booth: st.booth_number || '-',
+                    count: stTx.length,
+                    gross: stGross,
+                    owner: stOwner,
+                    admin: stAdmin
+                };
+            });
+
+            const storeRows = storeSummaries.map((s, idx) => `
+                <tr>
+                    <td style="text-align: center; border: 1pt solid #000; padding: 4pt 6pt;">${idx + 1}</td>
+                    <td style="border: 1pt solid #000; padding: 4pt 6pt; font-weight: bold;">${s.name}</td>
+                    <td style="text-align: center; border: 1pt solid #000; padding: 4pt 6pt;">${s.booth}</td>
+                    <td style="text-align: center; border: 1pt solid #000; padding: 4pt 6pt;">${s.count}</td>
+                    <td style="text-align: right; border: 1pt solid #000; padding: 4pt 6pt; font-weight: bold;">${formatRupiah(s.gross)}</td>
+                    <td style="text-align: right; border: 1pt solid #000; padding: 4pt 6pt;">${formatRupiah(s.owner)}</td>
+                    <td style="text-align: right; border: 1pt solid #000; padding: 4pt 6pt;">${formatRupiah(s.admin)}</td>
+                </tr>
+            `).join('');
+
+            const txRows = txList.map((t, idx) => `
+                <tr style="${t.status === 'cancelled' ? 'text-decoration: line-through; color: #777;' : ''}">
+                    <td style="text-align: center; border: 1pt solid #000; padding: 4pt 5pt;">${idx + 1}</td>
+                    <td style="border: 1pt solid #000; padding: 4pt 5pt; font-family: monospace; font-weight: bold;">${t.invoice_code}</td>
+                    <td style="border: 1pt solid #000; padding: 4pt 5pt; font-size: 9.5pt;">${formatDateTime(t.paid_at || t.created_at)}</td>
+                    <td style="border: 1pt solid #000; padding: 4pt 5pt;">${t.store_name || '-'}</td>
+                    <td style="text-align: center; border: 1pt solid #000; padding: 4pt 5pt; text-transform: uppercase;">${t.payment_method}</td>
+                    <td style="text-align: right; border: 1pt solid #000; padding: 4pt 5pt; font-weight: bold;">${formatRupiah(t.total_amount)}</td>
+                    <td style="text-align: right; border: 1pt solid #000; padding: 4pt 5pt;">${t.status === 'paid' ? formatRupiah(t.revenue_split?.owner_share || t.total_amount * 0.75) : '-'}</td>
+                    <td style="text-align: right; border: 1pt solid #000; padding: 4pt 5pt;">${t.status === 'paid' ? formatRupiah(t.revenue_split?.admin_net_share || (t.total_amount * 0.25) - 1000) : '-'}</td>
+                    <td style="text-align: center; border: 1pt solid #000; padding: 4pt 5pt; font-weight: bold;">${t.status.toUpperCase()}</td>
+                </tr>
+            `).join('');
+
+            const logoImg = window.__LOGO_BASE64__ || window.__LOGO_URL__ || '';
+
+            const wordContent = `
+            <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+            <head>
+                <meta charset='utf-8'>
+                <title>Laporan Keuangan EO — ${event.name}</title>
+                <!--[if gte mso 9]>
+                <xml>
+                    <w:WordDocument>
+                        <w:View>Print</w:View>
+                        <w:Zoom>100</w:Zoom>
+                        <w:DoNotOptimizeForBrowser/>
+                    </w:WordDocument>
+                </xml>
+                <![endif]-->
+                <style>
+                    @page Section1 {
+                        size: 21cm 29.7cm;
+                        margin: 2cm 1.8cm 2cm 1.8cm;
+                        mso-header-margin: 1cm;
+                        mso-footer-margin: 1cm;
+                        mso-paper-source: 0;
+                    }
+                    div.Section1 { page: Section1; }
+                    body { font-family: 'Arial', 'Calibri', sans-serif; font-size: 10pt; line-height: 1.3; color: #000; }
+                    h1 { font-size: 14pt; font-weight: bold; text-align: center; text-transform: uppercase; margin: 0 0 3pt 0; }
+                    h2 { font-size: 11.5pt; font-weight: bold; text-align: center; margin: 0 0 4pt 0; }
+                    .meta { font-size: 9pt; text-align: center; color: #333; margin-bottom: 10pt; }
+                    .section-title { font-size: 11pt; font-weight: bold; text-transform: uppercase; margin-top: 14pt; margin-bottom: 4pt; border-bottom: 1pt solid #000; padding-bottom: 2pt; }
+                    table { width: 100%; border-collapse: collapse; margin-bottom: 12pt; font-size: 9.5pt; }
+                    th { border: 1pt solid #000; background-color: #eee; padding: 4pt 5pt; font-weight: bold; text-align: left; text-transform: uppercase; font-size: 9pt; }
+                    td { border: 1pt solid #000; padding: 4pt 5pt; vertical-align: top; }
+                    .sig-table { width: 100%; border: none; margin-top: 24pt; }
+                    .sig-table td { border: none; width: 50%; text-align: center; vertical-align: top; }
+                    .sig-space { height: 48pt; }
+                    .footer-note { font-size: 8.5pt; text-align: center; color: #555; border-top: 1pt dashed #000; padding-top: 6pt; margin-top: 16pt; }
+                </style>
+            </head>
+            <body>
+                <div class="Section1">
+                    <div style="border-bottom: 2pt double #000; padding-bottom: 6pt; margin-bottom: 10pt;">
+                        <table style="width: 100%; border: none;">
+                            <tr>
+                                ${logoImg ? `
+                                    <td style="width: 60pt; border: none; text-align: left; vertical-align: middle; padding: 0;">
+                                        <img src="${logoImg}" style="height: 45pt; width: auto;" width="60" height="45">
+                                    </td>
+                                ` : ''}
+                                <td style="border: none; text-align: ${logoImg ? 'left' : 'center'}; vertical-align: middle; padding-left: 8pt;">
+                                    <h1 style="text-align: ${logoImg ? 'left' : 'center'};">Laporan Rekapitulasi Keuangan & Bagi Hasil Event</h1>
+                                    <h2 style="text-align: ${logoImg ? 'left' : 'center'};">${event.name} &bull; ${event.location || '-'}</h2>
+                                    <div class="meta" style="text-align: ${logoImg ? 'left' : 'center'};">
+                                        Tanggal Cetak: <strong>${dateNow}</strong> &bull; Penyelenggara: <strong>Panitia EO</strong> &bull; Sistem: <strong>JADISATU Event</strong>
+                                    </div>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <div class="section-title">1. Ringkasan Eksekutif Finansial</div>
+                    <table>
+                        <tr>
+                            <td style="width: 25%;">
+                                <div style="font-size: 8.5pt; font-weight: bold; text-transform: uppercase; color: #444;">Total Omzet Bruto</div>
+                                <div style="font-size: 12pt; font-weight: bold; margin-top: 2pt;">${formatRupiah(stats.totalGross)}</div>
+                                <div style="font-size: 8.5pt; color: #555;">${stats.paidCount} Transaksi Paid</div>
+                            </td>
+                            <td style="width: 25%;">
+                                <div style="font-size: 8.5pt; font-weight: bold; text-transform: uppercase; color: #444;">Porsi Stand/Warung (75%)</div>
+                                <div style="font-size: 12pt; font-weight: bold; margin-top: 2pt;">${formatRupiah(stats.ownerTotal)}</div>
+                                <div style="font-size: 8.5pt; color: #555;">Hak Seluruh Tenant</div>
+                            </td>
+                            <td style="width: 25%;">
+                                <div style="font-size: 8.5pt; font-weight: bold; text-transform: uppercase; color: #444;">Porsi EO Gross (25%)</div>
+                                <div style="font-size: 12pt; font-weight: bold; margin-top: 2pt;">${formatRupiah(stats.adminGross)}</div>
+                                <div style="font-size: 8.5pt; color: #555;">Sebelum Fee Platform</div>
+                            </td>
+                            <td style="width: 25%; background-color: #f2f2f2;">
+                                <div style="font-size: 8.5pt; font-weight: bold; text-transform: uppercase; color: #444;">Pendapatan Bersih EO</div>
+                                <div style="font-size: 12pt; font-weight: bold; margin-top: 2pt;">${formatRupiah(stats.adminNet)}</div>
+                                <div style="font-size: 8.5pt; color: #555;">Gross 25% - (Rp1.000 × ${stats.paidCount})</div>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <div class="section-title">2. Rekapitulasi Pendapatan per Stand / Warung</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="text-align: center; width: 25pt;">No</th>
+                                <th>Nama Stand / Warung</th>
+                                <th style="text-align: center; width: 55pt;">Stand</th>
+                                <th style="text-align: center; width: 45pt;">Tx Paid</th>
+                                <th style="text-align: right; width: 75pt;">Total Omzet</th>
+                                <th style="text-align: right; width: 75pt;">Hak Warung (75%)</th>
+                                <th style="text-align: right; width: 75pt;">EO Gross (25%)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${storeRows.length > 0 ? storeRows : '<tr><td colspan="7" style="text-align: center; padding: 6pt;">Belum ada data stand</td></tr>'}
+                        </tbody>
+                    </table>
+
+                    <div class="section-title">3. Rincian Seluruh Transaksi (${txList.length} Transaksi)</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="text-align: center; width: 20pt;">No</th>
+                                <th style="width: 80pt;">Invoice</th>
+                                <th style="width: 70pt;">Waktu</th>
+                                <th>Stand Warung</th>
+                                <th style="text-align: center; width: 40pt;">Metode</th>
+                                <th style="text-align: right; width: 65pt;">Nominal</th>
+                                <th style="text-align: right; width: 65pt;">Warung (75%)</th>
+                                <th style="text-align: right; width: 65pt;">Net EO</th>
+                                <th style="text-align: center; width: 45pt;">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${txRows.length > 0 ? txRows : '<tr><td colspan="9" style="text-align: center; padding: 6pt;">Belum ada transaksi</td></tr>'}
+                        </tbody>
+                    </table>
+
+                    <table class="sig-table">
+                        <tr>
+                            <td>
+                                <div>Dibuat & Divalidasi Oleh:</div>
+                                <div style="font-weight: bold; margin-top: 2pt;">Admin Event Organizer</div>
+                                <div class="sig-space"></div>
+                                <div>( __________________________ )</div>
+                                <div style="font-size: 8.5pt; color: #555; margin-top: 2pt;">Panitia Pelaksana EO</div>
+                            </td>
+                            <td>
+                                <div>Mengetahui & Menyetujui:</div>
+                                <div style="font-weight: bold; margin-top: 2pt;">Penanggung Jawab / Ketua EO</div>
+                                <div class="sig-space"></div>
+                                <div>( __________________________ )</div>
+                                <div style="font-size: 8.5pt; color: #555; margin-top: 2pt;">Event Organizer Lead</div>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <div class="footer-note">
+                        Dokumen ini digenerate secara otomatis oleh Sistem JADISATU &bull; Berlaku sah untuk pertanggungjawaban panitia EO dan rekonsiliasi bagi hasil.
+                    </div>
+                </div>
+            </body>
+            </html>
+            `;
+
+            this.downloadReportFile(wordContent, `Laporan_EO_${event.name.replace(/[^a-zA-Z0-9]/g, '_')}_${dateStr}.doc`, 'application/msword');
+        },
+
+        // EXPORT EO REPORT TO EXCEL (.XLS SPREADSHEET)
+        exportAdminReportExcel(customTxList = null) {
+            const txList = customTxList || this.transactions;
+            const event = this.getActiveEvent() || { name: 'Event Bazaar UMKM', location: '-' };
+            const stats = this.getAdminReportStats();
+            const dateStr = new Date().toISOString().slice(0, 10);
+            const dateNow = new Date().toLocaleDateString('id-ID', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            const storeSummaries = this.stores.map(st => {
+                const stTx = txList.filter(t => t.store_id === st.id && t.status === 'paid');
+                const stGross = stTx.reduce((sum, t) => sum + t.total_amount, 0);
+                const stOwner = stTx.reduce((sum, t) => sum + (t.revenue_split?.owner_share || t.total_amount * 0.75), 0);
+                const stAdmin = stTx.reduce((sum, t) => sum + (t.revenue_split?.admin_gross_share || t.total_amount * 0.25), 0);
+                return {
+                    name: st.name,
+                    booth: st.booth_number || '-',
+                    count: stTx.length,
+                    gross: stGross,
+                    owner: stOwner,
+                    admin: stAdmin
+                };
+            });
+
+            let storeRowsXml = storeSummaries.map((s, idx) => `
+                <tr>
+                    <td style="text-align: center; border: 1px solid #cbd5e1;">${idx + 1}</td>
+                    <td style="border: 1px solid #cbd5e1; font-weight: bold;">${s.name}</td>
+                    <td style="text-align: center; border: 1px solid #cbd5e1;">${s.booth}</td>
+                    <td style="text-align: center; border: 1px solid #cbd5e1;">${s.count}</td>
+                    <td style="text-align: right; border: 1px solid #cbd5e1; font-weight: bold;">${s.gross}</td>
+                    <td style="text-align: right; border: 1px solid #cbd5e1;">${s.owner}</td>
+                    <td style="text-align: right; border: 1px solid #cbd5e1;">${s.admin}</td>
+                </tr>
+            `).join('');
+
+            let txRowsXml = txList.map((t, idx) => `
+                <tr>
+                    <td style="text-align: center; border: 1px solid #cbd5e1;">${idx + 1}</td>
+                    <td style="border: 1px solid #cbd5e1; font-family: monospace; font-weight: bold;">${t.invoice_code}</td>
+                    <td style="border: 1px solid #cbd5e1;">${formatDateTime(t.paid_at || t.created_at)}</td>
+                    <td style="border: 1px solid #cbd5e1;">${t.store_name || '-'}</td>
+                    <td style="text-align: center; border: 1px solid #cbd5e1; text-transform: uppercase;">${t.payment_method}</td>
+                    <td style="text-align: right; border: 1px solid #cbd5e1; font-weight: bold;">${t.total_amount}</td>
+                    <td style="text-align: right; border: 1px solid #cbd5e1;">${t.status === 'paid' ? (t.revenue_split?.owner_share || t.total_amount * 0.75) : 0}</td>
+                    <td style="text-align: right; border: 1px solid #cbd5e1;">${t.status === 'paid' ? (t.revenue_split?.admin_net_share || (t.total_amount * 0.25) - 1000) : 0}</td>
+                    <td style="text-align: center; border: 1px solid #cbd5e1; font-weight: bold;">${t.status.toUpperCase()}</td>
+                </tr>
+            `).join('');
+
+            const excelContent = `
+            <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+            <head>
+                <meta charset="utf-8">
+                <!--[if gte mso 9]>
+                <xml>
+                    <x:ExcelWorkbook>
+                        <x:ExcelWorksheets>
+                            <x:ExcelWorksheet>
+                                <x:Name>Laporan EO</x:Name>
+                                <x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>
+                            </x:ExcelWorksheet>
+                        </x:ExcelWorksheets>
+                    </x:ExcelWorkbook>
+                </xml>
+                <![endif]-->
+                <style>
+                    body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; }
+                    th { background-color: #e2e8f0; font-weight: bold; border: 1px solid #94a3b8; padding: 6px 8px; text-align: left; }
+                    td { border: 1px solid #cbd5e1; padding: 5px 8px; vertical-align: middle; }
+                </style>
+            </head>
+            <body>
+                <table>
+                    <tr>
+                        <td colspan="7" style="font-size: 14pt; font-weight: bold;">LAPORAN REKAPITULASI KEUANGAN & BAGI HASIL EVENT</td>
+                    </tr>
+                    <tr>
+                        <td colspan="7" style="font-size: 12pt; font-weight: bold; color: #1e293b;">${event.name}</td>
+                    </tr>
+                    <tr>
+                        <td colspan="7" style="font-size: 10pt; color: #475569;">Lokasi: ${event.location || '-'} | Tanggal Ekspor: ${dateNow} | Sistem: JADISATU Event</td>
+                    </tr>
+                    <tr><td colspan="7"></td></tr>
+                    <tr style="background-color: #f1f5f9;">
+                        <th colspan="7" style="font-size: 11pt;">1. RINGKASAN EKSEKUTIF FINANSIAL</th>
+                    </tr>
+                    <tr>
+                        <td colspan="2" style="font-weight: bold;">Total Omzet Bruto:</td>
+                        <td colspan="5" style="font-weight: bold;">${stats.totalGross} (${stats.paidCount} Transaksi Paid)</td>
+                    </tr>
+                    <tr>
+                        <td colspan="2" style="font-weight: bold;">Hak Stand / Warung (75%):</td>
+                        <td colspan="5">${stats.ownerTotal}</td>
+                    </tr>
+                    <tr>
+                        <td colspan="2" style="font-weight: bold;">Porsi EO Gross (25%):</td>
+                        <td colspan="5">${stats.adminGross}</td>
+                    </tr>
+                    <tr>
+                        <td colspan="2" style="font-weight: bold;">Platform Fee Superadmin:</td>
+                        <td colspan="5">${stats.superadminTotal} (Rp1.000 × ${stats.paidCount} Tx)</td>
+                    </tr>
+                    <tr style="background-color: #f8fafc;">
+                        <td colspan="2" style="font-weight: bold; color: #0284c7;">Pendapatan Bersih EO (Net):</td>
+                        <td colspan="5" style="font-weight: bold; color: #0284c7;">${stats.adminNet}</td>
+                    </tr>
+                    <tr><td colspan="7"></td></tr>
+                    <tr style="background-color: #f1f5f9;">
+                        <th colspan="7" style="font-size: 11pt;">2. REKAPITULASI PER STAND / WARUNG</th>
+                    </tr>
+                    <tr>
+                        <th style="text-align: center; width: 40px;">No</th>
+                        <th>Nama Stand / Warung</th>
+                        <th style="text-align: center;">No Booth</th>
+                        <th style="text-align: center;">Tx Paid</th>
+                        <th style="text-align: right;">Total Omzet (Rp)</th>
+                        <th style="text-align: right;">Hak Warung 75% (Rp)</th>
+                        <th style="text-align: right;">EO Gross 25% (Rp)</th>
+                    </tr>
+                    ${storeRowsXml}
+                    <tr><td colspan="7"></td></tr>
+                    <tr style="background-color: #f1f5f9;">
+                        <th colspan="9" style="font-size: 11pt;">3. RINCIAN DATA TRANSAKSI</th>
+                    </tr>
+                    <tr>
+                        <th style="text-align: center; width: 40px;">No</th>
+                        <th>Invoice</th>
+                        <th>Waktu</th>
+                        <th>Stand Warung</th>
+                        <th style="text-align: center;">Metode</th>
+                        <th style="text-align: right;">Total Belanja (Rp)</th>
+                        <th style="text-align: right;">Warung 75% (Rp)</th>
+                        <th style="text-align: right;">Net EO (Rp)</th>
+                        <th style="text-align: center;">Status</th>
+                    </tr>
+                    ${txRowsXml}
+                </table>
+            </body>
+            </html>
+            `;
+
+            this.downloadReportFile(excelContent, `Laporan_EO_${event.name.replace(/[^a-zA-Z0-9]/g, '_')}_${dateStr}.xls`, 'application/vnd.ms-excel');
+        },
+
+        // EXPORT USER REPORT TO WORD (.DOC) (STANDARDIZED TEMPLATE, TANPA TTD)
+        exportUserReportWord(customTxList = null) {
+            const store = this.getCurrentStore() || { id: 1, name: 'Stand Warung', booth_number: '-' };
+            const event = this.getActiveEvent() || { name: 'Event Bazaar UMKM', location: '-' };
+            const stats = this.getUserReportStats(store.id);
+            const txList = customTxList || this.transactions.filter(t => t.store_id === store.id);
+            const logoImg = window.__LOGO_BASE64__ || window.__LOGO_URL__ || '';
+            const dateStr = new Date().toISOString().slice(0, 10);
+            const dateNow = new Date().toLocaleDateString('id-ID', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            const txRows = txList.map((t, idx) => `
+                <tr style="${t.status === 'cancelled' ? 'text-decoration: line-through; color: #777;' : ''}">
+                    <td style="text-align: center; border: 1pt solid #000; padding: 4pt 5pt;">${idx + 1}</td>
+                    <td style="border: 1pt solid #000; padding: 4pt 5pt; font-family: monospace; font-weight: bold;">${t.invoice_code}</td>
+                    <td style="border: 1pt solid #000; padding: 4pt 5pt; font-size: 9.5pt;">${formatDateTime(t.paid_at || t.created_at)}</td>
+                    <td style="text-align: center; border: 1pt solid #000; padding: 4pt 5pt; text-transform: uppercase;">${t.payment_method}</td>
+                    <td style="text-align: right; border: 1pt solid #000; padding: 4pt 5pt; font-weight: bold;">${formatRupiah(t.total_amount)}</td>
+                    <td style="text-align: right; border: 1pt solid #000; padding: 4pt 5pt; font-weight: bold;">${t.status === 'paid' ? formatRupiah(t.revenue_split?.owner_share || t.total_amount * 0.75) : '-'}</td>
+                    <td style="text-align: center; border: 1pt solid #000; padding: 4pt 5pt; font-weight: bold;">${t.status.toUpperCase()}</td>
+                </tr>
+            `).join('');
+
+            const wordContent = `
+            <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+            <head>
+                <meta charset='utf-8'>
+                <title>Laporan Penjualan Stand — ${store.name}</title>
+                <!--[if gte mso 9]>
+                <xml>
+                    <w:WordDocument>
+                        <w:View>Print</w:View>
+                        <w:Zoom>100</w:Zoom>
+                        <w:DoNotOptimizeForBrowser/>
+                    </w:WordDocument>
+                </xml>
+                <![endif]-->
+                <style>
+                    @page Section1 {
+                        size: 21cm 29.7cm;
+                        margin: 2cm 1.8cm 2cm 1.8cm;
+                    }
+                    div.Section1 { page: Section1; }
+                    body { font-family: 'Arial', 'Calibri', sans-serif; font-size: 10pt; line-height: 1.3; color: #000; }
+                    h1 { font-size: 14pt; font-weight: bold; text-align: center; text-transform: uppercase; margin: 0 0 3pt 0; }
+                    h2 { font-size: 11.5pt; font-weight: bold; text-align: center; margin: 0 0 4pt 0; }
+                    .meta { font-size: 9pt; text-align: center; color: #333; margin-bottom: 10pt; }
+                    .section-title { font-size: 11pt; font-weight: bold; text-transform: uppercase; margin-top: 14pt; margin-bottom: 4pt; border-bottom: 1pt solid #000; padding-bottom: 2pt; }
+                    table { width: 100%; border-collapse: collapse; margin-bottom: 12pt; font-size: 9.5pt; }
+                    th { border: 1pt solid #000; background-color: #eee; padding: 4pt 5pt; font-weight: bold; text-align: left; text-transform: uppercase; font-size: 9pt; }
+                    td { border: 1pt solid #000; padding: 4pt 5pt; vertical-align: top; }
+                    .footer-note { font-size: 8.5pt; text-align: center; color: #555; border-top: 1pt dashed #000; padding-top: 6pt; margin-top: 20pt; }
+                </style>
+            </head>
+            <body>
+                <div class="Section1">
+                    <div style="border-bottom: 2pt double #000; padding-bottom: 6pt; margin-bottom: 10pt;">
+                        <table style="width: 100%; border: none;">
+                            <tr>
+                                ${logoImg ? `
+                                    <td style="width: 60pt; border: none; text-align: left; vertical-align: middle; padding: 0;">
+                                        <img src="${logoImg}" style="height: 45pt; width: auto;" width="60" height="45">
+                                    </td>
+                                ` : ''}
+                                <td style="border: none; text-align: ${logoImg ? 'left' : 'center'}; vertical-align: middle; padding-left: 8pt;">
+                                    <h1 style="text-align: ${logoImg ? 'left' : 'center'};">Laporan Penjualan & Bagi Hasil Stand</h1>
+                                    <h2 style="text-align: ${logoImg ? 'left' : 'center'};">${store.name} (${store.booth_number || 'Stand Tenant'}) &bull; ${event.name}</h2>
+                                    <div class="meta" style="text-align: ${logoImg ? 'left' : 'center'};">
+                                        Tanggal Cetak: <strong>${dateNow}</strong> &bull; Lokasi: <strong>${event.location || '-'}</strong> &bull; Sistem: <strong>JADISATU Event</strong>
+                                    </div>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <div class="section-title">1. Ringkasan Omzet Stand</div>
+                    <table>
+                        <tr>
+                            <td style="width: 33.3%;">
+                                <div style="font-size: 8.5pt; font-weight: bold; text-transform: uppercase; color: #444;">Total Omzet Bruto</div>
+                                <div style="font-size: 12pt; font-weight: bold; margin-top: 2pt;">${formatRupiah(stats.totalGross)}</div>
+                                <div style="font-size: 8.5pt; color: #555;">${stats.totalCount} Transaksi Paid</div>
+                            </td>
+                            <td style="width: 33.3%; background-color: #f2f2f2;">
+                                <div style="font-size: 8.5pt; font-weight: bold; text-transform: uppercase; color: #444;">Hak Pemilik Stand (75%)</div>
+                                <div style="font-size: 12pt; font-weight: bold; margin-top: 2pt;">${formatRupiah(stats.netIncome)}</div>
+                                <div style="font-size: 8.5pt; color: #555;">Pendapatan Bersih Warung</div>
+                            </td>
+                            <td style="width: 33.3%;">
+                                <div style="font-size: 8.5pt; font-weight: bold; text-transform: uppercase; color: #444;">Porsi Bagi Hasil EO (25%)</div>
+                                <div style="font-size: 12pt; font-weight: bold; margin-top: 2pt;">${formatRupiah(stats.totalGross * 0.25)}</div>
+                                <div style="font-size: 8.5pt; color: #555;">Penyelenggara & Platform</div>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <div class="section-title">2. Rincian Riwayat Transaksi Stand</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="text-align: center; width: 25pt;">No</th>
+                                <th style="width: 90pt;">Invoice</th>
+                                <th style="width: 80pt;">Waktu</th>
+                                <th style="text-align: center; width: 50pt;">Metode</th>
+                                <th style="text-align: right; width: 80pt;">Total Belanja</th>
+                                <th style="text-align: right; width: 80pt;">Hak Warung (75%)</th>
+                                <th style="text-align: center; width: 55pt;">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${txRows.length > 0 ? txRows : '<tr><td colspan="7" style="text-align: center; padding: 6pt;">Belum ada transaksi</td></tr>'}
+                        </tbody>
+                    </table>
+
+                    <div class="footer-note">
+                        Dokumen dicetak otomatis dari Sistem JADISATU &bull; Berlaku sah sebagai rekapitulasi penjualan stand.
+                    </div>
+                </div>
+            </body>
+            </html>
+            `;
+
+            this.downloadReportFile(wordContent, `Laporan_Stand_${store.name.replace(/[^a-zA-Z0-9]/g, '_')}_${dateStr}.doc`, 'application/msword');
+        },
+
+        // EXPORT USER REPORT TO EXCEL (.XLS)
+        exportUserReportExcel(customTxList = null) {
+            const store = this.getCurrentStore() || { id: 1, name: 'Stand Warung', booth_number: '-' };
+            const event = this.getActiveEvent() || { name: 'Event Bazaar UMKM', location: '-' };
+            const stats = this.getUserReportStats(store.id);
+            const txList = customTxList || this.transactions.filter(t => t.store_id === store.id);
+            const dateStr = new Date().toISOString().slice(0, 10);
+            const dateNow = new Date().toLocaleDateString('id-ID', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            let txRowsXml = txList.map((t, idx) => `
+                <tr>
+                    <td style="text-align: center; border: 1px solid #cbd5e1;">${idx + 1}</td>
+                    <td style="border: 1px solid #cbd5e1; font-family: monospace; font-weight: bold;">${t.invoice_code}</td>
+                    <td style="border: 1px solid #cbd5e1;">${formatDateTime(t.paid_at || t.created_at)}</td>
+                    <td style="text-align: center; border: 1px solid #cbd5e1; text-transform: uppercase;">${t.payment_method}</td>
+                    <td style="text-align: right; border: 1px solid #cbd5e1; font-weight: bold;">${t.total_amount}</td>
+                    <td style="text-align: right; border: 1px solid #cbd5e1; font-weight: bold;">${t.status === 'paid' ? (t.revenue_split?.owner_share || t.total_amount * 0.75) : 0}</td>
+                    <td style="text-align: center; border: 1px solid #cbd5e1; font-weight: bold;">${t.status.toUpperCase()}</td>
+                </tr>
+            `).join('');
+
+            const excelContent = `
+            <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+            <head>
+                <meta charset="utf-8">
+                <!--[if gte mso 9]>
+                <xml>
+                    <x:ExcelWorkbook>
+                        <x:ExcelWorksheets>
+                            <x:ExcelWorksheet>
+                                <x:Name>Laporan Stand</x:Name>
+                                <x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>
+                            </x:ExcelWorksheet>
+                        </x:ExcelWorksheets>
+                    </x:ExcelWorkbook>
+                </xml>
+                <![endif]-->
+                <style>
+                    body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; }
+                    th { background-color: #e2e8f0; font-weight: bold; border: 1px solid #94a3b8; padding: 6px 8px; text-align: left; }
+                    td { border: 1px solid #cbd5e1; padding: 5px 8px; vertical-align: middle; }
+                </style>
+            </head>
+            <body>
+                <table>
+                    <tr>
+                        <td colspan="7" style="font-size: 14pt; font-weight: bold;">LAPORAN PENJUALAN STAND UMKM</td>
+                    </tr>
+                    <tr>
+                        <td colspan="7" style="font-size: 12pt; font-weight: bold;">${store.name} (${store.booth_number}) — ${event.name}</td>
+                    </tr>
+                    <tr>
+                        <td colspan="7" style="font-size: 10pt; color: #475569;">Lokasi: ${event.location || '-'} | Tanggal Ekspor: ${dateNow} | Sistem: JADISATU Event</td>
+                    </tr>
+                    <tr><td colspan="7"></td></tr>
+                    <tr style="background-color: #f1f5f9;">
+                        <th colspan="7" style="font-size: 11pt;">1. RINGKASAN OMZET STAND</th>
+                    </tr>
+                    <tr>
+                        <td colspan="2" style="font-weight: bold;">Total Omzet Bruto:</td>
+                        <td colspan="5" style="font-weight: bold;">${stats.totalGross} (${stats.totalCount} Tx Paid)</td>
+                    </tr>
+                    <tr style="background-color: #f8fafc;">
+                        <td colspan="2" style="font-weight: bold; color: #0284c7;">Hak Pemilik Stand (75% Net):</td>
+                        <td colspan="5" style="font-weight: bold; color: #0284c7;">${stats.netIncome}</td>
+                    </tr>
+                    <tr>
+                        <td colspan="2" style="font-weight: bold;">Porsi Bagi Hasil EO (25%):</td>
+                        <td colspan="5">${stats.totalGross * 0.25}</td>
+                    </tr>
+                    <tr><td colspan="7"></td></tr>
+                    <tr style="background-color: #f1f5f9;">
+                        <th colspan="7" style="font-size: 11pt;">2. RINCIAN DATA TRANSAKSI</th>
+                    </tr>
+                    <tr>
+                        <th style="text-align: center; width: 40px;">No</th>
+                        <th>Invoice</th>
+                        <th>Waktu</th>
+                        <th style="text-align: center;">Metode</th>
+                        <th style="text-align: right;">Total Belanja (Rp)</th>
+                        <th style="text-align: right;">Hak Warung 75% (Rp)</th>
+                        <th style="text-align: center;">Status</th>
+                    </tr>
+                    ${txRowsXml}
+                </table>
+            </body>
+            </html>
+            `;
+
+            this.downloadReportFile(excelContent, `Laporan_Stand_${store.name.replace(/[^a-zA-Z0-9]/g, '_')}_${dateStr}.xls`, 'application/vnd.ms-excel');
+        },
+
         // Helper calculations for reports
-        getUserReportStats(storeId = 1) {
-            const validTx = this.transactions.filter(t => t.store_id === storeId && t.status === 'paid');
-            const totalGross = validTx.reduce((sum, t) => sum + t.total_amount, 0);
+        getUserReportStats(storeId = null) {
+            const txs = this.transactions || [];
+            const validTx = txs.filter(t => (storeId ? t.store_id == storeId : true) && t.status === 'paid');
+            const totalGross = validTx.reduce((sum, t) => sum + (t.total_amount || 0), 0);
             const netIncome = totalGross * 0.75;
             const totalCount = validTx.length;
-            const cancelledCount = this.transactions.filter(t => t.store_id === storeId && t.status === 'cancelled').length;
-            const pendingCount = this.transactions.filter(t => t.store_id === storeId && t.status === 'pending_verification').length;
+            const cancelledCount = txs.filter(t => (storeId ? t.store_id == storeId : true) && ['cancelled', 'rejected'].includes(t.status)).length;
+            const pendingCount = txs.filter(t => (storeId ? t.store_id == storeId : true) && t.status === 'pending_verification').length;
 
             return {
-                totalGross,
-                netIncome,
-                totalCount,
-                cancelledCount,
-                pendingCount
+                totalGross: totalGross || 0,
+                netIncome: netIncome || 0,
+                totalCount: totalCount || 0,
+                cancelledCount: cancelledCount || 0,
+                pendingCount: pendingCount || 0
             };
         },
 
@@ -1031,6 +2825,20 @@ Alpine.store('app', {
             const superadminTotal = paidTx.reduce((sum, t) => sum + (t.revenue_split?.superadmin_share || 1000), 0);
             const adminNet = paidTx.reduce((sum, t) => sum + (t.revenue_split?.admin_net_share || (t.total_amount * 0.25) - 1000), 0);
             
+            // Cash vs QRIS breakdown
+            const cashTx = paidTx.filter(t => t.payment_method === 'cash');
+            const qrisTx = paidTx.filter(t => t.payment_method === 'qris');
+            const totalCash = cashTx.reduce((sum, t) => sum + t.total_amount, 0);
+            const totalQris = qrisTx.reduce((sum, t) => sum + t.total_amount, 0);
+
+            // Settlement: Admin holds all QRIS, warung holds all cash
+            // Admin owes warung: QRIS * 75% (hak warung dari QRIS yang admin pegang)
+            // Warung owes admin: Cash * 25% (hak admin dari cash yang warung pegang)
+            // Net settlement = QRIS hak warung - Cash hak admin
+            const qrisHakWarung = qrisTx.reduce((sum, t) => sum + (t.revenue_split?.owner_share || t.total_amount * 0.75), 0);
+            const cashHakAdmin = cashTx.reduce((sum, t) => sum + (t.revenue_split?.admin_gross_share || t.total_amount * 0.25), 0);
+            const netSettlement = qrisHakWarung - cashHakAdmin; // Positive = admin bayar warung
+
             const pendingCount = this.transactions.filter(t => t.status === 'pending_verification').length;
             const cancelledCount = this.transactions.filter(t => t.status === 'cancelled').length;
 
@@ -1040,11 +2848,69 @@ Alpine.store('app', {
                 adminGross,
                 superadminTotal,
                 adminNet,
+                totalCash,
+                totalQris,
+                cashCount: cashTx.length,
+                qrisCount: qrisTx.length,
+                qrisHakWarung,
+                cashHakAdmin,
+                netSettlement,
                 paidCount: paidTx.length,
                 pendingCount,
                 cancelledCount,
                 storesCount: this.stores.length
             };
+        },
+
+        // Settlement breakdown per individual store
+        getSettlementPerStore() {
+            const paidTx = this.transactions.filter(t => t.status === 'paid');
+            const storeMap = {};
+
+            paidTx.forEach(t => {
+                const sid = t.store_id;
+                if (!storeMap[sid]) {
+                    storeMap[sid] = {
+                        store_id: sid,
+                        store_name: t.store_name || 'Unknown',
+                        totalGross: 0,
+                        totalCash: 0,
+                        totalQris: 0,
+                        hakWarung: 0,
+                        hakAdmin: 0,
+                        qrisHakWarung: 0,
+                        cashHakAdmin: 0,
+                        txCount: 0
+                    };
+                }
+
+                const s = storeMap[sid];
+                const ownerShare = t.revenue_split?.owner_share || t.total_amount * 0.75;
+                const adminShare = t.revenue_split?.admin_gross_share || t.total_amount * 0.25;
+
+                s.totalGross += t.total_amount;
+                s.hakWarung += ownerShare;
+                s.hakAdmin += adminShare;
+                s.txCount++;
+
+                if (t.payment_method === 'cash') {
+                    s.totalCash += t.total_amount;
+                    s.cashHakAdmin += adminShare;
+                } else if (t.payment_method === 'qris') {
+                    s.totalQris += t.total_amount;
+                    s.qrisHakWarung += ownerShare;
+                }
+            });
+
+            // Calculate net settlement per store
+            // net = qrisHakWarung - cashHakAdmin
+            // positive = admin bayar warung, negative = warung bayar admin
+            return Object.values(storeMap).map(s => ({
+                ...s,
+                netSettlement: s.qrisHakWarung - s.cashHakAdmin,
+                cashDipegang: s.totalCash,   // uang fisik di tangan warung
+                qrisDipegang: s.totalQris     // uang di rekening admin
+            })).sort((a, b) => b.totalGross - a.totalGross);
         },
 
         getSuperAdminStats() {

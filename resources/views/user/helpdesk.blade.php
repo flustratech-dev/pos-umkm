@@ -32,12 +32,22 @@
         </div>
 
         <button 
+            x-show="$store.app.activeStoreEventActive"
             @click="$store.app.openNewTicketModal()"
             class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white text-xs sm:text-sm font-black shadow-md shadow-[#1d9bf0]/25 transition-all shrink-0 cursor-pointer"
         >
             <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
             <span>Buat Tiket Bantuan</span>
         </button>
+    </div>
+
+    <!-- Readonly Banner -->
+    <div x-show="!$store.app.activeStoreEventActive" class="mb-6 p-4 rounded-2xl bg-[#f4212e]/10 border border-[#f4212e]/20 flex gap-3">
+        <svg class="w-5 h-5 text-[#f4212e] shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+        <div>
+            <h3 class="text-sm font-black text-[#f4212e]">Pusat Bantuan Ditutup</h3>
+            <p class="text-xs text-[#f4212e] mt-1 font-medium">Event ini telah berakhir. Anda tidak dapat membuat atau membalas tiket kendala baru untuk event ini.</p>
+        </div>
     </div>
 
     <!-- Status Tabs (Twitter Pills) -->
@@ -108,7 +118,7 @@
                 </div>
 
                 <!-- Fast Reply Form -->
-                <div class="mt-3 pt-3 border-t border-[#eff3f4] flex gap-2" x-show="ticket.status === 'open'">
+                <div class="mt-3 pt-3 border-t border-[#eff3f4] flex gap-2" x-show="ticket.status === 'open' && $store.app.activeStoreEventActive">
                     <input 
                         type="text" 
                         x-model="replyMessage"

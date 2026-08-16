@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Dashboard Super Admin Multi-Event')
+@section('title', 'Dashboard Developer Multi-Event')
 
 @section('content')
 <div x-data class="space-y-6">
@@ -9,14 +9,14 @@
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
             <div class="flex items-center gap-2">
-                <span class="px-3.5 py-1 rounded-full bg-[#e8f5fd] text-[#1d9bf0] text-xs font-black uppercase border border-[#bde2f9]">Super Admin Multi-Event</span>
-                <span class="text-xs text-[#0f1419] font-semibold">Lisensi Sistem POS UMKM</span>
+                <span class="px-3.5 py-1 rounded-full bg-[#e8f5fd] text-[#1d9bf0] text-xs font-black uppercase border border-[#bde2f9]">Developer Multi-Event</span>
+                <span class="text-xs text-[#0f1419] font-semibold">Lisensi Sistem JADISATU</span>
             </div>
             <h2 class="text-xl sm:text-2xl font-black text-[#0f1419] tracking-tight mt-1.5 flex items-center gap-1.5">
                 <span>Platform Owner & Multi-Tenant Control</span>
                 <svg class="w-5 h-5 text-[#1d9bf0] shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.79-4-4-4-.495 0-.965.084-1.4.238C14.55 2.475 13.18 1.6 11.6 1.6c-1.58 0-2.95.875-3.6 2.148-.435-.154-.905-.238-1.4-.238-2.21 0-4 1.79-4 4 0 .495.084.965.238 1.4C1.575 9.55.7 10.92.7 12.5c0 1.58.875 2.95 2.148 3.6-.154.435-.238.905-.238 1.4 0 2.21 1.79 4 4 4 .495 0 .965-.084 1.4-.238.65 1.273 2.02 2.148 3.6 2.148 1.58 0 2.95-.875 3.6-2.148.435.154.905.238 1.4.238 2.21 0 4-1.79 4-4 0-.495-.084-.965-.238-1.4 1.273-.65 2.148-2.02 2.148-3.6zm-12.28 4.22l-4.22-4.22 1.414-1.414 2.806 2.806 6.806-6.806 1.414 1.414-8.22 8.22z"></path></svg>
             </h2>
-            <p class="text-xs sm:text-sm text-[#0f1419] font-medium mt-0.5">Pengawasan omzet gross platform dan akumulasi royalti flat fee Rp1.000 per transaksi paid</p>
+            <p class="text-xs sm:text-sm text-[#0f1419] font-medium mt-0.5">Pengawasan omzet gross platform dan akumulasi fee developer Rp1.000 per transaksi paid</p>
         </div>
 
         <a 
@@ -28,11 +28,60 @@
         </a>
     </div>
 
+    <!-- 1 Card Menu dengan 4 Kotak Icon (Mobile Only - Tepat di bawah Header) -->
+    <div class="lg:hidden bg-white rounded-3xl p-4 sm:p-5 border border-[#eff3f4] shadow-xs">
+        <div class="grid grid-cols-4 gap-2 sm:gap-4 text-center">
+            <!-- 1. Multi-Event -->
+            <a 
+                href="/superadmin/events" 
+                class="flex flex-col items-center group cursor-pointer active:scale-95 transition-transform"
+            >
+                <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#e8f5fd] group-hover:bg-[#1d9bf0] text-[#1d9bf0] group-hover:text-white flex items-center justify-center transition-all shadow-2xs group-hover:shadow-md group-hover:shadow-[#1d9bf0]/25">
+                    <svg class="w-6 h-6 sm:w-7 sm:h-7 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                </div>
+                <span class="text-[11px] sm:text-xs font-black text-[#0f1419] group-hover:text-[#1d9bf0] mt-2 block tracking-tight truncate w-full">Event</span>
+            </a>
+
+            <!-- 2. Stand Warung -->
+            <a 
+                href="/superadmin/warung" 
+                class="flex flex-col items-center group cursor-pointer active:scale-95 transition-transform"
+            >
+                <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#e8f5fd] group-hover:bg-[#1d9bf0] text-[#1d9bf0] group-hover:text-white flex items-center justify-center transition-all shadow-2xs group-hover:shadow-md group-hover:shadow-[#1d9bf0]/25">
+                    <svg class="w-6 h-6 sm:w-7 sm:h-7 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+                </div>
+                <span class="text-[11px] sm:text-xs font-black text-[#0f1419] group-hover:text-[#1d9bf0] mt-2 block tracking-tight truncate w-full">Warung</span>
+            </a>
+
+            <!-- 3. Helpdesk -->
+            <a 
+                href="/superadmin/helpdesk" 
+                class="flex flex-col items-center group cursor-pointer active:scale-95 transition-transform"
+            >
+                <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#e8f5fd] group-hover:bg-[#1d9bf0] text-[#1d9bf0] group-hover:text-white flex items-center justify-center transition-all shadow-2xs group-hover:shadow-md group-hover:shadow-[#1d9bf0]/25">
+                    <svg class="w-6 h-6 sm:w-7 sm:h-7 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
+                </div>
+                <span class="text-[11px] sm:text-xs font-black text-[#0f1419] group-hover:text-[#1d9bf0] mt-2 block tracking-tight truncate w-full">Helpdesk</span>
+            </a>
+
+            <!-- 4. SOP / Panduan -->
+            <a 
+                href="/superadmin/panduan" 
+                class="flex flex-col items-center group cursor-pointer active:scale-95 transition-transform"
+            >
+                <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#e8f5fd] group-hover:bg-[#1d9bf0] text-[#1d9bf0] group-hover:text-white flex items-center justify-center transition-all shadow-2xs group-hover:shadow-md group-hover:shadow-[#1d9bf0]/25">
+                    <svg class="w-6 h-6 sm:w-7 sm:h-7 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                </div>
+                <span class="text-[11px] sm:text-xs font-black text-[#0f1419] group-hover:text-[#1d9bf0] mt-2 block tracking-tight truncate w-full">SOP Kasir</span>
+            </a>
+        </div>
+    </div>
+
     <!-- KPI Metric Cards (Twitter Blue Accents & Crisp Black Font) -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <!-- 1. Total Platform Fee -->
         <div class="bg-gradient-to-br from-[#1d9bf0] to-[#1271b3] rounded-3xl p-5 text-white shadow-lg shadow-[#1d9bf0]/25">
-            <span class="text-xs font-bold text-white/90 uppercase tracking-wider block">Total Royalti Lisensi</span>
+            <span class="text-xs font-bold text-white/90 uppercase tracking-wider block">Total Fee Developer</span>
             <h3 class="text-2xl sm:text-3xl font-black mt-2 tracking-tight text-white" x-text="formatRupiah($store.app.transactions.filter(t => t.status === 'paid').length * 1000)"></h3>
             <p class="text-xs text-white/90 mt-2 font-medium">Rp1.000 × <span class="font-black text-white" x-text="$store.app.transactions.filter(t => t.status === 'paid').length"></span> transaksi paid</p>
         </div>
@@ -88,7 +137,6 @@
             >
                 Masuk ke Panel EO &rarr;
             </a>
-        </div>
     </div>
 </div>
 @endsection
