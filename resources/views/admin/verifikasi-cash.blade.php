@@ -155,8 +155,9 @@
         @endforelse
     </div>
 
-    <!-- History Section -->
-    <div class="mb-4">
+    @if(!empty($historyTransactions) && count($historyTransactions) > 0)
+    <!-- History Section (Only shown if history exists) -->
+    <div class="mt-8 mb-4">
         <h3 class="text-lg font-black text-[#0f1419]">Riwayat Konfirmasi Terbaru</h3>
     </div>
     
@@ -173,7 +174,7 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-[#eff3f4]">
-                    @forelse($historyTransactions ?? [] as $history)
+                    @foreach($historyTransactions as $history)
                         <tr class="hover:bg-[#f7f9f9] transition-colors">
                             <td class="px-5 py-3 text-xs text-[#536471] font-semibold">{{ $history->updated_at->format('d M, H:i') }}</td>
                             <td class="px-5 py-3 text-xs font-black text-[#0f1419]">{{ $history->invoice_code }}</td>
@@ -185,16 +186,11 @@
                                 </span>
                             </td>
                         </tr>
-                    @empty
-                        <tr>
-                            <td colspan="5" class="px-5 py-6 text-center text-sm text-[#536471] font-medium">
-                                Belum ada riwayat konfirmasi.
-                            </td>
-                        </tr>
-                    @endforelse
+                    @endforeach
                 </tbody>
             </table>
         </div>
     </div>
+    @endif
 </div>
 @endsection

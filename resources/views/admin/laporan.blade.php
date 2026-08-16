@@ -149,8 +149,6 @@
                     <span class="text-[10px] font-medium block" :class="stats.netSettlement >= 0 ? 'text-emerald-500' : 'text-amber-500'" x-text="stats.netSettlement >= 0 ? 'Total transfer ke warung' : 'Total warung setor ke admin'"></span>
                 </div>
             </div>
-        </div>
-
         <!-- Per-Store Settlement Table -->
         <div class="overflow-x-auto">
             <table class="w-full text-left text-xs text-[#0f1419]">
@@ -163,6 +161,7 @@
                         <th class="px-4 py-3 text-right">Hak Warung (75%)</th>
                         <th class="px-4 py-3 text-right">Hak EO (22.5%)</th>
                         <th class="px-4 py-3 text-center">Serah Terima</th>
+                        <th class="px-4 py-3 text-center">Cetak PDF</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-[#eff3f4] font-medium">
@@ -190,6 +189,17 @@
                                     <span class="text-[10px] font-bold text-slate-500">Lunas</span>
                                 </div>
                             </td>
+                            <td class="px-4 py-3 text-center">
+                                <button 
+                                    @click="$store.app.printTenantReport(s.store_id)"
+                                    type="button"
+                                    class="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#0f1419] hover:bg-[#272c30] text-white text-[10px] font-black shadow-2xs transition-all active:scale-95 cursor-pointer"
+                                    title="Cetak PDF Rekap Warung Ini"
+                                >
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                                    <span>PDF Stand</span>
+                                </button>
+                            </td>
                         </tr>
                     </template>
                 </tbody>
@@ -212,7 +222,7 @@
             </div>
             <input 
                 type="text" 
-                x-model="searchQuery"
+                x-model="searchQuery" 
                 placeholder="Cari invoice atau nama warung..." 
                 class="w-full pl-9 pr-4 py-2 bg-[#f7f9f9] border border-[#eff3f4] rounded-full text-xs sm:text-sm text-[#0f1419] placeholder-[#536471] focus:ring-2 focus:ring-[#1d9bf0] focus:outline-none font-semibold"
             >
@@ -229,6 +239,19 @@
                     <option :value="store.id" x-text="store.name"></option>
                 </template>
             </select>
+
+            <!-- Dynamic PDF Button when a specific store is selected -->
+            <button 
+                x-show="selectedStoreId !== 'all'"
+                x-transition
+                @click="$store.app.printTenantReport(selectedStoreId)"
+                type="button"
+                class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-[#0f1419] hover:bg-[#272c30] text-white text-xs font-black shadow-xs transition-all active:scale-95 cursor-pointer shrink-0" 
+                title="Cetak PDF untuk Warung yang Dipilih"
+            >
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                <span>Cetak PDF Stand Ini</span>
+            </button>
 
             <!-- Filter Metode -->
             <select 

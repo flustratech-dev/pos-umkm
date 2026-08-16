@@ -1520,6 +1520,263 @@ Alpine.store('app', {
             this.printDocument(reportHtml);
         },
 
+        // PROPER FORMAL MONOCHROME (B&W) SINGLE TENANT / STAND REPORT EXPORT (SAME DESIGN AS ALL EO REPORT)
+        printTenantReport(storeId) {
+            const store = this.stores.find(s => s.id == storeId) || { id: storeId, name: 'Stand Warung', booth_number: '-' };
+            const event = this.getActiveEvent() || { name: 'Event Bazaar UMKM', location: '-' };
+            const txList = this.transactions.filter(t => t.store_id == storeId);
+            
+            const paidTx = txList.filter(t => t.status === 'paid');
+            const totalGross = paidTx.reduce((sum, t) => sum + t.total_amount, 0);
+            const ownerTotal = paidTx.reduce((sum, t) => sum + (t.revenue_split?.owner_share || t.total_amount * 0.75), 0);
+            const adminNet = paidTx.reduce((sum, t) => sum + (t.revenue_split?.admin_net_share || t.total_amount * 0.225), 0);
+            const platformFee = paidTx.reduce((sum, t) => sum + (t.revenue_split?.superadmin_share || t.total_amount * 0.025), 0);
+            const paidCount = paidTx.length;
+            const cashCount = paidTx.filter(t => t.payment_method === 'cash').length;
+            const qrisCount = paidTx.filter(t => t.payment_method === 'qris').length;
+
+            const dateNow = new Date().toLocaleDateString('id-ID', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            const txRows = txList.map((t, idx) => `
+                <tr style="${t.status === 'cancelled' ? 'text-decoration: line-through; color: #555;' : ''}">
+                    <td style="text-align: center; border: 1px solid #000; padding: 5px 6px;">${idx + 1}</td>
+                    <td style="border: 1px solid #000; padding: 5px 6px; font-family: monospace; font-weight: bold;">${t.invoice_code}</td>
+                    <td style="border: 1px solid #000; padding: 5px 6px; font-size: 11px;">${formatDateTime(t.paid_at || t.created_at)}</td>
+                    <td style="text-align: center; border: 1px solid #000; padding: 5px 6px; text-transform: uppercase; font-size: 11px;">${t.payment_method}</td>
+                    <td style="text-align: right; border: 1px solid #000; padding: 5px 6px; font-weight: bold;">${formatRupiah(t.total_amount)}</td>
+                    <td style="text-align: right; border: 1px solid #000; padding: 5px 6px; font-weight: bold;">${t.status === 'paid' ? formatRupiah(t.revenue_split?.owner_share || t.total_amount * 0.75) : '-'}</td>
+                    <td style="text-align: right; border: 1px solid #000; padding: 5px 6px;">${t.status === 'paid' ? formatRupiah(t.revenue_split?.admin_net_share || t.total_amount * 0.225) : '-'}</td>
+                    <td style="text-align: center; border: 1px solid #000; padding: 5px 6px; font-weight: bold; font-size: 11px;">${t.status.toUpperCase()}</td>
+                </tr>
+            `).join('');
+
+            const logoImg = window.__LOGO_BASE64__ || window.__LOGO_URL__ || '';
+
+            const reportHtml = `
+            <!DOCTYPE html>
+            <html lang="id">
+            <head>
+                <meta charset="UTF-8">
+                <title>Laporan Penjualan & Bagi Hasil Stand — ${store.name}</title>
+                <style>
+                    @page {
+                        size: A4 portrait;
+                        margin: 15mm 12mm 15mm 12mm;
+                    }
+                    * {
+                        box-sizing: border-box;
+                        -webkit-print-color-adjust: exact;
+                        print-color-adjust: exact;
+                    }
+                    body {
+                        font-family: 'Arial', 'Helvetica', sans-serif;
+                        font-size: 12px;
+                        line-height: 1.4;
+                        color: #000;
+                        background: #fff;
+                        margin: 0;
+                        padding: 0;
+                    }
+                    .header {
+                        border-bottom: 3px double #000;
+                        padding-bottom: 8px;
+                        margin-bottom: 14px;
+                    }
+                    .header h1 {
+                        font-size: 15px;
+                        font-weight: 900;
+                        text-transform: uppercase;
+                        margin: 0 0 2px 0;
+                        letter-spacing: 0.5px;
+                    }
+                    .header h2 {
+                        font-size: 12px;
+                        font-weight: bold;
+                        margin: 0 0 3px 0;
+                    }
+                    .header .meta {
+                        font-size: 10px;
+                        color: #333;
+                    }
+                    .section-title {
+                        font-size: 12px;
+                        font-weight: bold;
+                        text-transform: uppercase;
+                        margin: 16px 0 6px 0;
+                        border-bottom: 1px solid #000;
+                        padding-bottom: 3px;
+                    }
+                    .summary-grid {
+                        width: 100%;
+                        border-collapse: collapse;
+                        margin-bottom: 14px;
+                    }
+                    .summary-grid td {
+                        border: 1px solid #000;
+                        padding: 7px 9px;
+                        vertical-align: top;
+                    }
+                    .summary-label {
+                        font-size: 9.5px;
+                        text-transform: uppercase;
+                        font-weight: bold;
+                        color: #333;
+                        display: block;
+                    }
+                    .summary-value {
+                        font-size: 14px;
+                        font-weight: 900;
+                        margin-top: 2px;
+                        display: block;
+                    }
+                    .summary-sub {
+                        font-size: 9.5px;
+                        color: #444;
+                        margin-top: 1px;
+                        display: block;
+                    }
+                    table.data-table {
+                        width: 100%;
+                        border-collapse: collapse;
+                        font-size: 10.5px;
+                        margin-bottom: 14px;
+                    }
+                    table.data-table th {
+                        border: 1px solid #000;
+                        background-color: #eee !important;
+                        padding: 5px 7px;
+                        font-weight: bold;
+                        text-align: left;
+                        font-size: 9.5px;
+                        text-transform: uppercase;
+                    }
+                    .signature-table {
+                        width: 100%;
+                        margin-top: 28px;
+                        page-break-inside: avoid;
+                    }
+                    .signature-table td {
+                        width: 50%;
+                        text-align: center;
+                        vertical-align: top;
+                        font-size: 11px;
+                    }
+                    .signature-space {
+                        height: 55px;
+                    }
+                    .footer-note {
+                        margin-top: 20px;
+                        padding-top: 6px;
+                        border-top: 1px dashed #000;
+                        font-size: 9px;
+                        text-align: center;
+                        color: #444;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <table style="width: 100%; border: none;">
+                        <tr>
+                            ${logoImg ? `
+                                <td style="width: 65px; border: none; text-align: left; vertical-align: middle; padding: 0;">
+                                    <img src="${logoImg}" style="height: 50px; width: auto; object-fit: contain;">
+                                </td>
+                            ` : ''}
+                            <td style="border: none; text-align: ${logoImg ? 'left' : 'center'}; vertical-align: middle; padding: 0 0 0 10px;">
+                                <h1>Laporan Penjualan & Bagi Hasil Stand Tenant</h1>
+                                <h2>${store.name} (${store.booth_number ? 'Stand ' + store.booth_number : 'Stand Tenant'}) &bull; ${event.name}</h2>
+                                <div class="meta">
+                                    <span>Pemilik: <strong>${store.owner_name || '-'}</strong> (${store.phone || '-'})</span> &bull;
+                                    <span>Tanggal Cetak: <strong>${dateNow}</strong></span> &bull; 
+                                    <span>Sistem: <strong>JADISATU Event</strong></span>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+
+                <div class="section-title">1. Ringkasan Eksekutif Finansial Stand</div>
+                <table class="summary-grid">
+                    <tr>
+                        <td style="width: 25%;">
+                            <span class="summary-label">Total Omzet Stand</span>
+                            <span class="summary-value">${formatRupiah(totalGross)}</span>
+                            <span class="summary-sub">${paidCount} Tx Paid (${cashCount} Cash / ${qrisCount} QRIS)</span>
+                        </td>
+                        <td style="width: 25%; background: #f2f2f2;">
+                            <span class="summary-label">Hak Bersih Warung (75%)</span>
+                            <span class="summary-value">${formatRupiah(ownerTotal)}</span>
+                            <span class="summary-sub">Porsi Hak Pemilik Stand</span>
+                        </td>
+                        <td style="width: 25%;">
+                            <span class="summary-label">Bagian EO (22.5%)</span>
+                            <span class="summary-value">${formatRupiah(adminNet)}</span>
+                            <span class="summary-sub">Bagi Hasil Penyelenggara</span>
+                        </td>
+                        <td style="width: 25%;">
+                            <span class="summary-label">Fee Platform (2.5%)</span>
+                            <span class="summary-value">${formatRupiah(platformFee)}</span>
+                            <span class="summary-sub">Lisensi Developer</span>
+                        </td>
+                    </tr>
+                </table>
+
+                <div class="section-title">2. Rincian Data Transaksi Stand (Total ${txList.length} Transaksi)</div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th style="text-align: center; width: 28px;">No</th>
+                            <th style="width: 110px;">Invoice</th>
+                            <th style="width: 95px;">Waktu</th>
+                            <th style="text-align: center; width: 60px;">Metode</th>
+                            <th style="text-align: right; width: 90px;">Nominal</th>
+                            <th style="text-align: right; width: 95px;">Warung (75%)</th>
+                            <th style="text-align: right; width: 90px;">Net EO (22.5%)</th>
+                            <th style="text-align: center; width: 70px;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${txRows.length > 0 ? txRows : '<tr><td colspan="8" style="text-align: center; padding: 8px; border: 1px solid #000;">Belum ada transaksi pada stand ini</td></tr>'}
+                    </tbody>
+                </table>
+
+                <table class="signature-table">
+                    <tr>
+                        <td>
+                            <div>Dibuat & Divalidasi Oleh:</div>
+                            <div style="font-weight: bold; margin-top: 2px;">Admin Event Organizer</div>
+                            <div class="signature-space"></div>
+                            <div>( __________________________ )</div>
+                            <div style="font-size: 10px; color: #555; margin-top: 2px;">Panitia Pelaksana EO</div>
+                        </td>
+                        <td>
+                            <div>Mengetahui & Menyetujui:</div>
+                            <div style="font-weight: bold; margin-top: 2px;">Pemilik Stand / Warung</div>
+                            <div class="signature-space"></div>
+                            <div>( ${store.owner_name || '__________________________'} )</div>
+                            <div style="font-size: 10px; color: #555; margin-top: 2px;">${store.name}</div>
+                        </td>
+                    </tr>
+                </table>
+
+                <div class="footer-note">
+                    Dokumen ini digenerate otomatis oleh Sistem JADISATU &bull; Dokumen resmi untuk proses rekonsiliasi finansial dan pembagian hasil.
+                </div>
+            </body>
+            </html>
+            `;
+
+            this.printDocument(reportHtml);
+        },
+
         // PROPER FORMAL MONOCHROME (B&W) USER/TENANT REPORT EXPORT (STANDARDIZED TEMPLATE, TANPA TTD)
         printUserReport(customTxList = null) {
             const store = this.getCurrentStore() || { id: 1, name: 'Stand Warung', booth_number: '-' };

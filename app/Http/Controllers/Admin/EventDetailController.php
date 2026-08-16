@@ -42,11 +42,18 @@ class EventDetailController extends Controller
         $request->validate([
             'owner_name' => ['required', 'string', 'max:255'],
             'store_name' => ['required', 'string', 'max:255'],
-            'booth_code' => ['required', 'string', 'max:50'],
+            'booth_code' => [
+                'required',
+                'string',
+                'max:50',
+                \Illuminate\Validation\Rule::unique('stores', 'booth_number')
+                    ->where('event_id', $event->id),
+            ],
         ], [
             'owner_name.required' => 'Nama pelaku usaha wajib diisi.',
             'store_name.required' => 'Nama warung wajib diisi.',
             'booth_code.required' => 'Kode tenda wajib diisi.',
+            'booth_code.unique' => "Kode tenda '{$boothCode}' sudah terpakai pada event ini. Harap gunakan kode tenda lain.",
         ]);
 
         try {

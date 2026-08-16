@@ -33,9 +33,9 @@
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
         </div>
         <div class="text-xs text-[#0f1419] space-y-1">
-            <p class="font-black text-[#0f1419]">Prosedur Verifikasi QRIS Panitia EO:</p>
+            <p class="font-black text-[#0f1419]">Prosedur Verifikasi QRIS:</p>
             <p class="text-[#536471] font-medium leading-relaxed">
-                Cocokkan nominal pada bukti transfer pengunjung dengan notifikasi mutasi rekening/bank EO. Saat disetujui, sistem otomatis membagi hasil: <strong>75% Warung</strong>, <strong>25% EO Gross</strong> (dikurangi flat fee Rp1.000 Developer).
+                Pastikan pembayaran QRIS telah masuk ke rekening panitia dari pelanggan. Klik <strong>'Setujui'</strong> untuk menyelesaikan pesanan dan merekam pembagian hasil secara sistem.
             </p>
         </div>
     </div>
@@ -125,6 +125,50 @@
             <p class="text-xs text-[#536471] font-semibold mt-1">Semua transaksi QRIS pengunjung telah selesai diverifikasi oleh panitia.</p>
         </div>
     </template>
+
+    @if(!empty($historyTransactions) && count($historyTransactions) > 0)
+    <!-- History Section (Only shown if history exists) -->
+    <div class="mt-8 mb-4">
+        <h3 class="text-lg font-black text-[#0f1419]">Riwayat Verifikasi QRIS Terbaru</h3>
+    </div>
+    
+    <div class="bg-white rounded-3xl border border-[#eff3f4] overflow-hidden shadow-xs mb-8">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse min-w-[600px]">
+                <thead>
+                    <tr class="bg-[#f7f9f9] border-b border-[#eff3f4]">
+                        <th class="px-5 py-3 text-[10px] font-black uppercase tracking-wider text-[#536471]">Waktu</th>
+                        <th class="px-5 py-3 text-[10px] font-black uppercase tracking-wider text-[#536471]">Invoice</th>
+                        <th class="px-5 py-3 text-[10px] font-black uppercase tracking-wider text-[#536471]">Tenant</th>
+                        <th class="px-5 py-3 text-[10px] font-black uppercase tracking-wider text-[#536471] text-right">Total</th>
+                        <th class="px-5 py-3 text-[10px] font-black uppercase tracking-wider text-[#536471] text-center">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-[#eff3f4]">
+                    @foreach($historyTransactions as $history)
+                        <tr class="hover:bg-[#f7f9f9] transition-colors">
+                            <td class="px-5 py-3 text-xs text-[#536471] font-semibold">{{ $history->updated_at->format('d M, H:i') }}</td>
+                            <td class="px-5 py-3 text-xs font-black text-[#0f1419]">{{ $history->invoice_code }}</td>
+                            <td class="px-5 py-3 text-xs text-[#536471] font-semibold">{{ $history->store->name ?? '-' }}</td>
+                            <td class="px-5 py-3 text-xs font-black text-[#1d9bf0] text-right">Rp {{ number_format($history->total_amount, 0, ',', '.') }}</td>
+                            <td class="px-5 py-3 text-center">
+                                @if($history->status === 'paid')
+                                    <span class="inline-block px-2.5 py-1 rounded-lg bg-[#e6f8f2] text-[#00ba7c] text-[10px] font-black border border-[#a6e9d5]">
+                                        DISETUJUI
+                                    </span>
+                                @else
+                                    <span class="inline-block px-2.5 py-1 rounded-lg bg-[#fef2f2] text-[#f4212e] text-[10px] font-black border border-[#fecdd3]">
+                                        DITOLAK
+                                    </span>
+                                @endif
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    </div>
+    @endif
 
     <!-- REJECT MODAL WITH REASON (SLIDE UP BOTTOM SHEET ON MOBILE, CENTERED ON DESKTOP) -->
     <div 

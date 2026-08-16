@@ -60,6 +60,26 @@ class NewFlowsTest extends TestCase
         $this->assertEquals('Ibu Siti', $store->owner->name);
     }
 
+    public function test_cannot_register_duplicate_booth_code_in_same_event(): void
+    {
+        // Register first tenant with booth code T-01
+        $this->actingAs($this->admin)->post(route('admin.events.register-tenant', $this->event), [
+            'owner_name' => 'Ibu Siti',
+            'store_name' => 'Warung Bakso Siti',
+            'booth_code' => 'T-01',
+        ]);
+
+        // Attempt to register second tenant with same booth code T-01 in the same event
+        $duplicateResponse = $this->actingAs($this->admin)->postJson(route('admin.events.register-tenant', $this->event), [
+            'owner_name' => 'Pak Joko',
+            'store_name' => 'Warung Nasi Goreng',
+            'booth_code' => 'T-01',
+        ]);
+
+        $duplicateResponse->assertStatus(422);
+        $duplicateResponse->assertJsonValidationErrors(['booth_code']);
+    }
+
     public function test_admin_can_view_and_confirm_cash_verification(): void
     {
         $owner = User::create([
@@ -114,5 +134,35 @@ class NewFlowsTest extends TestCase
         $this->assertEquals(22500.00, (float) $tx->revenueSplit->owner_share); // 75%
         $this->assertEquals(6750.00, (float) $tx->revenueSplit->admin_gross_share); // 22.5%
         $this->assertEquals(750.00, (float) $tx->revenueSplit->superadmin_share); // 2.5%
+    }
+
+    public function test_admin_can_download_all_pdf_and_individual_tenant_pdf(): void
+    {
+        $owner = User::create([
+            'name' => 'Pak Budi',
+            'username' => 'tenda-b01',
+            'email' => 'tenda-b01@tenant.local',
+            'role' => 'user',
+            'password' => bcrypt('secret'),
+        ]);
+
+        $store = Store::create([
+            'event_id' => $this->event->id,
+            'owner_id' => $owner->id,
+            'name' => 'Warung Mie Ayam',
+            'booth_number' => 'B-01',
+            'access_uuid' => 'test-uuid-1234',
+            'is_active' => true,
+        ]);
+
+        // 1. Download overall event PDF (All)
+        $allPdfResponse = $this->actingAs($this->admin)->get(route('admin.laporan.pdf'));
+        $allPdfResponse->assertOk();
+        $this->assertEquals('application/pdf', $allPdfResponse->headers->get('Content-Type'));
+
+        // 2. Download specific tenant PDF (Single Tenant)
+        $tenantPdfResponse = $this->actingAs($this->admin)->get(route('admin.laporan.pdf', ['store_id' => $store->id]));
+        $tenantPdfResponse->assertOk();
+        $this->assertEquals('application/pdf', $tenantPdfResponse->headers->get('Content-Type'));
     }
 }
