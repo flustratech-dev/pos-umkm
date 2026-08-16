@@ -3,97 +3,310 @@
 @section('title', 'Dashboard Admin EO')
 
 @section('content')
+<script>
+window.__adminSalesChart = null;
+window.__adminMethodChart = null;
+
+function renderAdminSalesChart(timeframe) {
+    const ctxHourly = document.getElementById('hourlySalesChart');
+    if (!ctxHourly || !window.Chart) return;
+
+    let labels = [];
+    let cashData = [];
+    let qrisData = [];
+    const allTx = (window.Alpine ? window.Alpine.store('app')?.transactions : null) || window.__INITIAL_TRANSACTIONS__ || [];
+
+    const parseDate = (raw) => {
+        if (!raw) return null;
+        if (raw instanceof Date) return raw;
+        const str = typeof raw === 'string' ? raw.replace(' ', 'T') : raw;
+        const d = new Date(str);
+        return isNaN(d.getTime()) ? null : d;
+    };
+
+    const formatDateKey = (d) => {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
+    if (timeframe === '1d') {
+        labels = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
+        cashData = labels.map(h => {
+            const hNum = parseInt(h.split(':')[0], 10);
+            return allTx
+                .filter(t => {
+                    if (t.status !== 'paid' || t.payment_method !== 'cash') return false;
+                    const d = parseDate(t.paid_at || t.created_at);
+                    return d && d.getHours() === hNum;
+                })
+                .reduce((sum, t) => sum + (parseFloat(t.total_amount) || 0), 0);
+        });
+
+        qrisData = labels.map(h => {
+            const hNum = parseInt(h.split(':')[0], 10);
+            return allTx
+                .filter(t => {
+                    if (t.status !== 'paid' || t.payment_method !== 'qris') return false;
+                    const d = parseDate(t.paid_at || t.created_at);
+                    return d && d.getHours() === hNum;
+                })
+                .reduce((sum, t) => sum + (parseFloat(t.total_amount) || 0), 0);
+        });
+    } else if (timeframe === '7d') {
+        const now = new Date();
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+            const dateKey = formatDateKey(d);
+            const label = d.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' });
+            labels.push(label);
+
+            const cashTotal = allTx
+                .filter(t => {
+                    if (t.status !== 'paid' || t.payment_method !== 'cash') return false;
+                    const td = parseDate(t.paid_at || t.created_at);
+                    return td && formatDateKey(td) === dateKey;
+                })
+                .reduce((sum, t) => sum + (parseFloat(t.total_amount) || 0), 0);
+            cashData.push(cashTotal);
+
+            const qrisTotal = allTx
+                .filter(t => {
+                    if (t.status !== 'paid' || t.payment_method !== 'qris') return false;
+                    const td = parseDate(t.paid_at || t.created_at);
+                    return td && formatDateKey(td) === dateKey;
+                })
+                .reduce((sum, t) => sum + (parseFloat(t.total_amount) || 0), 0);
+            qrisData.push(qrisTotal);
+        }
+    } else if (timeframe === '30d') {
+        const now = new Date();
+        for (let i = 29; i >= 0; i--) {
+            const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+            const dateKey = formatDateKey(d);
+            const label = d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+            labels.push(label);
+
+            const cashTotal = allTx
+                .filter(t => {
+                    if (t.status !== 'paid' || t.payment_method !== 'cash') return false;
+                    const td = parseDate(t.paid_at || t.created_at);
+                    return td && formatDateKey(td) === dateKey;
+                })
+                .reduce((sum, t) => sum + (parseFloat(t.total_amount) || 0), 0);
+            cashData.push(cashTotal);
+
+            const qrisTotal = allTx
+                .filter(t => {
+                    if (t.status !== 'paid' || t.payment_method !== 'qris') return false;
+                    const td = parseDate(t.paid_at || t.created_at);
+                    return td && formatDateKey(td) === dateKey;
+                })
+                .reduce((sum, t) => sum + (parseFloat(t.total_amount) || 0), 0);
+            qrisData.push(qrisTotal);
+        }
+    }
+
+    if (window.__adminSalesChart) {
+        window.__adminSalesChart.destroy();
+        window.__adminSalesChart = null;
+    }
+
+    const canvas = document.getElementById('hourlySalesChart');
+    const ctx = canvas.getContext('2d');
+
+    // Create rich linear gradient fills like modern Area Chart
+    const greenGradient = ctx.createLinearGradient(0, 0, 0, 240);
+    greenGradient.addColorStop(0, 'rgba(0, 186, 124, 0.42)');
+    greenGradient.addColorStop(0.7, 'rgba(0, 186, 124, 0.12)');
+    greenGradient.addColorStop(1, 'rgba(0, 186, 124, 0.01)');
+
+    const blueGradient = ctx.createLinearGradient(0, 0, 0, 240);
+    blueGradient.addColorStop(0, 'rgba(29, 155, 240, 0.45)');
+    blueGradient.addColorStop(0.7, 'rgba(29, 155, 240, 0.14)');
+    blueGradient.addColorStop(1, 'rgba(29, 155, 240, 0.01)');
+
+    window.__adminSalesChart = new window.Chart(ctxHourly, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Tunai / Cash',
+                    data: cashData,
+                    borderColor: '#00ba7c',
+                    backgroundColor: greenGradient,
+                    fill: true,
+                    tension: 0.45,
+                    pointRadius: 0,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: '#00ba7c',
+                    pointHoverBackgroundColor: '#ffffff',
+                    pointHoverBorderColor: '#00ba7c',
+                    pointHoverBorderWidth: 3,
+                    borderWidth: 2
+                },
+                {
+                    label: 'QRIS Statis',
+                    data: qrisData,
+                    borderColor: '#1d9bf0',
+                    backgroundColor: blueGradient,
+                    fill: true,
+                    tension: 0.45,
+                    pointRadius: 0,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: '#1d9bf0',
+                    pointHoverBackgroundColor: '#ffffff',
+                    pointHoverBorderColor: '#1d9bf0',
+                    pointHoverBorderWidth: 3,
+                    borderWidth: 2
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: {
+                duration: 350
+            },
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
+            plugins: {
+                legend: { 
+                    display: true,
+                    position: 'top',
+                    align: 'end',
+                    labels: {
+                        usePointStyle: true,
+                        boxWidth: 8,
+                        boxHeight: 8,
+                        color: '#0f1419',
+                        font: { weight: 'bold', size: 11 },
+                        padding: 12
+                    }
+                },
+                tooltip: {
+                    backgroundColor: '#0f1419',
+                    titleColor: '#ffffff',
+                    bodyColor: '#ffffff',
+                    titleFont: { weight: 'bold', size: 12 },
+                    bodyFont: { weight: 'bold', size: 12 },
+                    padding: 10,
+                    cornerRadius: 12,
+                    callbacks: {
+                        label: (context) => ` ${context.dataset.label}: Rp ${(context.parsed.y || 0).toLocaleString('id-ID')}`
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    stacked: true,
+                    beginAtZero: true,
+                    ticks: {
+                        color: '#536471',
+                        font: { weight: '600', size: 10 },
+                        callback: (val) => val >= 1000000 ? 'Rp ' + (val / 1000000).toFixed(1) + 'M' : 'Rp ' + (val / 1000) + 'k'
+                    },
+                    grid: { 
+                        color: '#eff3f4',
+                        drawBorder: false
+                    },
+                    border: { display: false }
+                },
+                x: {
+                    ticks: {
+                        color: '#536471',
+                        font: { weight: '600', size: 10 },
+                        maxTicksLimit: timeframe === '30d' ? 10 : (timeframe === '7d' ? 7 : 9)
+                    },
+                    grid: { display: false },
+                    border: { color: '#eff3f4' }
+                }
+            }
+        }
+    });
+}
+
+function renderAdminMethodChart() {
+    const ctxMethod = document.getElementById('methodDonutChart');
+    if (!ctxMethod || !window.Chart) return;
+    if (window.__adminMethodChart) {
+        window.__adminMethodChart.destroy();
+        window.__adminMethodChart = null;
+    }
+
+    const allTx = (window.Alpine ? window.Alpine.store('app')?.transactions : null) || window.__INITIAL_TRANSACTIONS__ || [];
+    const cashCount = allTx.filter(t => t.payment_method === 'cash' && t.status === 'paid').length;
+    const qrisCount = allTx.filter(t => t.payment_method === 'qris' && t.status === 'paid').length;
+
+    window.__adminMethodChart = new window.Chart(ctxMethod, {
+        type: 'doughnut',
+        data: {
+            labels: ['Cash / Tunai', 'QRIS Statis'],
+            datasets: [{
+                data: (cashCount === 0 && qrisCount === 0) ? [0, 0] : [cashCount, qrisCount],
+                backgroundColor: ['#00ba7c', '#1d9bf0'],
+                borderColor: '#ffffff',
+                borderWidth: 3
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { 
+                    position: 'bottom',
+                    labels: {
+                        color: '#0f1419',
+                        font: { weight: 'bold', size: 12 }
+                    }
+                }
+            }
+        }
+    });
+}
+</script>
+
 <div x-data="{
-    chartHourly: null,
-    chartMethod: null,
+    chartTimeframe: '1d',
 
     get adminStats() {
-        return $store.app.getAdminReportStats();
+        return this.$store?.app?.getAdminReportStats?.() || {
+            totalGross: 0,
+            ownerTotal: 0,
+            adminGross: 0,
+            adminNet: 0,
+            superAdminShare: 0,
+            paidCount: 0,
+            totalTx: 0,
+            qrisPendingCount: 0
+        };
+    },
+
+    get timeframeTitle() {
+        if (this.chartTimeframe === '7d') return 'Tren Transaksi Cash vs QRIS (7 Hari)';
+        if (this.chartTimeframe === '30d') return 'Tren Transaksi Cash vs QRIS (1 Bulan)';
+        return 'Tren Transaksi Cash vs QRIS (Hari Ini)';
+    },
+
+    get timeframeSubtitle() {
+        if (this.chartTimeframe === '7d') return 'Perbandingan omzet Tunai vs QRIS harian 7 hari terakhir';
+        if (this.chartTimeframe === '30d') return 'Perbandingan omzet Tunai vs QRIS harian 30 hari terakhir';
+        return 'Perbandingan omzet Tunai vs QRIS kasir per jam hari ini';
+    },
+
+    setTimeframe(tf) {
+        this.chartTimeframe = tf;
+        renderAdminSalesChart(tf);
     },
 
     initCharts() {
         this.$nextTick(() => {
-            const ctxHourly = document.getElementById('hourlySalesChart');
-            if (ctxHourly && window.Chart) {
-                if (this.chartHourly) this.chartHourly.destroy();
-                this.chartHourly = new window.Chart(ctxHourly, {
-                    type: 'line',
-                    data: {
-                        labels: ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'],
-                        datasets: [{
-                            label: 'Omzet Penjualan (Rp)',
-                            data: [85000, 140000, 310000, 480000, 390000, 220000, 180000, 0, 0],
-                            borderColor: '#1d9bf0',
-                            backgroundColor: 'rgba(29, 155, 240, 0.12)',
-                            fill: true,
-                            tension: 0.4,
-                            pointBackgroundColor: '#1d9bf0',
-                            pointBorderColor: '#ffffff',
-                            pointBorderWidth: 2,
-                            pointRadius: 5,
-                            borderWidth: 3
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: { display: false }
-                        },
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                ticks: {
-                                    color: '#0f1419',
-                                    font: { weight: '600' },
-                                    callback: (val) => 'Rp ' + (val / 1000) + 'k'
-                                },
-                                grid: { color: '#eff3f4' }
-                            },
-                            x: {
-                                ticks: {
-                                    color: '#0f1419',
-                                    font: { weight: '600' }
-                                },
-                                grid: { color: '#eff3f4' }
-                            }
-                        }
-                    }
-                });
-            }
-
-            const ctxMethod = document.getElementById('methodDonutChart');
-            if (ctxMethod && window.Chart) {
-                if (this.chartMethod) this.chartMethod.destroy();
-                const cashCount = $store.app.transactions.filter(t => t.payment_method === 'cash' && t.status === 'paid').length;
-                const qrisCount = $store.app.transactions.filter(t => t.payment_method === 'qris' && t.status === 'paid').length;
-
-                this.chartMethod = new window.Chart(ctxMethod, {
-                    type: 'doughnut',
-                    data: {
-                        labels: ['Cash / Tunai', 'QRIS Statis'],
-                        datasets: [{
-                            data: [cashCount || 4, qrisCount || 3],
-                            backgroundColor: ['#1d9bf0', '#71c9f8'],
-                            borderColor: '#ffffff',
-                            borderWidth: 3
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: { 
-                                position: 'bottom',
-                                labels: {
-                                    color: '#0f1419',
-                                    font: { weight: 'bold', size: 12 }
-                                }
-                            }
-                        }
-                    }
-                });
-            }
+            renderAdminSalesChart(this.chartTimeframe);
+            renderAdminMethodChart();
         });
     }
 }" x-init="initCharts()" class="space-y-6">
@@ -122,8 +335,57 @@
         </a>
     </div>
 
+    <!-- 1 Card Menu dengan 4 Kotak Icon (Mobile Only - Tepat di bawah Nama Event) -->
+    <div class="lg:hidden bg-white rounded-3xl p-4 sm:p-5 border border-[#eff3f4] shadow-xs">
+        <div class="grid grid-cols-4 gap-2 sm:gap-4 text-center">
+            <!-- 1. Event -->
+            <a 
+                href="/admin/events" 
+                class="flex flex-col items-center group cursor-pointer active:scale-95 transition-transform"
+            >
+                <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#e8f5fd] group-hover:bg-[#1d9bf0] text-[#1d9bf0] group-hover:text-white flex items-center justify-center transition-all shadow-2xs group-hover:shadow-md group-hover:shadow-[#1d9bf0]/25">
+                    <svg class="w-6 h-6 sm:w-7 sm:h-7 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                </div>
+                <span class="text-[11px] sm:text-xs font-black text-[#0f1419] group-hover:text-[#1d9bf0] mt-2 block tracking-tight truncate w-full">Event</span>
+            </a>
+
+            <!-- 2. Stand Warung -->
+            <a 
+                href="/admin/warung" 
+                class="flex flex-col items-center group cursor-pointer active:scale-95 transition-transform"
+            >
+                <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#e8f5fd] group-hover:bg-[#1d9bf0] text-[#1d9bf0] group-hover:text-white flex items-center justify-center transition-all shadow-2xs group-hover:shadow-md group-hover:shadow-[#1d9bf0]/25">
+                    <svg class="w-6 h-6 sm:w-7 sm:h-7 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+                </div>
+                <span class="text-[11px] sm:text-xs font-black text-[#0f1419] group-hover:text-[#1d9bf0] mt-2 block tracking-tight truncate w-full">Warung</span>
+            </a>
+
+            <!-- 3. Helpdesk -->
+            <a 
+                href="/admin/helpdesk" 
+                class="flex flex-col items-center group cursor-pointer active:scale-95 transition-transform"
+            >
+                <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#e8f5fd] group-hover:bg-[#1d9bf0] text-[#1d9bf0] group-hover:text-white flex items-center justify-center transition-all shadow-2xs group-hover:shadow-md group-hover:shadow-[#1d9bf0]/25">
+                    <svg class="w-6 h-6 sm:w-7 sm:h-7 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
+                </div>
+                <span class="text-[11px] sm:text-xs font-black text-[#0f1419] group-hover:text-[#1d9bf0] mt-2 block tracking-tight truncate w-full">Helpdesk</span>
+            </a>
+
+            <!-- 4. SOP Kasir -->
+            <a 
+                href="/admin/panduan" 
+                class="flex flex-col items-center group cursor-pointer active:scale-95 transition-transform"
+            >
+                <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#e8f5fd] group-hover:bg-[#1d9bf0] text-[#1d9bf0] group-hover:text-white flex items-center justify-center transition-all shadow-2xs group-hover:shadow-md group-hover:shadow-[#1d9bf0]/25">
+                    <svg class="w-6 h-6 sm:w-7 sm:h-7 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                </div>
+                <span class="text-[11px] sm:text-xs font-black text-[#0f1419] group-hover:text-[#1d9bf0] mt-2 block tracking-tight truncate w-full">SOP Kasir</span>
+            </a>
+        </div>
+    </div>
+
     <!-- KPI Metric Cards (Twitter Blue Accent & Crisp Black Fonts) -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+    <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
         <!-- Total Gross Revenue -->
         <div class="bg-gradient-to-br from-[#1d9bf0] to-[#1271b3] rounded-3xl p-5 text-white shadow-lg shadow-[#1d9bf0]/25 col-span-2 sm:col-span-1">
             <span class="text-xs font-bold text-white/90 uppercase tracking-wider block">Total Omzet Event</span>
@@ -133,9 +395,9 @@
 
         <!-- Net EO Revenue -->
         <div class="bg-white rounded-3xl p-5 border border-[#eff3f4] shadow-xs">
-            <span class="text-xs font-bold text-[#0f1419] uppercase tracking-wider block">Bagian Bersih EO</span>
+            <span class="text-xs font-bold text-[#0f1419] uppercase tracking-wider block">Bagian EO (22.5%)</span>
             <h3 class="text-xl font-black text-[#1d9bf0] mt-1" x-text="formatRupiah(adminStats.adminNet)"></h3>
-            <p class="text-[11px] text-[#536471] mt-2 font-medium">25% Gross - Rp1.000 platform</p>
+            <p class="text-[11px] text-[#536471] mt-2 font-medium">Porsi bersih penyelenggara</p>
         </div>
 
         <!-- Active Stores Count -->
@@ -145,24 +407,57 @@
             <p class="text-[11px] text-[#536471] mt-2 font-medium">Semua stand aktif berjualan</p>
         </div>
 
-        <!-- Super Admin Flat Fee -->
+        <!-- Developer Flat Fee -->
         <div class="bg-white rounded-3xl p-5 border border-[#eff3f4] shadow-xs">
-            <span class="text-xs font-bold text-[#0f1419] uppercase tracking-wider block">Fee Super Admin</span>
+            <span class="text-xs font-bold text-[#0f1419] uppercase tracking-wider block">Fee Platform</span>
             <h3 class="text-xl font-black text-[#1d9bf0] mt-1" x-text="formatRupiah(adminStats.superadminTotal)"></h3>
-            <p class="text-[11px] text-[#536471] mt-2 font-medium">Rp1.000 flat per transaksi paid</p>
+            <p class="text-[11px] text-[#536471] mt-2 font-medium">2.5% dari Omzet</p>
+        </div>
+
+        <!-- Pending Cash Count -->
+        <div class="bg-amber-50 rounded-3xl p-5 border border-amber-200 shadow-xs">
+            <span class="text-xs font-bold text-[#ff7a00] uppercase tracking-wider block">Pending Cash</span>
+            <h3 class="text-xl font-black text-[#ff7a00] mt-1" x-text="$store.app.transactions.filter(t => t.status === 'pending' && t.payment_method === 'cash').length"></h3>
+            <p class="text-[11px] text-amber-700 mt-2 font-medium">Menunggu dibayar ke Kasir</p>
         </div>
     </div>
 
     <!-- Charts Section (Twitter Blue Palette Pie/Donut & Line Chart) -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <!-- Sales Hourly Trend -->
-        <div class="lg:col-span-2 bg-white rounded-3xl p-5 sm:p-6 border border-[#eff3f4] shadow-xs space-y-3">
-            <div class="flex items-center justify-between">
+        <!-- Sales Hourly / Daily Trend -->
+        <div class="lg:col-span-2 bg-white rounded-3xl p-5 sm:p-6 border border-[#eff3f4] shadow-xs space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                    <h3 class="font-black text-base text-[#0f1419]">Tren Transaksi per Jam</h3>
-                    <p class="text-xs text-[#536471]">Aktivitas omzet penjualan kasir hari ini</p>
+                    <h3 class="font-black text-base text-[#0f1419]" x-text="timeframeTitle">Tren Transaksi Penjualan</h3>
+                    <p class="text-xs text-[#536471]" x-text="timeframeSubtitle">Aktivitas omzet penjualan kasir</p>
                 </div>
-                <span class="text-xs font-black text-[#1d9bf0] bg-[#e8f5fd] px-3.5 py-1 rounded-full border border-[#bde2f9]">Live Hari Ini</span>
+                <!-- Timeframe Segmented Control Buttons (Twitter UI Pill Style) -->
+                <div class="inline-flex p-1 bg-[#f7f9f9] border border-[#eff3f4] rounded-full self-start sm:self-auto shadow-2xs">
+                    <button 
+                        @click="setTimeframe('1d')" 
+                        type="button" 
+                        class="px-3.5 py-1 rounded-full text-xs font-black transition-all cursor-pointer"
+                        :class="chartTimeframe === '1d' ? 'bg-[#1d9bf0] text-white shadow-xs' : 'text-[#536471] hover:text-[#0f1419]'"
+                    >
+                        1 Hari
+                    </button>
+                    <button 
+                        @click="setTimeframe('7d')" 
+                        type="button" 
+                        class="px-3.5 py-1 rounded-full text-xs font-black transition-all cursor-pointer"
+                        :class="chartTimeframe === '7d' ? 'bg-[#1d9bf0] text-white shadow-xs' : 'text-[#536471] hover:text-[#0f1419]'"
+                    >
+                        7 Hari
+                    </button>
+                    <button 
+                        @click="setTimeframe('30d')" 
+                        type="button" 
+                        class="px-3.5 py-1 rounded-full text-xs font-black transition-all cursor-pointer"
+                        :class="chartTimeframe === '30d' ? 'bg-[#1d9bf0] text-white shadow-xs' : 'text-[#536471] hover:text-[#0f1419]'"
+                    >
+                        1 Bulan
+                    </button>
+                </div>
             </div>
             <div class="h-64 relative">
                 <canvas id="hourlySalesChart"></canvas>
@@ -225,11 +520,11 @@
                                     class="px-2.5 py-0.5 rounded-full text-[10px] font-bold"
                                     :class="{
                                         'bg-[#e8f5fd] text-[#1d9bf0] border border-[#bde2f9]': tx.status === 'paid',
-                                        'bg-amber-50 text-[#ff7a00] border border-amber-200': tx.status === 'pending_verification',
+                                        'bg-amber-50 text-[#ff7a00] border border-amber-200': tx.status === 'pending_verification' || tx.status === 'pending',
                                         'bg-rose-50 text-[#f4212e] border border-rose-200': tx.status === 'rejected',
                                         'bg-slate-100 text-slate-500 line-through': tx.status === 'cancelled'
                                     }"
-                                    x-text="tx.status === 'pending_verification' ? 'Pending' : tx.status"
+                                    x-text="tx.status === 'pending_verification' ? 'Pending Verif' : (tx.status === 'pending' ? 'Belum Bayar' : tx.status)"
                                 ></span>
                             </td>
                         </tr>

@@ -4,84 +4,54 @@
 
 @section('content')
 <div x-data="{
-    email: 'warung.busiti@gmail.com',
-    password: 'password123',
+    email: '',
+    password: '',
     remember: true,
     isLoading: false,
 
-    handleLogin(role = null) {
-        this.isLoading = true;
-        
-        let targetRole = role || 'user';
-        if (!role) {
-            if (this.email.includes('admin@')) targetRole = 'admin';
-            else if (this.email.includes('superadmin@')) targetRole = 'superadmin';
-            else targetRole = 'user';
+    async handleLogin() {
+        if (!this.email.trim() || !this.password.trim()) {
+            window.showSwal('warning', 'Perhatian', 'Harap masukkan email dan kata sandi Anda.');
+            return;
         }
 
-        $store.app.currentRole = targetRole;
-        localStorage.setItem('pos_umkm_role', targetRole);
+        this.isLoading = true;
 
-        setTimeout(() => {
+        try {
+            const token = document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || '';
+            const res = await fetch('/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': token
+                },
+                body: JSON.stringify({
+                    login: this.email.trim(),
+                    password: this.password,
+                    remember: this.remember
+                })
+            });
+
+            const data = await res.json();
+
+            if (res.ok && data.success) {
+                window.location.href = data.redirect || '/';
+            } else {
+                window.showSwal('error', 'Login Gagal', data.message || 'Periksa kembali email dan password Anda.');
+            }
+        } catch (err) {
+            console.error(err);
+            document.getElementById('loginForm')?.submit();
+        } finally {
             this.isLoading = false;
-            $store.app.notify('success', 'Login Berhasil', `Selamat datang kembali di ${$store.app.getRoleLabel(targetRole)}`);
-            if (targetRole === 'user') window.location.href = '/user/kasir';
-            else if (targetRole === 'admin') window.location.href = '/admin/dashboard';
-            else if (targetRole === 'superadmin') window.location.href = '/superadmin/dashboard';
-        }, 400);
-    },
-
-    setDemoCredentials(role) {
-        if (role === 'user') {
-            this.email = 'warung.busiti@gmail.com';
-            this.password = 'password123';
-            this.handleLogin('user');
-        } else if (role === 'admin') {
-            this.email = 'admin@pos-umkm.id';
-            this.password = 'password123';
-            this.handleLogin('admin');
-        } else if (role === 'superadmin') {
-            this.email = 'superadmin@pos-umkm.id';
-            this.password = 'password123';
-            this.handleLogin('superadmin');
         }
     }
 }">
     <!-- Heading -->
     <div class="mb-6 text-center">
         <h2 class="text-2xl font-black text-[#0f1419] tracking-tight">Masuk ke Akun Anda</h2>
-        <p class="text-sm text-[#0f1419] font-semibold mt-1">Gunakan akun tenant stand atau panitia event</p>
-    </div>
-
-    <!-- Quick Demo Role Switcher / Shortcut Buttons (Twitter Style Pills) -->
-    <div class="mb-6 p-3.5 bg-[#f7f9f9] rounded-2xl border border-[#eff3f4]">
-        <p class="text-xs font-black text-[#0f1419] mb-2 flex items-center justify-between">
-            <span>⚡ Demo Akses Cepat (1-Klik):</span>
-            <span class="text-[10px] text-[#1d9bf0] font-black">Pilih Role</span>
-        </p>
-        <div class="grid grid-cols-3 gap-2 text-xs">
-            <button 
-                type="button" 
-                @click="setDemoCredentials('user')" 
-                class="py-2.5 px-2 rounded-full bg-white hover:bg-[#e8f5fd] text-[#1d9bf0] border border-[#bde2f9] font-black transition-all text-center shadow-2xs cursor-pointer"
-            >
-                🛒 Warung
-            </button>
-            <button 
-                type="button" 
-                @click="setDemoCredentials('admin')" 
-                class="py-2.5 px-2 rounded-full bg-white hover:bg-[#e8f5fd] text-[#1d9bf0] border border-[#bde2f9] font-black transition-all text-center shadow-2xs cursor-pointer"
-            >
-                🛡️ Admin EO
-            </button>
-            <button 
-                type="button" 
-                @click="setDemoCredentials('superadmin')" 
-                class="py-2.5 px-2 rounded-full bg-white hover:bg-[#e8f5fd] text-[#1d9bf0] border border-[#bde2f9] font-black transition-all text-center shadow-2xs cursor-pointer"
-            >
-                👑 Superadmin
-            </button>
-        </div>
+        <p class="text-sm text-[#0f1419] font-semibold mt-1">Gunakan akun terdaftar Anda untuk melanjutkan</p>
     </div>
 
     <form @submit.prevent="handleLogin()" class="space-y-4">
@@ -98,7 +68,7 @@
                     x-model="email" 
                     required 
                     class="w-full pl-10 pr-4 py-2.5 bg-[#f7f9f9] border border-[#eff3f4] rounded-xl text-sm text-[#0f1419] placeholder-[#536471] focus:outline-none focus:ring-2 focus:ring-[#1d9bf0] focus:bg-white transition-all font-semibold"
-                    placeholder="nama@email.com"
+                    placeholder="Alamat Email"
                 >
             </div>
         </div>
@@ -119,7 +89,7 @@
                     x-model="password" 
                     required 
                     class="w-full pl-10 pr-4 py-2.5 bg-[#f7f9f9] border border-[#eff3f4] rounded-xl text-sm text-[#0f1419] placeholder-[#536471] focus:outline-none focus:ring-2 focus:ring-[#1d9bf0] focus:bg-white transition-all font-semibold"
-                    placeholder="••••••••"
+                    placeholder="Kata Sandi"
                 >
             </div>
         </div>
@@ -149,13 +119,10 @@
         </button>
     </form>
 
-    <!-- Register Link -->
+    <!-- Register Note -->
     <div class="mt-6 pt-5 border-t border-[#eff3f4] text-center">
-        <p class="text-xs text-[#0f1419] font-medium">
-            Belum mendaftar sebagai tenant warung?
-            <a href="/register" class="font-black text-[#1d9bf0] hover:underline ml-1 transition-colors">
-                Daftar Warung Baru &rarr;
-            </a>
+        <p class="text-xs text-[#536471] font-medium">
+            Login khusus Admin & Panitia EO
         </p>
     </div>
 </div>
