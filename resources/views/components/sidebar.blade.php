@@ -18,32 +18,56 @@
         $activeEvent = \App\Models\Event::getActive();
         $user = auth()->user();
     @endphp
-    <div class="px-4 py-3 mx-4 my-3 rounded-2xl bg-[#f7f9f9] border border-[#eff3f4]">
-        <div class="flex items-center gap-1.5 text-xs text-[#536471]">
-            <span class="w-2 h-2 rounded-full bg-[#1d9bf0]"></span>
-            <span class="font-bold">
-                @if($user && $user->isUser())
-                    Tenant Aktif:
-                @elseif($user && $user->isAdmin())
-                    Panitia Event:
-                @else
-                    Platform Master:
-                @endif
-            </span>
-        </div>
-        <p class="text-xs font-black text-[#0f1419] truncate mt-0.5 flex items-center gap-1">
-            <span>
-                @if($user && $user->isUser())
-                    {{ $user->store->name ?? 'Stand Belum Didaftarkan' }}
-                @elseif($user && $user->isAdmin())
-                    Panitia Admin EO
-                @else
-                    Super Admin Platform
-                @endif
-            </span>
-            <svg class="w-3.5 h-3.5 text-[#1d9bf0] shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.79-4-4-4-.495 0-.965.084-1.4.238C14.55 2.475 13.18 1.6 11.6 1.6c-1.58 0-2.95.875-3.6 2.148-.435-.154-.905-.238-1.4-.238-2.21 0-4 1.79-4 4 0 .495.084.965.238 1.4C1.575 9.55.7 10.92.7 12.5c0 1.58.875 2.95 2.148 3.6-.154.435-.238.905-.238 1.4 0 2.21 1.79 4 4 4 .495 0 .965-.084 1.4-.238.65 1.273 2.02 2.148 3.6 2.148 1.58 0 2.95-.875 3.6-2.148.435.154.905.238 1.4.238 2.21 0 4-1.79 4-4 0-.495-.084-.965-.238-1.4 1.273-.65 2.148-2.02 2.148-3.6zm-12.28 4.22l-4.22-4.22 1.414-1.414 2.806 2.806 6.806-6.806 1.414 1.414-8.22 8.22z"></path></svg>
-        </p>
-        <p class="text-[10px] text-[#536471] font-semibold truncate">{{ $activeEvent ? $activeEvent->name : 'Tidak Ada Event Aktif' }}</p>
+    <div class="px-3.5 py-2.5 mx-4 my-2.5 rounded-2xl bg-[#f7f9f9] border border-[#eff3f4]" x-data="{ switcherOpen: false }">
+        @if($user && $user->isUser())
+            <div class="relative">
+                <button @click="switcherOpen = !switcherOpen" class="w-full flex items-center justify-between text-left rounded-xl hover:bg-[#eff3f4]/60 transition-colors cursor-pointer group">
+                    <div class="overflow-hidden min-w-0 pr-2">
+                        <p class="text-xs font-black text-[#0f1419] truncate flex items-center gap-1">
+                            <span class="truncate">{{ $user->store->name ?? 'Belum Didaftarkan' }}</span>
+                            <svg class="w-3.5 h-3.5 text-[#1d9bf0] shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.79-4-4-4-.495 0-.965.084-1.4.238C14.55 2.475 13.18 1.6 11.6 1.6c-1.58 0-2.95.875-3.6 2.148-.435-.154-.905-.238-1.4-.238-2.21 0-4 1.79-4 4 0 .495.084.965.238 1.4C1.575 9.55.7 10.92.7 12.5c0 1.58.875 2.95 2.148 3.6-.154.435-.238.905-.238 1.4 0 2.21 1.79 4 4 4 .495 0 .965-.084 1.4-.238.65 1.273 2.02 2.148 3.6 2.148 1.58 0 2.95-.875 3.6-2.148.435.154.905.238 1.4.238 2.21 0 4-1.79 4-4 0-.495-.084-.965-.238-1.4 1.273-.65 2.148-2.02 2.148-3.6zm-12.28 4.22l-4.22-4.22 1.414-1.414 2.806 2.806 6.806-6.806 1.414 1.414-8.22 8.22z"></path></svg>
+                        </p>
+                        <p class="text-[11px] text-[#536471] font-semibold truncate mt-0.5">{{ $user->store->event->name ?? 'Tidak Ada Event' }}</p>
+                        <template x-if="!$store.app.activeStoreEventActive">
+                            <span class="inline-block mt-1 px-1.5 py-0.5 bg-[#f4212e]/10 text-[#f4212e] text-[9px] font-black uppercase rounded">Event Inaktif (Readonly)</span>
+                        </template>
+                    </div>
+                    <svg class="w-4 h-4 text-[#536471] shrink-0" :class="{'rotate-180': switcherOpen}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </button>
+                
+                <div x-show="switcherOpen" @click.away="switcherOpen = false" x-cloak class="absolute top-full left-0 right-0 mt-1 bg-white border border-[#eff3f4] rounded-2xl shadow-xl z-50 overflow-hidden">
+                    <div class="max-h-48 overflow-y-auto">
+                        <template x-for="userStore in $store.app.userStores" :key="userStore.id">
+                            <form action="{{ route('user.switch-store') }}" method="POST" class="border-b border-[#eff3f4] last:border-0">
+                                @csrf
+                                <input type="hidden" name="store_id" :value="userStore.id">
+                                <button type="submit" class="w-full text-left px-4 py-2.5 hover:bg-[#f7f9f9] transition-colors cursor-pointer" :class="{'bg-[#e8f5fd]': userStore.id == $store.app.user.store_id}">
+                                    <p class="text-xs font-black text-[#0f1419] truncate" x-text="userStore.name"></p>
+                                    <p class="text-[10px] text-[#536471] font-semibold truncate" x-text="userStore.event_name"></p>
+                                    <span class="inline-block mt-0.5 px-1.5 rounded text-[9px] font-bold" 
+                                          :class="userStore.event_is_active ? 'bg-[#00ba7c]/10 text-[#00ba7c]' : 'bg-[#f4212e]/10 text-[#f4212e]'"
+                                          x-text="userStore.event_is_active ? 'Event Aktif' : 'Event Selesai'"></span>
+                                </button>
+                            </form>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        @else
+            <div class="overflow-hidden">
+                <p class="text-xs font-black text-[#0f1419] truncate flex items-center gap-1">
+                    <span>
+                        @if($user && $user->isAdmin())
+                            Panitia Admin EO
+                        @else
+                            Developer Platform
+                        @endif
+                    </span>
+                    <svg class="w-3.5 h-3.5 text-[#1d9bf0] shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.79-4-4-4-.495 0-.965.084-1.4.238C14.55 2.475 13.18 1.6 11.6 1.6c-1.58 0-2.95.875-3.6 2.148-.435-.154-.905-.238-1.4-.238-2.21 0-4 1.79-4 4 0 .495.084.965.238 1.4C1.575 9.55.7 10.92.7 12.5c0 1.58.875 2.95 2.148 3.6-.154.435-.238.905-.238 1.4 0 2.21 1.79 4 4 4 .495 0 .965-.084 1.4-.238.65 1.273 2.02 2.148 3.6 2.148 1.58 0 2.95-.875 3.6-2.148.435.154.905.238 1.4.238 2.21 0 4-1.79 4-4 0-.495-.084-.965-.238-1.4 1.273-.65 2.148-2.02 2.148-3.6zm-12.28 4.22l-4.22-4.22 1.414-1.414 2.806 2.806 6.806-6.806 1.414 1.414-8.22 8.22z"></path></svg>
+                </p>
+                <p class="text-[11px] text-[#536471] font-semibold truncate mt-0.5">{{ $activeEvent ? $activeEvent->name : 'Tidak Ada Event Aktif' }}</p>
+            </div>
+        @endif
     </div>
 
     <!-- Navigation Links based on Authenticated Role -->
@@ -74,7 +98,7 @@
                     class="flex items-center gap-3.5 px-4 py-2.5 rounded-full text-sm font-medium transition-all group cursor-pointer {{ request()->is('user/laporan*') ? 'bg-[#e8f5fd] text-[#1d9bf0] font-bold' : 'text-[#0f1419] hover:bg-[#eff3f4]' }}"
                 >
                     <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
-                    <span>Laporan Saya (75%)</span>
+                    <span>Laporan Saya</span>
                 </a>
 
                 <div class="pt-3 px-4 py-1 text-[11px] font-bold uppercase tracking-wider text-[#536471]">Bantuan</div>
@@ -84,7 +108,7 @@
                     class="flex items-center gap-3.5 px-4 py-2.5 rounded-full text-sm font-medium transition-all group cursor-pointer {{ request()->is('user/helpdesk*') ? 'bg-[#e8f5fd] text-[#1d9bf0] font-bold' : 'text-[#0f1419] hover:bg-[#eff3f4]' }}"
                 >
                     <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
-                    <span>Helpdesk Panitia</span>
+                    <span>Helpdesk</span>
                 </a>
 
                 <a 

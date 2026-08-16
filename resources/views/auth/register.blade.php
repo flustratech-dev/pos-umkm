@@ -77,11 +77,11 @@
                     const firstKey = Object.keys(data.errors)[0];
                     errMsg = data.errors[firstKey][0];
                 }
-                alert(errMsg);
+                window.showSwal('error', 'Registrasi Gagal', errMsg);
             }
         } catch (err) {
             console.error(err);
-            alert('Terjadi kesalahan koneksi server. Silakan coba lagi.');
+            window.showSwal('error', 'Kesalahan Server', 'Terjadi kesalahan koneksi server. Silakan coba lagi.');
         } finally {
             this.isLoading = false;
         }

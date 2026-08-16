@@ -14,6 +14,15 @@
         <p class="text-xs sm:text-sm text-[#536471] mt-1">Langkah praktis penggunaan aplikasi POS untuk pemilik warung dan kasir stand</p>
     </div>
 
+    <!-- Readonly Banner -->
+    <div x-show="!$store.app.activeStoreEventActive" class="p-4 rounded-2xl bg-[#f4212e]/10 border border-[#f4212e]/20 flex gap-3">
+        <svg class="w-5 h-5 text-[#f4212e] shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+        <div>
+            <h3 class="text-sm font-black text-[#f4212e]">Konteks Readonly</h3>
+            <p class="text-xs text-[#f4212e] mt-1 font-medium">Anda sedang melihat data dari event yang telah berakhir. Panduan ini menampilkan alur kerja untuk event yang aktif.</p>
+        </div>
+    </div>
+
     <!-- 4 Step Quick Start Visual Guide (Twitter UI) -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <!-- Step 1 -->
@@ -62,7 +71,7 @@
                 <p>Dari total transaksi yang berhasil (Paid):</p>
                 <ul class="list-disc pl-5 space-y-0.5 text-[#0f1419] font-medium">
                     <li><strong>75%</strong> menjadi hak bersih Pemilik Warung.</li>
-                    <li><strong>25%</strong> menjadi hak Panitia EO (dipotong flat Rp1.000 untuk lisensi platform Super Admin).</li>
+                    <li><strong>25%</strong> menjadi hak Panitia EO (dipotong flat Rp1.000 untuk lisensi platform Developer).</li>
                 </ul>
             </div>
         </div>

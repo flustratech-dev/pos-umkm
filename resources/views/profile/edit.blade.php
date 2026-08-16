@@ -10,36 +10,6 @@
         <p class="text-xs sm:text-sm text-[#536471] font-semibold mt-0.5">Kelola informasi pribadi dan pengaturan akun</p>
     </div>
 
-    <!-- Success Message -->
-    @if(session('success'))
-    <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-start gap-3">
-        <div class="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
-            <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
-        </div>
-        <div>
-            <h4 class="text-sm font-bold text-emerald-800">Berhasil!</h4>
-            <p class="text-xs font-medium text-emerald-600 mt-0.5">{{ session('success') }}</p>
-        </div>
-    </div>
-    @endif
-
-    <!-- Validation Errors -->
-    @if($errors->any())
-    <div class="bg-rose-50 border border-rose-200 rounded-2xl p-4 flex items-start gap-3">
-        <div class="w-8 h-8 rounded-full bg-rose-100 flex items-center justify-center shrink-0">
-            <svg class="w-4 h-4 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-        </div>
-        <div>
-            <h4 class="text-sm font-bold text-rose-800">Terdapat Kesalahan</h4>
-            <ul class="text-xs font-medium text-rose-600 mt-1 list-disc list-inside">
-                @foreach($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                @endforeach
-            </ul>
-        </div>
-    </div>
-    @endif
-
     <div class="bg-white rounded-3xl border border-[#eff3f4] overflow-hidden">
         <form action="{{ route('profile.update') }}" method="POST" enctype="multipart/form-data" class="p-5 sm:p-6 space-y-6">
             @csrf

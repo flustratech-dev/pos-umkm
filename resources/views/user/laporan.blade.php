@@ -9,10 +9,12 @@
     selectedMethod: 'all',
 
     get myTransactions() {
-        const storeId = $store.app.getCurrentStore()?.id || 1;
-        return $store.app.transactions.filter(t => {
-            const matchesStore = t.store_id === storeId;
-            const matchesSearch = t.invoice_code.toLowerCase().includes(this.searchInvoice.toLowerCase());
+        const store = this.$store?.app?.getCurrentStore?.();
+        const storeId = store ? store.id : null;
+        const txs = this.$store?.app?.transactions || [];
+        return txs.filter(t => {
+            const matchesStore = storeId ? (t.store_id == storeId) : true;
+            const matchesSearch = !this.searchInvoice || (t.invoice_code || '').toLowerCase().includes(this.searchInvoice.toLowerCase());
             const matchesStatus = this.selectedStatus === 'all' || t.status === this.selectedStatus;
             const matchesMethod = this.selectedMethod === 'all' || t.payment_method === this.selectedMethod;
             return matchesStore && matchesSearch && matchesStatus && matchesMethod;
@@ -20,15 +22,22 @@
     },
 
     get stats() {
-        return $store.app.getUserReportStats($store.app.getCurrentStore()?.id || 1);
+        const store = this.$store?.app?.getCurrentStore?.();
+        return this.$store?.app?.getUserReportStats?.(store ? store.id : null) || {
+            totalGross: 0,
+            netIncome: 0,
+            totalCount: 0,
+            cancelledCount: 0,
+            pendingCount: 0
+        };
     }
 }" class="space-y-6">
 
-    <!-- Header & Print Action (Twitter Blue Button) -->
+    <!-- Header & Export Action Buttons (Twitter UI) -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
             <h2 class="text-xl sm:text-2xl font-black text-[#0f1419] tracking-tight">Laporan & Riwayat Penjualan</h2>
-            <p class="text-xs sm:text-sm text-[#0f1419] font-medium mt-0.5" x-text="`Rekapitulasi transaksi ${$store.app.getCurrentStore()?.name}`"></p>
+            <p class="text-xs sm:text-sm text-[#536471] font-semibold mt-0.5" x-text="`Rekapitulasi transaksi ${$store.app.getCurrentStore()?.name || 'Stand Saya'}`"></p>
         </div>
 
         <!-- Export Action Buttons (PDF, Word, Excel) -->
@@ -70,11 +79,11 @@
 
     <!-- Revenue Summary Cards (Twitter UI Style) -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <!-- Net Share 75% (Twitter Blue Gradient) -->
+        <!-- Net Share (Twitter Blue Gradient) -->
         <div class="bg-gradient-to-br from-[#1d9bf0] to-[#1271b3] rounded-3xl p-5 text-white shadow-lg shadow-[#1d9bf0]/25 col-span-2 sm:col-span-1">
-            <span class="text-xs font-bold text-white/90 uppercase tracking-wider block">Pendapatan Bersih (75%)</span>
+            <span class="text-xs font-bold text-white/90 uppercase tracking-wider block">Pendapatan Bersih</span>
             <h3 class="text-xl sm:text-2xl font-black mt-1 tracking-tight text-white" x-text="formatRupiah(stats.netIncome)"></h3>
-            <p class="text-[11px] text-white/90 mt-2 font-medium">Porsi 75% dari transaksi berstatus Paid</p>
+            <p class="text-[11px] text-white/90 mt-2 font-medium">Dari transaksi berstatus Paid</p>
         </div>
 
         <!-- Gross Volume -->
@@ -149,7 +158,7 @@
                         <th class="px-4 py-3.5">Total Belanja</th>
                         <th class="px-4 py-3.5">Uang Diterima (Cash)</th>
                         <th class="px-4 py-3.5">Kembalian (Cash)</th>
-                        <th class="px-4 py-3.5">Porsi Warung (75%)</th>
+                        <th class="px-4 py-3.5">Porsi Warung</th>
                         <th class="px-4 py-3.5">Status</th>
                         <th class="px-4 py-3.5 text-center">Aksi</th>
                     </tr>
@@ -256,7 +265,7 @@
 
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 pt-1">
                     <div class="min-w-0">
-                        <span class="text-[9px] sm:text-[10px] text-[#536471] font-semibold block">Bagian Warung (75%):</span>
+                        <span class="text-[9px] sm:text-[10px] text-[#536471] font-semibold block">Bagian Warung:</span>
                         <span class="text-[11px] sm:text-xs font-black text-[#1d9bf0] truncate block" x-text="tx.status === 'paid' ? formatRupiah(tx.revenue_split?.owner_share || tx.total_amount * 0.75) : '-'"></span>
                     </div>
 

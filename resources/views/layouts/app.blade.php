@@ -18,9 +18,6 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-    <!-- Vite Styles & Scripts -->
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-    
     @php
         $authUser = auth()->user();
         $userStore = $authUser ? ($authUser->store ?: $authUser->ownedStore) : null;
@@ -48,11 +45,14 @@
         ] : null;
 
         $dbEvents = \App\Models\Event::all();
+        $activeEventId = $activeEv ? $activeEv->id : null;
         
-        // Stores Query (Tenants only see their own store, Admin/Superadmin see all)
+        // Stores Query — scoped to active event for Admin/SuperAdmin, own store for User
         $storesQuery = \App\Models\Store::with('owner');
         if ($authUser && $authUser->isUser()) {
             $storesQuery->where('id', $userStoreId ?: 0);
+        } elseif ($activeEventId) {
+            $storesQuery->where('event_id', $activeEventId);
         }
         $dbStores = $storesQuery->get()->map(function($s) {
             return [
@@ -68,10 +68,20 @@
             ];
         });
 
-        // Products Query (Tenants only see their own products, Admin/Superadmin see all)
+        // Get store IDs for current active event (used to scope products, transactions, helpdesk)
+        $activeStoreIds = $activeEventId 
+            ? \App\Models\Store::where('event_id', $activeEventId)->pluck('id')->toArray() 
+            : [];
+
+        // Products Query — scoped to active event stores for Admin/SuperAdmin
         $productsQuery = \App\Models\Product::where('is_active', true);
         if ($authUser && $authUser->isUser()) {
             $productsQuery->where('store_id', $userStoreId ?: 0);
+        } elseif (!empty($activeStoreIds)) {
+            $productsQuery->whereIn('store_id', $activeStoreIds);
+        } elseif ($activeEventId && empty($activeStoreIds)) {
+            // Active event exists but has no stores — show nothing
+            $productsQuery->whereRaw('1 = 0');
         }
         $dbProducts = $productsQuery->get()->map(function($p) {
             return [
@@ -87,10 +97,14 @@
             ];
         });
 
-        // Transactions Query (Tenants only see their own transactions, Admin/Superadmin see all)
+        // Transactions Query — scoped to active event stores for Admin/SuperAdmin
         $txQuery = \App\Models\Transaction::with(['items', 'store', 'paymentProof', 'revenueSplit'])->orderBy('id', 'desc');
         if ($authUser && $authUser->isUser()) {
             $txQuery->where('store_id', $userStoreId ?: 0);
+        } elseif (!empty($activeStoreIds)) {
+            $txQuery->whereIn('store_id', $activeStoreIds);
+        } elseif ($activeEventId && empty($activeStoreIds)) {
+            $txQuery->whereRaw('1 = 0');
         }
         $dbTransactions = $txQuery->get()->map(function($t) {
             return [
@@ -127,10 +141,14 @@
             ];
         });
 
-        // Helpdesk Tickets (Tenants only see their own tickets)
+        // Helpdesk Tickets — scoped to active event stores for Admin/SuperAdmin
         $ticketsQuery = \App\Models\HelpdeskTicket::with(['user', 'store', 'replies.user'])->orderBy('id', 'desc');
         if ($authUser && $authUser->isUser()) {
             $ticketsQuery->where('user_id', $authUser->id);
+        } elseif (!empty($activeStoreIds)) {
+            $ticketsQuery->whereIn('store_id', $activeStoreIds);
+        } elseif ($activeEventId && empty($activeStoreIds)) {
+            $ticketsQuery->whereRaw('1 = 0');
         }
         $dbTickets = $ticketsQuery->get()->map(function($tk) {
             return [
@@ -155,10 +173,28 @@
                 }),
             ];
         });
+
+        // User's owned stores (for switching events)
+        $dbUserStores = collect();
+        if ($authUser && $authUser->isUser()) {
+            $dbUserStores = \App\Models\Store::with('event')
+                ->where('owner_id', $authUser->id)
+                ->latest()
+                ->get()
+                ->map(function($s) {
+                    return [
+                        'id' => $s->id,
+                        'name' => $s->name,
+                        'event_name' => $s->event ? $s->event->name : 'Unknown Event',
+                        'event_is_active' => $s->event ? $s->event->is_active : false,
+                    ];
+                });
+        }
     @endphp
 
     <script>
         window.__AUTH_USER__ = @json($jsAuthUser);
+        window.__USER_STORES__ = @json($dbUserStores);
         window.__ACTIVE_EVENT__ = @json($jsActiveEvent);
         window.__INITIAL_EVENTS__ = @json($dbEvents);
         window.__INITIAL_STORES__ = @json($dbStores);
@@ -182,6 +218,9 @@
         @endif
     </script>
 
+    <!-- Vite Styles & Scripts (Loaded AFTER window data is ready) -->
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+
     <style>
         [x-cloak] { display: none !important; }
         body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
@@ -192,21 +231,18 @@
     @include('components.sidebar')
 
     <!-- Main Content Area -->
-    <div class="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+    <div class="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto overflow-x-hidden">
         <!-- Header / Topbar (Twitter UI) -->
         @include('components.topbar')
 
         <!-- Scrollable Body Content -->
-        <main class="flex-1 overflow-y-auto custom-scrollbar pb-24 lg:pb-10 px-4 sm:px-6 lg:px-8 py-6 max-w-7xl w-full mx-auto">
+        <main class="flex-1 pb-24 lg:pb-10 px-4 sm:px-6 lg:px-8 py-6 max-w-7xl w-full mx-auto">
             @yield('content')
         </main>
     </div>
 
     <!-- Mobile Bottom Navigation (Twitter UI) -->
     @include('components.bottom-nav')
-
-    <!-- Global Toast Notifications -->
-    @include('components.toast')
 
     <!-- Global Thermal Receipt Modal -->
     @include('components.receipt-modal')

@@ -35,98 +35,79 @@
         <div class="text-xs text-[#0f1419] space-y-1">
             <p class="font-black text-[#0f1419]">Prosedur Verifikasi QRIS Panitia EO:</p>
             <p class="text-[#536471] font-medium leading-relaxed">
-                Cocokkan nominal pada bukti transfer pengunjung dengan notifikasi mutasi rekening/bank EO. Saat disetujui, sistem otomatis membagi hasil: <strong>75% Warung</strong>, <strong>25% EO Gross</strong> (dikurangi flat fee Rp1.000 Superadmin).
+                Cocokkan nominal pada bukti transfer pengunjung dengan notifikasi mutasi rekening/bank EO. Saat disetujui, sistem otomatis membagi hasil: <strong>75% Warung</strong>, <strong>25% EO Gross</strong> (dikurangi flat fee Rp1.000 Developer).
             </p>
         </div>
     </div>
 
-    <!-- Verification Queue Cards List (Responsive for Mobile & Desktop) -->
-    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+    <!-- Verification Queue Cards List (Compact & Clear Item List Grid) -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 sm:gap-4">
         <template x-for="trx in $store.app.transactions.filter(t => t.status === 'pending_verification')" :key="trx.id">
-            <div class="bg-white rounded-3xl border border-[#eff3f4] p-5 hover:border-[#bde2f9] transition-all flex flex-col justify-between shadow-2xs group relative">
+            <div class="bg-white rounded-2xl sm:rounded-3xl border border-[#eff3f4] p-4 sm:p-5 hover:border-[#bde2f9] hover:shadow-md transition-all flex flex-col justify-between shadow-2xs group relative">
                 <div class="space-y-3">
-                    <!-- Card Header: Invoice & Time -->
-                    <div class="flex items-start justify-between pb-3 border-b border-[#eff3f4]">
-                        <div>
-                            <span class="text-xs font-black text-[#0f1419]" x-text="trx.invoice_code"></span>
-                            <span class="text-[11px] text-[#536471] block font-medium" x-text="formatDateTime(trx.created_at)"></span>
-                        </div>
-                        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-800">
-                            Menunggu Verifikasi
-                        </span>
-                    </div>
-
-                    <!-- Store & Amount Info -->
-                    <div class="space-y-1">
-                        <div class="flex items-center justify-between text-xs">
-                            <span class="text-[#536471] font-semibold">Tenant Warung:</span>
-                            <span class="font-black text-[#0f1419]" x-text="trx.store_name"></span>
-                        </div>
-                        <div class="flex items-center justify-between text-xs">
-                            <span class="text-[#536471] font-semibold">Kasir Input:</span>
-                            <span class="font-bold text-[#0f1419]" x-text="trx.cashier_name || 'Kasir Stand'"></span>
-                        </div>
-                        <div class="flex items-center justify-between pt-1 text-sm font-black text-[#0f1419]">
-                            <span>Nominal Tagihan:</span>
-                            <span class="text-base text-[#1d9bf0]" x-text="formatRupiah(trx.total_amount)"></span>
-                        </div>
-                    </div>
-
-                    <!-- Item Summary -->
-                    <div class="p-3 bg-[#f7f9f9] rounded-2xl border border-[#eff3f4] space-y-1">
-                        <span class="text-[10px] font-black text-[#536471] uppercase tracking-wider block">Daftar Item:</span>
-                        <template x-for="item in trx.items" :key="item.product_id">
-                            <div class="flex justify-between text-xs text-[#0f1419] font-medium">
-                                <span class="truncate max-w-[170px]" x-text="`${item.qty}x ${item.title}`"></span>
-                                <span class="font-bold" x-text="formatRupiah(item.subtotal)"></span>
+                    <!-- Card Header: Invoice, Store Name & Time -->
+                    <div class="flex items-start justify-between pb-2.5 border-b border-[#eff3f4]">
+                        <div class="min-w-0 flex-1 pr-2">
+                            <span class="text-xs font-black text-[#0f1419] block truncate" x-text="trx.invoice_code"></span>
+                            <div class="flex items-center gap-1.5 mt-0.5">
+                                <span class="text-[11px] text-[#1d9bf0] font-black truncate" x-text="trx.store_name"></span>
+                                <span class="text-[10px] text-[#536471]">•</span>
+                                <span class="text-[10px] text-[#536471] font-semibold truncate" x-text="trx.cashier_name || 'Kasir'"></span>
                             </div>
-                        </template>
+                        </div>
+                        <span class="text-[10px] text-[#536471] font-bold shrink-0 bg-[#f7f9f9] px-2 py-0.5 rounded-full border border-[#eff3f4]" x-text="formatDateTime(trx.created_at).split(' ')[1] || formatDateTime(trx.created_at)"></span>
                     </div>
 
-                    <!-- Proof Image Preview (Click to Zoom) -->
-                    <div>
-                        <span class="text-[11px] font-bold text-[#0f1419] block mb-1.5">Bukti Transfer Pengunjung:</span>
-                        <div 
-                            @click="openZoom(trx.payment_proof || trx.proof_image)"
-                            class="relative rounded-2xl overflow-hidden border border-[#eff3f4] bg-[#f7f9f9] group-hover:border-[#bde2f9] cursor-pointer h-36 flex items-center justify-center transition-all"
-                        >
-                            <template x-if="trx.payment_proof || trx.proof_image">
-                                <img 
-                                    :src="trx.payment_proof || trx.proof_image" 
-                                    class="w-full h-full object-cover"
-                                >
-                            </template>
-                            <template x-if="!trx.payment_proof && !trx.proof_image">
-                                <div class="text-center p-4 text-[#536471]">
-                                    <svg class="w-8 h-8 mx-auto mb-1 text-[#536471]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                                    <span class="text-[10px] font-semibold">Bukti Belum Diunggah</span>
+                    <!-- Total Tagihan Box -->
+                    <div class="flex items-center justify-between p-2.5 bg-[#f0f8fe] rounded-xl border border-[#bde2f9]">
+                        <span class="text-xs font-bold text-[#536471]">Total Tagihan:</span>
+                        <span class="text-base font-black text-[#1d9bf0] tracking-tight" x-text="formatRupiah(trx.total_amount)"></span>
+                    </div>
+
+                    <!-- Clearly Visible Item List (Scroll if > 3 items) -->
+                    <div class="space-y-1.5">
+                        <div class="flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-[#536471]">
+                            <span>Daftar Item:</span>
+                            <span x-text="`${trx.items?.length || 0} menu`"></span>
+                        </div>
+                        <div class="space-y-1.5 max-h-[90px] overflow-y-auto custom-scrollbar pr-1 bg-[#f7f9f9] p-2.5 rounded-xl border border-[#eff3f4]">
+                            <template x-for="item in trx.items" :key="item.product_id">
+                                <div class="flex items-center justify-between text-xs py-0.5">
+                                    <span class="font-bold text-[#0f1419] truncate pr-2" x-text="`${item.qty}x ${item.title}`"></span>
+                                    <span class="font-semibold text-[#536471] shrink-0" x-text="formatRupiah(item.subtotal)"></span>
                                 </div>
                             </template>
-                            <div class="absolute inset-0 bg-[#0f1419]/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white text-xs font-bold gap-1.5 backdrop-blur-2xs">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"></path></svg>
-                                <span>Klik Zoom Bukti</span>
-                            </div>
                         </div>
                     </div>
+
+                    <!-- Button: Lihat Bukti Transfer / Pembayaran -->
+                    <button 
+                        @click="openZoom(trx.payment_proof || trx.proof_image)"
+                        type="button"
+                        class="w-full py-2 px-3 rounded-xl bg-white hover:bg-[#e8f5fd] text-[#0f1419] hover:text-[#1d9bf0] border border-[#eff3f4] hover:border-[#bde2f9] text-xs font-black flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs group/btn active:scale-95"
+                    >
+                        <svg class="w-4 h-4 text-[#1d9bf0]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                        <span>Lihat Bukti Pembayaran</span>
+                    </button>
                 </div>
 
-                <!-- Action Buttons: Approve / Reject (Twitter Style Rounded Full) -->
-                <div class="pt-4 border-t border-[#eff3f4] flex gap-2.5 mt-4">
+                <!-- Action Buttons: Reject & Approve -->
+                <div class="pt-3 border-t border-[#eff3f4] flex gap-2 mt-3.5">
                     <!-- Reject Button -->
                     <button 
                         @click="$store.app.openRejectModal(trx)"
-                        class="flex-1 py-2.5 rounded-full bg-[#eff3f4] hover:bg-rose-50 text-[#0f1419] hover:text-[#f4212e] text-xs font-black transition-all border border-[#eff3f4] flex items-center justify-center gap-1.5 cursor-pointer"
+                        class="flex-1 py-2 px-3 rounded-full bg-[#eff3f4] hover:bg-rose-50 text-[#0f1419] hover:text-[#f4212e] text-xs font-bold transition-all border border-[#eff3f4] flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
                     >
-                        <svg class="w-4 h-4 text-[#f4212e]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        <svg class="w-3.5 h-3.5 text-[#f4212e]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
                         <span>Tolak</span>
                     </button>
 
-                    <!-- Approve Button (Twitter Blue) -->
+                    <!-- Approve Button -->
                     <button 
                         @click="$store.app.approveQris(trx.id)"
-                        class="flex-1 py-2.5 rounded-full bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white text-xs font-black shadow-md shadow-[#1d9bf0]/25 transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
+                        class="flex-1 py-2 px-3 rounded-full bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white text-xs font-black shadow-xs transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
                     >
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
                         <span>Setujui</span>
                     </button>
                 </div>

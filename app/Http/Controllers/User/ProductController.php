@@ -32,6 +32,10 @@ class ProductController extends Controller
         $user = Auth::user();
         $store = $user->store ?: Store::where('owner_id', $user->id)->firstOrFail();
 
+        if (!$store->event->is_active) {
+            return response()->json(['success' => false, 'message' => 'Tidak dapat menambah produk karena event sudah inaktif.'], 403);
+        }
+
         $photoPath = $request->input('photo');
         if ($request->hasFile('photo')) {
             $photoPath = $request->file('photo')->store('products', 'public');
@@ -70,6 +74,10 @@ class ProductController extends Controller
         $userStoreId = $user->store_id ?: ($user->store?->id ?: $user->ownedStore?->id);
         if (!$userStoreId || $product->store_id !== $userStoreId) {
             abort(403, 'Akses ditolak.');
+        }
+
+        if (!$product->store->event->is_active) {
+            return response()->json(['success' => false, 'message' => 'Tidak dapat mengubah produk karena event sudah inaktif.'], 403);
         }
 
         $data = [
@@ -116,6 +124,10 @@ class ProductController extends Controller
         $userStoreId = $user->store_id ?: ($user->store?->id ?: $user->ownedStore?->id);
         if (!$userStoreId || $product->store_id !== $userStoreId) {
             abort(403, 'Akses ditolak.');
+        }
+
+        if (!$product->store->event->is_active) {
+            return response()->json(['success' => false, 'message' => 'Tidak dapat menghapus produk karena event sudah inaktif.'], 403);
         }
 
         $product->delete();

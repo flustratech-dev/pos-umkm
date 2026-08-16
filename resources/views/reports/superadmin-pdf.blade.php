@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <title>Laporan Fee Lisensi Super Admin</title>
+    <title>Laporan Fee Lisensi Developer</title>
     <style>
         body {
             font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
@@ -94,7 +94,7 @@
                     </td>
                 @endif
                 <td style="border: none; text-align: {{ $logoBase64 ? 'left' : 'center' }}; vertical-align: middle; padding: 0 0 0 10px;">
-                    <div class="title" style="margin: 0; font-size: 15px;">AUDIT PLATFORM & REKAP ROYALTI SUPER ADMIN</div>
+                    <div class="title" style="margin: 0; font-size: 15px;">AUDIT PLATFORM & REKAP ROYALTI DEVELOPER</div>
                     <div class="subtitle" style="font-weight: bold; color: #0f1419; font-size: 11px;">Platform Lisensi JADISATU Multi-Event</div>
                     <div class="subtitle">Skema: Flat Fee Rp1.000 per transaksi status Paid &bull; JADISATU Event System</div>
                 </td>
@@ -106,7 +106,7 @@
         <tr>
             <td width="33%" style="padding-right: 6px;">
                 <div class="kpi-card" style="background-color: #e8f5fd; border-color: #bde2f9;">
-                    <div class="kpi-title" style="color: #1d9bf0;">Total Royalti Lisensi</div>
+                    <div class="kpi-title" style="color: #1d9bf0;">Total Fee Developer</div>
                     <div class="kpi-value">Rp {{ number_format($platformStats['total_superadmin_fee'], 0, ',', '.') }}</div>
                 </div>
             </td>

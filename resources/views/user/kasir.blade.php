@@ -42,6 +42,7 @@
 
         <!-- Cart Quick Toggle (Twitter Blue Pill Button) -->
         <button 
+            x-show="$store.app.activeStoreEventActive"
             @click="$store.app.isCheckoutOpen = true"
             type="button" 
             class="relative inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white text-xs sm:text-sm font-black shadow-md shadow-[#1d9bf0]/25 transition-all active:scale-95 cursor-pointer"
@@ -54,6 +55,15 @@
                 x-text="$store.app.cartItemCount"
             ></span>
         </button>
+    </div>
+
+    <!-- Readonly Banner -->
+    <div x-show="!$store.app.activeStoreEventActive" class="p-4 rounded-2xl bg-[#f4212e]/10 border border-[#f4212e]/20 flex gap-3">
+        <svg class="w-5 h-5 text-[#f4212e] shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+        <div>
+            <h3 class="text-sm font-black text-[#f4212e]">Mesin Kasir Dikunci</h3>
+            <p class="text-xs text-[#f4212e] mt-1 font-medium">Event untuk warung ini telah berakhir. Anda tidak dapat membuat transaksi baru. Transaksi lama tetap dapat dilihat di riwayat.</p>
+        </div>
     </div>
 
     <!-- Search & Filter Tabs -->
@@ -141,8 +151,9 @@
     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-2.5 sm:gap-3.5">
         <template x-for="product in storeProducts" :key="product.id">
             <div 
-                @click="$store.app.addToCart(product)"
-                class="bg-white rounded-2xl border border-[#eff3f4] p-2.5 sm:p-3 hover:border-[#1d9bf0]/40 transition-all flex flex-col justify-between group relative shadow-2xs cursor-pointer select-none"
+                @click="if($store.app.activeStoreEventActive) $store.app.addToCart(product)"
+                class="bg-white rounded-2xl border border-[#eff3f4] p-2.5 sm:p-3 hover:border-[#1d9bf0]/40 transition-all flex flex-col justify-between group relative shadow-2xs"
+                :class="$store.app.activeStoreEventActive ? 'cursor-pointer' : 'cursor-not-allowed opacity-80 grayscale-[20%]'"
             >
                 <!-- Foto Menu -->
                 <div>
@@ -173,10 +184,19 @@
                     
                     <button 
                         type="button"
+                        x-show="$store.app.activeStoreEventActive"
                         class="px-2.5 py-1 rounded-full bg-[#1d9bf0] text-white hover:bg-[#1a8cd8] active:scale-95 flex items-center gap-1 font-bold text-[10px] sm:text-xs transition-all shadow-2xs shrink-0 cursor-pointer"
                     >
                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
                         <span>Tambah</span>
+                    </button>
+                    <button 
+                        type="button"
+                        x-show="!$store.app.activeStoreEventActive"
+                        disabled
+                        class="px-2.5 py-1 rounded-full bg-[#eff3f4] text-[#536471] flex items-center gap-1 font-bold text-[10px] sm:text-xs shrink-0 cursor-not-allowed opacity-70"
+                    >
+                        <span>Selesai</span>
                     </button>
                 </div>
             </div>

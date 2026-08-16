@@ -124,7 +124,7 @@
             </td>
             <td width="25%" style="padding-left: 4px;">
                 <div class="kpi-card">
-                    <div class="kpi-title">Fee Super Admin</div>
+                    <div class="kpi-title">Fee Developer</div>
                     <div class="kpi-value" style="color: #0f1419;">Rp {{ number_format($stats['superadmin_total'], 0, ',', '.') }}</div>
                 </div>
             </td>

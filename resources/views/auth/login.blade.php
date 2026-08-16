@@ -11,7 +11,7 @@
 
     async handleLogin() {
         if (!this.email.trim() || !this.password.trim()) {
-            alert('Harap masukkan email dan kata sandi Anda.');
+            window.showSwal('warning', 'Perhatian', 'Harap masukkan email dan kata sandi Anda.');
             return;
         }
 
@@ -38,7 +38,7 @@
             if (res.ok && data.success) {
                 window.location.href = data.redirect || '/';
             } else {
-                alert(data.message || 'Login gagal. Periksa kembali email dan password Anda.');
+                window.showSwal('error', 'Login Gagal', data.message || 'Periksa kembali email dan password Anda.');
             }
         } catch (err) {
             console.error(err);

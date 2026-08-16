@@ -1,13 +1,13 @@
 @extends('layouts.app')
 
-@section('title', 'Laporan Fee Super Admin Multi-Event')
+@section('title', 'Laporan Fee Developer Multi-Event')
 
 @section('content')
 <div x-data="{
     selectedEventId: 'all',
 
     get reportTransactions() {
-        return $store.app.transactions.filter(t => {
+        return this.$store.app.transactions.filter(t => {
             return t.status === 'paid';
         });
     },
@@ -28,7 +28,7 @@
                 <span class="px-3.5 py-0.5 rounded-full bg-[#e8f5fd] text-[#1d9bf0] text-[10px] font-black uppercase border border-[#bde2f9]">Audit Finansial Platform</span>
                 <span class="text-xs text-[#0f1419] font-semibold">Flat Fee Rp1.000 / Tx</span>
             </div>
-            <h2 class="text-xl sm:text-2xl font-black text-[#0f1419] tracking-tight mt-1">Laporan Fee Super Admin</h2>
+            <h2 class="text-xl sm:text-2xl font-black text-[#0f1419] tracking-tight mt-1">Laporan Fee Developer</h2>
             <p class="text-xs sm:text-sm text-[#0f1419] font-medium mt-0.5">Rekapitulasi pendapatan lisensi sistem JADISATU berbasis potongan tetap Rp1.000 per transaksi paid</p>
         </div>
 
@@ -72,7 +72,7 @@
     <!-- KPI Metric Cards (Twitter Blue Accents & Crisp Black Font) -->
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div class="bg-gradient-to-br from-[#1d9bf0] to-[#1271b3] rounded-3xl p-6 text-white shadow-lg shadow-[#1d9bf0]/25">
-            <span class="text-xs font-bold text-white/90 uppercase tracking-wider block">Akumulasi Fee Super Admin</span>
+            <span class="text-xs font-bold text-white/90 uppercase tracking-wider block">Akumulasi Fee Developer</span>
             <h3 class="text-2xl sm:text-3xl font-black mt-2 tracking-tight text-white" x-text="formatRupiah(totalSuperAdminFee)"></h3>
             <p class="text-xs text-white/90 mt-2 font-medium">Rp1.000 flat × <span class="font-black text-white" x-text="reportTransactions.length"></span> transaksi paid</p>
         </div>
@@ -110,7 +110,7 @@
                         <th class="px-4 py-3.5">Stand Tenant</th>
                         <th class="px-4 py-3.5">Metode</th>
                         <th class="px-4 py-3.5">Gross Volume</th>
-                        <th class="px-4 py-3.5 text-[#1d9bf0] font-black">Fee Superadmin</th>
+                        <th class="px-4 py-3.5 text-[#1d9bf0] font-black">Fee Developer</th>
                         <th class="px-4 py-3.5 text-[#0f1419] font-black">Net EO</th>
                         <th class="px-4 py-3.5 text-[#1d9bf0] font-black">Hak Warung (75%)</th>
                     </tr>

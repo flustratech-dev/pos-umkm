@@ -81,18 +81,10 @@ class EventService
     }
 
     /**
-     * Delete an event.
+     * Delete an event (Disabled for safety and historical integrity).
      */
     public function deleteEvent(Event $event): void
     {
-        DB::transaction(function () use ($event) {
-            if ($event->is_active) {
-                throw new \Exception('Tidak bisa menghapus event yang sedang aktif!');
-            }
-            if ($event->qris_image && Storage::disk('public')->exists($event->qris_image)) {
-                Storage::disk('public')->delete($event->qris_image);
-            }
-            $event->delete();
-        });
+        throw new \Exception('Event tidak dapat dihapus demi menjaga integritas data transaksi dan rekap historis stand.');
     }
 }

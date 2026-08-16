@@ -66,6 +66,7 @@ Route::prefix('user')->name('user.')->middleware(['auth', 'role:user'])->group(f
     Route::post('/helpdesk/{ticket}/reply', [UserHelpdeskController::class, 'reply'])->name('helpdesk.reply');
 
     Route::get('/panduan', [UserGuideController::class, 'index'])->name('panduan');
+    Route::post('/switch-store', [UserKasirController::class, 'switchStore'])->name('switch-store');
 });
 
 // 2. Admin (EO - Event Organizer) Routes
@@ -95,8 +96,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::post('/helpdesk/{ticket}/reply', [AdminHelpdeskController::class, 'reply'])->name('helpdesk.reply');
 
     Route::get('/panduan', [AdminGuideController::class, 'index'])->name('panduan');
+    Route::post('/warung/pull', [AdminStoreController::class, 'pull'])->name('warung.pull');
 });
-
 // 3. Super Admin Routes (Full System Visibility)
 Route::prefix('superadmin')->name('superadmin.')->middleware(['auth', 'role:superadmin'])->group(function () {
     Route::get('/dashboard', [SuperAdminDashboardController::class, 'index'])->name('dashboard');

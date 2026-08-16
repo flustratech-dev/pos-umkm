@@ -37,6 +37,10 @@ class HelpdeskController extends Controller
         $user = Auth::user();
         $store = $user->store ?: Store::where('owner_id', $user->id)->firstOrFail();
 
+        if (!$store->event->is_active) {
+            return response()->json(['success' => false, 'message' => 'Pusat bantuan ditutup untuk event ini.'], 403);
+        }
+
         $ticketCode = 'TCK-' . now()->format('Ymd') . '-' . strtoupper(Str::random(3));
 
         $ticket = HelpdeskTicket::create([
@@ -70,6 +74,10 @@ class HelpdeskController extends Controller
         $user = Auth::user();
         if ($ticket->user_id !== $user->id && $ticket->store_id !== ($user->store_id ?: $user->ownedStore?->id)) {
             abort(403, 'Akses ditolak.');
+        }
+
+        if (!$ticket->store->event->is_active) {
+            return response()->json(['success' => false, 'message' => 'Pusat bantuan ditutup untuk event ini.'], 403);
         }
 
         $reply = HelpdeskReply::create([

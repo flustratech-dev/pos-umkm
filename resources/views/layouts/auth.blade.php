@@ -21,6 +21,21 @@
     <!-- Vite Styles & Scripts -->
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     
+    <script>
+        @if(session('success'))
+            window.__FLASH_SUCCESS__ = @json(session('success'));
+        @endif
+        @if(session('error'))
+            window.__FLASH_ERROR__ = @json(session('error'));
+        @endif
+        @if(session('status'))
+            window.__FLASH_SUCCESS__ = @json(session('status'));
+        @endif
+        @if($errors->any())
+            window.__FLASH_ERROR__ = @json($errors->first());
+        @endif
+    </script>
+
     <style>
         [x-cloak] { display: none !important; }
         body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
@@ -53,8 +68,5 @@
             @yield('content')
         </div>
     </div>
-
-    <!-- Global Toast Notifications -->
-    @include('components.toast')
 </body>
 </html>

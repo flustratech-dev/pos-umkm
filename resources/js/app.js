@@ -1,6 +1,8 @@
 import './bootstrap';
 import Alpine from 'alpinejs';
 import Chart from 'chart.js/auto';
+import Swal from 'sweetalert2';
+import 'sweetalert2/dist/sweetalert2.min.css';
 import { evaluatePasswordStrength } from './password-meter';
 
 // Helper for making API calls with CSRF
@@ -33,10 +35,57 @@ const apiFetch = async (url, options = {}) => {
     return data;
 };
 
-
 window.Alpine = Alpine;
 window.Chart = Chart;
+window.Swal = Swal;
 window.evaluatePasswordStrength = evaluatePasswordStrength;
+
+// Modern custom SweetAlert helper functions matching Twitter/JADISATU design theme:
+const swalCustomClass = {
+    popup: 'rounded-3xl shadow-2xl border border-[#eff3f4] font-sans p-6 text-center',
+    title: 'text-lg sm:text-xl font-black text-[#0f1419] tracking-tight',
+    htmlContainer: 'text-xs sm:text-sm text-[#536471] font-medium leading-relaxed mt-2',
+    confirmButton: 'px-6 py-2.5 rounded-full bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white text-xs sm:text-sm font-black shadow-md shadow-[#1d9bf0]/25 transition-all cursor-pointer mx-1.5 active:scale-95',
+    cancelButton: 'px-6 py-2.5 rounded-full bg-[#eff3f4] hover:bg-slate-200 text-[#0f1419] text-xs sm:text-sm font-black transition-all cursor-pointer mx-1.5 active:scale-95'
+};
+
+export const showSwal = (type = 'success', title = '', text = '', timer = null) => {
+    let icon = type;
+    if (type === 'danger') icon = 'error';
+    if (type === 'warn') icon = 'warning';
+
+    const defaultTimer = type === 'success' ? 2200 : (type === 'info' ? 3000 : undefined);
+    const finalTimer = timer !== null ? timer : defaultTimer;
+
+    return Swal.fire({
+        icon,
+        title: title || (type === 'success' ? 'Berhasil' : (type === 'error' ? 'Perhatian' : 'Pemberitahuan')),
+        text: text || '',
+        buttonsStyling: false,
+        customClass: swalCustomClass,
+        timer: finalTimer,
+        timerProgressBar: !!finalTimer,
+        confirmButtonText: 'Oke, Mengerti'
+    });
+};
+
+export const showConfirm = async (title = 'Konfirmasi', text = '', confirmText = 'Ya, Lanjutkan', cancelText = 'Batal') => {
+    const result = await Swal.fire({
+        title,
+        text,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: confirmText,
+        cancelButtonText: cancelText,
+        buttonsStyling: false,
+        customClass: swalCustomClass,
+        reverseButtons: true
+    });
+    return result.isConfirmed;
+};
+
+window.showSwal = showSwal;
+window.showConfirm = showConfirm;
 
 // Utility formatters
 export const formatRupiah = (number) => {
@@ -138,14 +187,21 @@ Alpine.store('app', {
         // Authenticated Session State (Strictly Server Driven)
         currentUser: window.__AUTH_USER__ || null,
         currentRole: window.__AUTH_USER__?.role || 'user',
+        sidebarOpen: false,
+        user: window.__AUTH_USER__ || null,
+        userStores: window.__USER_STORES__ || [],
         activeEvent: window.__ACTIVE_EVENT__ || null,
-
-        // Real database data from Laravel backend
         events: window.__INITIAL_EVENTS__ || [],
         stores: window.__INITIAL_STORES__ || [],
         products: window.__INITIAL_PRODUCTS__ || [],
         transactions: window.__INITIAL_TRANSACTIONS__ || [],
-        helpdesk: window.__INITIAL_HELPDESK__ || [],
+        helpdeskTickets: window.__INITIAL_TICKETS__ || [],
+
+        get activeStoreEventActive() {
+            if (!this.user || this.user.role !== 'user' || !this.user.store_id) return true;
+            const userStore = this.userStores.find(s => s.id === this.user.store_id);
+            return userStore ? userStore.event_is_active : false;
+        },
 
         // Cart state for User POS
         cart: [],
@@ -269,7 +325,7 @@ Alpine.store('app', {
         getRoleLabel(role) {
             if (role === 'user') return 'Pemilik Warung (User)';
             if (role === 'admin') return 'Admin EO';
-            if (role === 'superadmin') return 'Super Admin Platform';
+            if (role === 'superadmin') return 'Developer Platform';
             return role;
         },
 
@@ -293,17 +349,13 @@ Alpine.store('app', {
             return this.stores[0] || null;
         },
 
-        // Toast notifications
+        // SweetAlert notifications
         notify(type = 'success', title = 'Pemberitahuan', message = '') {
-            const id = Date.now() + Math.random().toString(36).substring(2, 6);
-            this.toasts.push({ id, type, title, message });
-            setTimeout(() => {
-                this.removeToast(id);
-            }, 4500);
+            showSwal(type, title, message);
         },
 
         removeToast(id) {
-            this.toasts = this.toasts.filter(t => t.id !== id);
+            // Deprecated
         },
 
         // CART MANAGEMENT (for User POS)
@@ -1082,13 +1134,17 @@ Alpine.store('app', {
                                     <td style="padding: 4px 0; color: #64748b;">Subtotal Item:</td>
                                     <td style="padding: 4px 0; text-align: right; font-weight: 600;">${formatRupiah(tx.total_amount)}</td>
                                 </tr>
-                                <tr>
-                                    <td style="padding: 4px 0; color: #64748b;">Pajak & Layanan:</td>
-                                    <td style="padding: 4px 0; text-align: right; color: #64748b;">Rp 0</td>
-                                </tr>
                                 <tr class="total-row">
                                     <td>TOTAL TAGIHAN:</td>
-                                    <td style="text-align: right; color: #059669;">${formatRupiah(tx.total_amount)}</td>
+                                    <td style="text-align: right; color: #1d9bf0;">${formatRupiah(tx.total_amount)}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 4px 0; color: #ef4444; font-size: 11px;">Potongan EO (25%):</td>
+                                    <td style="padding: 4px 0; text-align: right; color: #ef4444; font-size: 11px; font-weight: 600;">- ${formatRupiah(tx.revenue_split?.admin_gross_share || (tx.total_amount * 0.25))}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 4px 0; color: #1d9bf0; font-weight: 700;">Hak Bersih Warung (75%):</td>
+                                    <td style="padding: 4px 0; text-align: right; color: #1d9bf0; font-weight: 800;">${formatRupiah(tx.revenue_split?.owner_share || (tx.total_amount * 0.75))}</td>
                                 </tr>
                                 ${paymentSummary}
                             </table>
@@ -1683,12 +1739,14 @@ Alpine.store('app', {
                 </tr>
             `).join('');
 
+            const logoImg = window.__LOGO_BASE64__ || window.__LOGO_URL__ || '';
+
             const reportHtml = `
             <!DOCTYPE html>
             <html lang="id">
             <head>
                 <meta charset="UTF-8">
-                <title>Laporan Platform Fee Super Admin — ${event.name}</title>
+                <title>Laporan Platform Fee Developer — ${event.name}</title>
                 <style>
                     @page {
                         size: A4 portrait;
@@ -1801,19 +1859,30 @@ Alpine.store('app', {
             </head>
             <body>
                 <div class="header">
-                    <h1>Laporan Audit Finansial Platform Super Admin</h1>
-                    <h2>Flat License Fee Rp1.000 / Transaksi Paid &bull; ${event.name}</h2>
-                    <div class="meta">
-                        <span>Tanggal Cetak: <strong>${dateNow}</strong></span> &bull; 
-                        <span>Audit Platform POS Multi-Tenant UMKM</span>
-                    </div>
+                    <table style="width: 100%; border: none;">
+                        <tr>
+                            ${logoImg ? `
+                                <td style="width: 65px; border: none; text-align: left; vertical-align: middle; padding: 0;">
+                                    <img src="${logoImg}" style="height: 50px; width: auto; object-fit: contain;">
+                                </td>
+                            ` : ''}
+                            <td style="border: none; text-align: ${logoImg ? 'left' : 'center'}; vertical-align: middle; padding: 0 0 0 10px;">
+                                <h1>Laporan Audit Finansial Platform Developer</h1>
+                                <h2>Flat License Fee Rp1.000 / Transaksi Paid &bull; ${event.name}</h2>
+                                <div class="meta">
+                                    <span>Tanggal Cetak: <strong>${dateNow}</strong></span> &bull; 
+                                    <span>Audit Platform POS Multi-Tenant UMKM &bull; <strong>JADISATU Platform</strong></span>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
                 </div>
 
                 <div class="section-title">1. Ringkasan Pendapatan Platform</div>
                 <table class="summary-grid">
                     <tr>
                         <td style="width: 33.3%; background: #f2f2f2;">
-                            <span class="summary-label">Total Fee Super Admin</span>
+                            <span class="summary-label">Total Fee Developer</span>
                             <span class="summary-value">${formatRupiah(stats.totalSuperAdminRevenue)}</span>
                             <span style="font-size: 9.5px; color: #444;">Rp1.000 × ${stats.paidCount} Transaksi Paid</span>
                         </td>
@@ -1840,7 +1909,7 @@ Alpine.store('app', {
                             <th>Stand Tenant</th>
                             <th style="text-align: center; width: 50px;">Metode</th>
                             <th style="text-align: right; width: 85px;">Gross</th>
-                            <th style="text-align: right; width: 85px;">Superadmin</th>
+                            <th style="text-align: right; width: 85px;">Developer</th>
                             <th style="text-align: right; width: 85px;">Net EO</th>
                             <th style="text-align: right; width: 85px;">Warung (75%)</th>
                         </tr>
@@ -1854,15 +1923,17 @@ Alpine.store('app', {
                     <tr>
                         <td>
                             <div>Disusun Oleh:</div>
-                            <div style="font-weight: bold; margin-top: 2px;">Super Admin Platform</div>
+                            <div style="font-weight: bold; margin-top: 2px;">Developer Platform</div>
                             <div class="signature-space"></div>
                             <div>( __________________________ )</div>
+                            <div style="font-size: 9px; color: #555; margin-top: 2px;">Administrator Developer</div>
                         </td>
                         <td>
-                            <div>Mengetahui:</div>
+                            <div>Mengetahui & Menyetujui:</div>
                             <div style="font-weight: bold; margin-top: 2px;">Auditor Finansial / Manajemen</div>
                             <div class="signature-space"></div>
                             <div>( __________________________ )</div>
+                            <div style="font-size: 9px; color: #555; margin-top: 2px;">Auditor Platform</div>
                         </td>
                     </tr>
                 </table>
@@ -1875,6 +1946,251 @@ Alpine.store('app', {
             `;
 
             this.printDocument(reportHtml);
+        },
+
+        // EXPORT SUPERADMIN REPORT TO WORD (.DOC) WITH SIGNATURES
+        exportSuperAdminReportWord(customTxList = null) {
+            const stats = this.getSuperAdminStats();
+            const txList = customTxList || this.transactions.filter(t => t.status === 'paid');
+            const event = this.getActiveEvent() || { name: 'Multi-Event UMKM' };
+            const dateStr = new Date().toISOString().slice(0, 10);
+            const dateNow = new Date().toLocaleDateString('id-ID', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            const txRows = txList.map((t, idx) => `
+                <tr>
+                    <td style="text-align: center; border: 1pt solid #000; padding: 4pt 5pt;">${idx + 1}</td>
+                    <td style="border: 1pt solid #000; padding: 4pt 5pt; font-family: monospace; font-weight: bold;">${t.invoice_code}</td>
+                    <td style="border: 1pt solid #000; padding: 4pt 5pt; font-size: 8.5pt;">${formatDateTime(t.paid_at || t.created_at)}</td>
+                    <td style="border: 1pt solid #000; padding: 4pt 5pt;">${t.store_name || '-'}</td>
+                    <td style="text-align: center; border: 1pt solid #000; padding: 4pt 5pt; text-transform: uppercase; font-size: 8.5pt;">${t.payment_method}</td>
+                    <td style="text-align: right; border: 1pt solid #000; padding: 4pt 5pt; font-weight: bold;">${formatRupiah(t.total_amount)}</td>
+                    <td style="text-align: right; border: 1pt solid #000; padding: 4pt 5pt; font-weight: bold; background: #f2f2f2;">${formatRupiah(1000)}</td>
+                    <td style="text-align: right; border: 1pt solid #000; padding: 4pt 5pt;">${formatRupiah(t.revenue_split?.admin_net_share || (t.total_amount * 0.25) - 1000)}</td>
+                    <td style="text-align: right; border: 1pt solid #000; padding: 4pt 5pt;">${formatRupiah(t.revenue_split?.owner_share || t.total_amount * 0.75)}</td>
+                </tr>
+            `).join('');
+
+            const logoImg = window.__LOGO_BASE64__ || window.__LOGO_URL__ || '';
+
+            const wordContent = `
+            <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+            <head>
+                <meta charset="utf-8">
+                <title>Laporan_Platform_Fee_Developer_${dateStr}</title>
+                <!--[if gte mso 9]>
+                <xml>
+                <w:WordDocument>
+                    <w:View>Print</w:View>
+                    <w:Zoom>100</w:Zoom>
+                    <w:DoNotOptimizeForBrowser/>
+                </w:WordDocument>
+                </xml>
+                <![endif]-->
+                <style>
+                    @page Section1 {
+                        size: 595.3pt 841.9pt; /* A4 */
+                        margin: 42.5pt 42.5pt 42.5pt 42.5pt;
+                        mso-header-margin: 35.4pt;
+                        mso-footer-margin: 35.4pt;
+                        mso-paper-source: 0;
+                    }
+                    div.Section1 { page: Section1; }
+                    body { font-family: 'Arial', sans-serif; font-size: 9.5pt; color: #000; line-height: 1.3; }
+                    h1 { font-size: 14pt; font-weight: bold; text-transform: uppercase; margin: 0 0 2pt 0; }
+                    h2 { font-size: 11pt; font-weight: bold; color: #111; margin: 0 0 4pt 0; }
+                    .meta { font-size: 8.5pt; color: #333; }
+                    .section-title { font-size: 10pt; font-weight: bold; text-transform: uppercase; margin: 12pt 0 4pt 0; border-bottom: 1pt solid #000; padding-bottom: 2pt; }
+                    table { width: 100%; border-collapse: collapse; margin-bottom: 10pt; font-size: 9pt; }
+                    th { border: 1pt solid #000; background-color: #f2f2f2; padding: 4pt 5pt; font-weight: bold; text-align: left; text-transform: uppercase; font-size: 8.5pt; }
+                    td { border: 1pt solid #000; padding: 4pt 5pt; vertical-align: top; }
+                    .sig-table { width: 100%; border: none; margin-top: 24pt; }
+                    .sig-table td { border: none; width: 50%; text-align: center; vertical-align: top; }
+                    .sig-space { height: 48pt; }
+                    .footer-note { font-size: 8.5pt; text-align: center; color: #555; border-top: 1pt dashed #000; padding-top: 6pt; margin-top: 16pt; }
+                </style>
+            </head>
+            <body>
+                <div class="Section1">
+                    <div style="border-bottom: 2pt double #000; padding-bottom: 6pt; margin-bottom: 10pt;">
+                        <table style="width: 100%; border: none;">
+                            <tr>
+                                ${logoImg ? `
+                                    <td style="width: 60pt; border: none; text-align: left; vertical-align: middle; padding: 0;">
+                                        <img src="${logoImg}" style="height: 45pt; width: auto;" width="60" height="45">
+                                    </td>
+                                ` : ''}
+                                <td style="border: none; text-align: ${logoImg ? 'left' : 'center'}; vertical-align: middle; padding-left: 8pt;">
+                                    <h1 style="text-align: ${logoImg ? 'left' : 'center'};">Laporan Audit Finansial Platform Developer</h1>
+                                    <h2 style="text-align: ${logoImg ? 'left' : 'center'};">Flat License Fee Rp1.000 / Tx &bull; ${event.name}</h2>
+                                    <div class="meta" style="text-align: ${logoImg ? 'left' : 'center'};">
+                                        Tanggal Cetak: <strong>${dateNow}</strong> &bull; Sistem: <strong>JADISATU Platform Multi-Event</strong>
+                                    </div>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <div class="section-title">1. Ringkasan Pendapatan Platform</div>
+                    <table>
+                        <tr>
+                            <td style="width: 33.3%; background-color: #f2f2f2;">
+                                <div style="font-size: 8.5pt; font-weight: bold; text-transform: uppercase; color: #444;">Total Fee Developer</div>
+                                <div style="font-size: 12pt; font-weight: bold; margin-top: 2pt;">${formatRupiah(stats.totalSuperAdminRevenue)}</div>
+                                <div style="font-size: 8.5pt; color: #555;">Rp1.000 × ${stats.paidCount} Tx Paid</div>
+                            </td>
+                            <td style="width: 33.3%;">
+                                <div style="font-size: 8.5pt; font-weight: bold; text-transform: uppercase; color: #444;">Total Volume Transaksi</div>
+                                <div style="font-size: 12pt; font-weight: bold; margin-top: 2pt;">${formatRupiah(stats.totalVolume)}</div>
+                                <div style="font-size: 8.5pt; color: #555;">Gross Volume Seluruh Stand</div>
+                            </td>
+                            <td style="width: 33.3%;">
+                                <div style="font-size: 8.5pt; font-weight: bold; text-transform: uppercase; color: #444;">Total Event Terdaftar</div>
+                                <div style="font-size: 12pt; font-weight: bold; margin-top: 2pt;">${stats.totalEvents} Event</div>
+                                <div style="font-size: 8.5pt; color: #555;">Sistem Aktif Multi-Tenant</div>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <div class="section-title">2. Rincian Transaksi Paid & Potongan Flat Fee Platform</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="text-align: center; width: 25pt;">No</th>
+                                <th style="width: 80pt;">Invoice</th>
+                                <th style="width: 70pt;">Waktu</th>
+                                <th>Stand Tenant</th>
+                                <th style="text-align: center; width: 45pt;">Metode</th>
+                                <th style="text-align: right; width: 65pt;">Gross</th>
+                                <th style="text-align: right; width: 60pt;">Developer</th>
+                                <th style="text-align: right; width: 65pt;">Net EO</th>
+                                <th style="text-align: right; width: 65pt;">Warung (75%)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${txRows.length > 0 ? txRows : '<tr><td colspan="9" style="text-align: center; padding: 6pt;">Belum ada transaksi paid</td></tr>'}
+                        </tbody>
+                    </table>
+
+                    <table class="sig-table">
+                        <tr>
+                            <td>
+                                <div>Disusun Oleh:</div>
+                                <div style="font-weight: bold; margin-top: 2pt;">Developer Platform</div>
+                                <div class="sig-space"></div>
+                                <div>( __________________________ )</div>
+                                <div style="font-size: 8.5pt; color: #555; margin-top: 2pt;">Administrator Developer</div>
+                            </td>
+                            <td>
+                                <div>Mengetahui & Menyetujui:</div>
+                                <div style="font-weight: bold; margin-top: 2pt;">Auditor Finansial / Manajemen</div>
+                                <div class="sig-space"></div>
+                                <div>( __________________________ )</div>
+                                <div style="font-size: 8.5pt; color: #555; margin-top: 2pt;">Auditor Platform</div>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <div class="footer-note">
+                        Dokumen resmi audit lisensi platform POS UMKM &bull; Dihasilkan langsung dari database transaksi terenkripsi.
+                    </div>
+                </div>
+            </body>
+            </html>
+            `;
+
+            this.downloadReportFile(wordContent, `Laporan_Developer_${dateStr}.doc`, 'application/msword');
+        },
+
+        // EXPORT SUPERADMIN REPORT TO EXCEL (.XLS)
+        exportSuperAdminReportExcel(customTxList = null) {
+            const stats = this.getSuperAdminStats();
+            const txList = customTxList || this.transactions.filter(t => t.status === 'paid');
+            const event = this.getActiveEvent() || { name: 'Multi-Event UMKM' };
+            const dateStr = new Date().toISOString().slice(0, 10);
+            const dateNow = new Date().toLocaleDateString('id-ID', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            const txRows = txList.map((t, idx) => `
+                <tr>
+                    <td style="text-align: center; border: 1px solid #000;">${idx + 1}</td>
+                    <td style="border: 1px solid #000; font-family: monospace;">${t.invoice_code}</td>
+                    <td style="border: 1px solid #000;">${formatDateTime(t.paid_at || t.created_at)}</td>
+                    <td style="border: 1px solid #000;">${t.store_name || '-'}</td>
+                    <td style="text-align: center; border: 1px solid #000; text-transform: uppercase;">${t.payment_method}</td>
+                    <td style="text-align: right; border: 1px solid #000;">${t.total_amount}</td>
+                    <td style="text-align: right; border: 1px solid #000; font-weight: bold; background: #e6f2ff;">1000</td>
+                    <td style="text-align: right; border: 1px solid #000;">${t.revenue_split?.admin_net_share || (t.total_amount * 0.25) - 1000}</td>
+                    <td style="text-align: right; border: 1px solid #000;">${t.revenue_split?.owner_share || t.total_amount * 0.75}</td>
+                </tr>
+            `).join('');
+
+            const excelContent = `
+            <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+            <head>
+                <meta charset="utf-8">
+                <!--[if gte mso 9]>
+                <xml>
+                <x:ExcelWorkbook>
+                <x:ExcelWorksheets>
+                    <x:ExcelWorksheet>
+                    <x:Name>Laporan Developer</x:Name>
+                    <x:WorksheetOptions>
+                        <x:DisplayGridlines/>
+                    </x:WorksheetOptions>
+                    </x:ExcelWorksheet>
+                </x:ExcelWorksheets>
+                </x:ExcelWorkbook>
+                </xml>
+                <![endif]-->
+            </head>
+            <body>
+                <table>
+                    <tr><td colspan="9" style="font-size: 14pt; font-weight: bold;">LAPORAN AUDIT FINANSIAL DEVELOPER PLATFORM</td></tr>
+                    <tr><td colspan="9" style="font-size: 11pt; font-weight: bold; color: #1d9bf0;">SKEMA LISENSI FLAT FEE RP1.000 / TRANSAKSI PAID</td></tr>
+                    <tr><td colspan="9" style="font-size: 9pt; color: #555;">Tanggal Ekspor: ${dateNow} | Sistem: JADISATU Platform</td></tr>
+                    <tr><td colspan="9"></td></tr>
+                    <tr style="background-color: #f2f2f2; font-weight: bold;">
+                        <td colspan="3" style="border: 1px solid #000;">TOTAL FEE DEVELOPER (RP1.000/TX)</td>
+                        <td colspan="3" style="border: 1px solid #000;">TOTAL VOLUME GROSS TRANSAKSI</td>
+                        <td colspan="3" style="border: 1px solid #000;">TOTAL TRANSAKSI PAID</td>
+                    </tr>
+                    <tr style="font-weight: bold; font-size: 12pt;">
+                        <td colspan="3" style="border: 1px solid #000; color: #1d9bf0;">${formatRupiah(stats.totalSuperAdminRevenue)}</td>
+                        <td colspan="3" style="border: 1px solid #000;">${formatRupiah(stats.totalVolume)}</td>
+                        <td colspan="3" style="border: 1px solid #000;">${stats.paidCount} Transaksi</td>
+                    </tr>
+                    <tr><td colspan="9"></td></tr>
+                    <tr style="background-color: #0f1419; color: #ffffff; font-weight: bold; text-align: center;">
+                        <th style="border: 1px solid #000;">No</th>
+                        <th style="border: 1px solid #000;">Invoice</th>
+                        <th style="border: 1px solid #000;">Waktu</th>
+                        <th style="border: 1px solid #000;">Stand Tenant</th>
+                        <th style="border: 1px solid #000;">Metode</th>
+                        <th style="border: 1px solid #000;">Total Belanja (Gross)</th>
+                        <th style="border: 1px solid #000;">Fee Developer (Rp1.000)</th>
+                        <th style="border: 1px solid #000;">Net EO</th>
+                        <th style="border: 1px solid #000;">Hak Warung (75%)</th>
+                    </tr>
+                    ${txRows}
+                </table>
+            </body>
+            </html>
+            `;
+
+            this.downloadReportFile(excelContent, `Laporan_Developer_${dateStr}.xls`, 'application/vnd.ms-excel');
         },
 
         // Universal File Downloader
@@ -2483,20 +2799,21 @@ Alpine.store('app', {
         },
 
         // Helper calculations for reports
-        getUserReportStats(storeId = 1) {
-            const validTx = this.transactions.filter(t => t.store_id === storeId && t.status === 'paid');
-            const totalGross = validTx.reduce((sum, t) => sum + t.total_amount, 0);
+        getUserReportStats(storeId = null) {
+            const txs = this.transactions || [];
+            const validTx = txs.filter(t => (storeId ? t.store_id == storeId : true) && t.status === 'paid');
+            const totalGross = validTx.reduce((sum, t) => sum + (t.total_amount || 0), 0);
             const netIncome = totalGross * 0.75;
             const totalCount = validTx.length;
-            const cancelledCount = this.transactions.filter(t => t.store_id === storeId && t.status === 'cancelled').length;
-            const pendingCount = this.transactions.filter(t => t.store_id === storeId && t.status === 'pending_verification').length;
+            const cancelledCount = txs.filter(t => (storeId ? t.store_id == storeId : true) && ['cancelled', 'rejected'].includes(t.status)).length;
+            const pendingCount = txs.filter(t => (storeId ? t.store_id == storeId : true) && t.status === 'pending_verification').length;
 
             return {
-                totalGross,
-                netIncome,
-                totalCount,
-                cancelledCount,
-                pendingCount
+                totalGross: totalGross || 0,
+                netIncome: netIncome || 0,
+                totalCount: totalCount || 0,
+                cancelledCount: cancelledCount || 0,
+                pendingCount: pendingCount || 0
             };
         },
 
@@ -2508,6 +2825,20 @@ Alpine.store('app', {
             const superadminTotal = paidTx.reduce((sum, t) => sum + (t.revenue_split?.superadmin_share || 1000), 0);
             const adminNet = paidTx.reduce((sum, t) => sum + (t.revenue_split?.admin_net_share || (t.total_amount * 0.25) - 1000), 0);
             
+            // Cash vs QRIS breakdown
+            const cashTx = paidTx.filter(t => t.payment_method === 'cash');
+            const qrisTx = paidTx.filter(t => t.payment_method === 'qris');
+            const totalCash = cashTx.reduce((sum, t) => sum + t.total_amount, 0);
+            const totalQris = qrisTx.reduce((sum, t) => sum + t.total_amount, 0);
+
+            // Settlement: Admin holds all QRIS, warung holds all cash
+            // Admin owes warung: QRIS * 75% (hak warung dari QRIS yang admin pegang)
+            // Warung owes admin: Cash * 25% (hak admin dari cash yang warung pegang)
+            // Net settlement = QRIS hak warung - Cash hak admin
+            const qrisHakWarung = qrisTx.reduce((sum, t) => sum + (t.revenue_split?.owner_share || t.total_amount * 0.75), 0);
+            const cashHakAdmin = cashTx.reduce((sum, t) => sum + (t.revenue_split?.admin_gross_share || t.total_amount * 0.25), 0);
+            const netSettlement = qrisHakWarung - cashHakAdmin; // Positive = admin bayar warung
+
             const pendingCount = this.transactions.filter(t => t.status === 'pending_verification').length;
             const cancelledCount = this.transactions.filter(t => t.status === 'cancelled').length;
 
@@ -2517,11 +2848,69 @@ Alpine.store('app', {
                 adminGross,
                 superadminTotal,
                 adminNet,
+                totalCash,
+                totalQris,
+                cashCount: cashTx.length,
+                qrisCount: qrisTx.length,
+                qrisHakWarung,
+                cashHakAdmin,
+                netSettlement,
                 paidCount: paidTx.length,
                 pendingCount,
                 cancelledCount,
                 storesCount: this.stores.length
             };
+        },
+
+        // Settlement breakdown per individual store
+        getSettlementPerStore() {
+            const paidTx = this.transactions.filter(t => t.status === 'paid');
+            const storeMap = {};
+
+            paidTx.forEach(t => {
+                const sid = t.store_id;
+                if (!storeMap[sid]) {
+                    storeMap[sid] = {
+                        store_id: sid,
+                        store_name: t.store_name || 'Unknown',
+                        totalGross: 0,
+                        totalCash: 0,
+                        totalQris: 0,
+                        hakWarung: 0,
+                        hakAdmin: 0,
+                        qrisHakWarung: 0,
+                        cashHakAdmin: 0,
+                        txCount: 0
+                    };
+                }
+
+                const s = storeMap[sid];
+                const ownerShare = t.revenue_split?.owner_share || t.total_amount * 0.75;
+                const adminShare = t.revenue_split?.admin_gross_share || t.total_amount * 0.25;
+
+                s.totalGross += t.total_amount;
+                s.hakWarung += ownerShare;
+                s.hakAdmin += adminShare;
+                s.txCount++;
+
+                if (t.payment_method === 'cash') {
+                    s.totalCash += t.total_amount;
+                    s.cashHakAdmin += adminShare;
+                } else if (t.payment_method === 'qris') {
+                    s.totalQris += t.total_amount;
+                    s.qrisHakWarung += ownerShare;
+                }
+            });
+
+            // Calculate net settlement per store
+            // net = qrisHakWarung - cashHakAdmin
+            // positive = admin bayar warung, negative = warung bayar admin
+            return Object.values(storeMap).map(s => ({
+                ...s,
+                netSettlement: s.qrisHakWarung - s.cashHakAdmin,
+                cashDipegang: s.totalCash,   // uang fisik di tangan warung
+                qrisDipegang: s.totalQris     // uang di rekening admin
+            })).sort((a, b) => b.totalGross - a.totalGross);
         },
 
         getSuperAdminStats() {
