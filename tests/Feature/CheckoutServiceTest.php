@@ -8,6 +8,7 @@ use App\Models\Store;
 use App\Models\User;
 use App\Services\CheckoutService;
 use App\Services\RevenueSplitService;
+use App\Services\TransactionVerificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -74,13 +75,31 @@ class CheckoutServiceTest extends TestCase
 
         $tx = $this->service->processCashCheckout($this->store, $this->cashier, $items, 50000.00);
 
-        $this->assertEquals('paid', $tx->status);
+        // Cash checkout now creates 'pending' status awaiting admin confirmation
+        $this->assertEquals('pending', $tx->status);
         $this->assertEquals(45000.00, (float) $tx->total_amount);
         $this->assertEquals(50000.00, (float) $tx->amount_paid);
         $this->assertEquals(5000.00, (float) $tx->change_due);
-        $this->assertNotNull($tx->revenueSplit);
-        $this->assertEquals(33750.00, (float) $tx->revenueSplit->owner_share); // 75%
+        $this->assertNull($tx->revenueSplit); // Revenue split not generated until admin confirms
         $this->assertCount(2, $tx->items);
+
+        // When admin confirms cash payment at exit cashier
+        $admin = User::create([
+            'name' => 'Admin EO',
+            'username' => 'admin.eo',
+            'email' => 'admin@eo.com',
+            'role' => 'admin',
+            'password' => bcrypt('password'),
+        ]);
+
+        $verificationService = new TransactionVerificationService(new RevenueSplitService());
+        $confirmedTx = $verificationService->confirmCash($tx, $admin);
+
+        $this->assertEquals('paid', $confirmedTx->status);
+        $this->assertNotNull($confirmedTx->revenueSplit);
+        $this->assertEquals(33750.00, (float) $confirmedTx->revenueSplit->owner_share); // 75%
+        $this->assertEquals(10125.00, (float) $confirmedTx->revenueSplit->admin_gross_share); // 22.5%
+        $this->assertEquals(1125.00, (float) $confirmedTx->revenueSplit->superadmin_share); // 2.5%
     }
 
     public function test_cash_checkout_fails_on_underpaid(): void

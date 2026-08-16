@@ -102,14 +102,14 @@
         <div class="bg-gradient-to-br from-[#1d9bf0] to-[#1271b3] rounded-3xl p-5 text-white shadow-lg shadow-[#1d9bf0]/25">
             <span class="text-xs font-bold text-white/90 uppercase tracking-wider block">Pendapatan Bersih EO</span>
             <h3 class="text-xl font-black mt-1 text-white" x-text="formatRupiah(stats.adminNet)"></h3>
-            <p class="text-[11px] text-white/90 mt-2 font-medium">Gross 25% - Rp1.000 platform</p>
+            <p class="text-[11px] text-white/90 mt-2 font-medium">Net 22.5% dari Omzet</p>
         </div>
 
         <!-- 4. Developer Platform Fee -->
         <div class="bg-white rounded-3xl p-5 border border-[#eff3f4] shadow-xs">
             <span class="text-xs font-bold text-[#0f1419] uppercase tracking-wider block">Fee Developer</span>
             <h3 class="text-xl font-black text-[#0f1419] mt-1" x-text="formatRupiah(stats.superadminTotal)"></h3>
-            <p class="text-[11px] text-[#536471] mt-2 font-medium">Rp1.000 × transaksi paid</p>
+            <p class="text-[11px] text-[#536471] mt-2 font-medium">2.5% dari Omzet Paid</p>
         </div>
     </div>
 
@@ -141,7 +141,7 @@
                 <div class="bg-[#f7f9f9] rounded-2xl p-3 text-center">
                     <span class="text-[10px] font-bold text-[#536471] uppercase block">Hak Admin di Cash</span>
                     <span class="text-sm font-black text-[#0f1419] mt-0.5 block" x-text="formatRupiah(stats.cashHakAdmin)"></span>
-                    <span class="text-[10px] text-[#536471] font-medium block">25% dari cash</span>
+                    <span class="text-[10px] text-[#536471] font-medium block">22.5% dari cash + platform fee</span>
                 </div>
                 <div class="rounded-2xl p-3 text-center" :class="stats.netSettlement >= 0 ? 'bg-emerald-50 border border-emerald-200' : 'bg-amber-50 border border-amber-200'">
                     <span class="text-[10px] font-bold uppercase block" :class="stats.netSettlement >= 0 ? 'text-emerald-600' : 'text-amber-600'" x-text="stats.netSettlement >= 0 ? '🔄 Admin → Warung' : '🔄 Warung → Admin'"></span>
@@ -161,7 +161,7 @@
                         <th class="px-4 py-3 text-right">💵 Cash</th>
                         <th class="px-4 py-3 text-right">📱 QRIS</th>
                         <th class="px-4 py-3 text-right">Hak Warung (75%)</th>
-                        <th class="px-4 py-3 text-right">Hak EO (25%)</th>
+                        <th class="px-4 py-3 text-right">Hak EO (22.5%)</th>
                         <th class="px-4 py-3 text-center">Serah Terima</th>
                     </tr>
                 </thead>
@@ -247,6 +247,7 @@
             >
                 <option value="all">Semua Status</option>
                 <option value="paid">Paid (Sukses)</option>
+                <option value="pending">Pending Cash</option>
                 <option value="pending_verification">Pending QRIS</option>
                 <option value="cancelled">Cancelled (Dibatalkan)</option>
                 <option value="rejected">Rejected</option>
@@ -265,7 +266,7 @@
                         <th class="px-3.5 py-3.5">Metode</th>
                         <th class="px-3.5 py-3.5">Total Belanja</th>
                         <th class="px-3.5 py-3.5 text-[#1d9bf0]">Warung (75%)</th>
-                        <th class="px-3.5 py-3.5 text-[#1d9bf0]">EO Gross (25%)</th>
+                        <th class="px-3.5 py-3.5 text-[#1d9bf0]">Total Potongan (25%)</th>
                         <th class="px-3.5 py-3.5">Fee Developer</th>
                         <th class="px-3.5 py-3.5 text-[#0f1419] font-black">EO Net</th>
                         <th class="px-3.5 py-3.5">Status</th>
@@ -290,19 +291,19 @@
                             <td class="px-3.5 py-3 font-black text-[#0f1419]" x-text="formatRupiah(tx.total_amount)"></td>
                             <td class="px-3.5 py-3 font-black text-[#1d9bf0]" x-text="tx.status === 'paid' ? formatRupiah(tx.revenue_split?.owner_share || tx.total_amount * 0.75) : '-'"></td>
                             <td class="px-3.5 py-3 font-black text-[#1d9bf0]" x-text="tx.status === 'paid' ? formatRupiah(tx.revenue_split?.admin_gross_share || tx.total_amount * 0.25) : '-'"></td>
-                            <td class="px-3.5 py-3 font-black text-[#0f1419]" x-text="tx.status === 'paid' ? formatRupiah(tx.revenue_split?.superadmin_share || 1000) : '-'"></td>
-                            <td class="px-3.5 py-3 font-black text-[#0f1419] bg-[#f7f9f9]" x-text="tx.status === 'paid' ? formatRupiah(tx.revenue_split?.admin_net_share || (tx.total_amount * 0.25) - 1000) : '-'"></td>
+                            <td class="px-3.5 py-3 font-black text-[#0f1419]" x-text="tx.status === 'paid' ? formatRupiah(tx.revenue_split?.superadmin_share || (tx.total_amount * 0.025)) : '-'"></td>
+                            <td class="px-3.5 py-3 font-black text-[#0f1419] bg-[#f7f9f9]" x-text="tx.status === 'paid' ? formatRupiah(tx.revenue_split?.admin_net_share || (tx.total_amount * 0.225)) : '-'"></td>
                             <td class="px-3.5 py-3">
                                 <span 
                                     class="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[10px] font-bold"
                                     :class="{
                                         'bg-[#e8f5fd] text-[#1d9bf0] border border-[#bde2f9]': tx.status === 'paid',
-                                        'bg-amber-50 text-[#ff7a00] border border-amber-200': tx.status === 'pending_verification',
+                                        'bg-amber-50 text-[#ff7a00] border border-amber-200': tx.status === 'pending_verification' || tx.status === 'pending',
                                         'bg-rose-50 text-[#f4212e] border border-rose-200': tx.status === 'rejected',
                                         'bg-slate-100 text-slate-500 line-through': tx.status === 'cancelled'
                                     }"
                                 >
-                                    <span x-text="tx.status === 'pending_verification' ? 'Pending' : tx.status"></span>
+                                    <span x-text="tx.status === 'pending_verification' ? 'Pending Verif' : (tx.status === 'pending' ? 'Belum Bayar' : tx.status)"></span>
                                 </span>
                             </td>
                             <td class="px-3.5 py-3 text-center">
@@ -364,11 +365,11 @@
                             class="px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold shrink-0"
                             :class="{
                                 'bg-[#e8f5fd] text-[#1d9bf0] border border-[#bde2f9]': tx.status === 'paid',
-                                'bg-amber-50 text-[#ff7a00] border border-amber-200': tx.status === 'pending_verification',
+                                'bg-amber-50 text-[#ff7a00] border border-amber-200': tx.status === 'pending_verification' || tx.status === 'pending',
                                 'bg-rose-50 text-[#f4212e] border border-rose-200': tx.status === 'rejected',
                                 'bg-slate-100 text-slate-500': tx.status === 'cancelled'
                             }"
-                            x-text="tx.status === 'pending_verification' ? 'Pending' : tx.status"
+                            x-text="tx.status === 'pending_verification' ? 'Pending Verif' : (tx.status === 'pending' ? 'Belum Bayar' : tx.status)"
                         ></span>
                     </div>
 
@@ -388,7 +389,7 @@
                         </div>
                         <div>
                             <span class="text-[9px] sm:text-[10px] text-[#536471] block font-semibold">Net EO</span>
-                            <span class="font-black text-[11px] sm:text-xs text-[#0f1419] truncate block" x-text="tx.status === 'paid' ? formatRupiah(tx.revenue_split?.admin_net_share || (tx.total_amount * 0.25) - 1000) : '-'"></span>
+                            <span class="font-black text-[11px] sm:text-xs text-[#0f1419] truncate block" x-text="tx.status === 'paid' ? formatRupiah(tx.revenue_split?.admin_net_share || (tx.total_amount * 0.225)) : '-'"></span>
                         </div>
                     </div>
                 </div>

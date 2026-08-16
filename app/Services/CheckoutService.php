@@ -38,6 +38,7 @@ class CheckoutService
 
     /**
      * Process cash checkout.
+     * Cash transactions now go to 'pending' status until admin confirms payment.
      *
      * @param Store $store
      * @param User $cashier
@@ -79,6 +80,7 @@ class CheckoutService
 
             $changeDue = $amountPaid - $totalAmount;
 
+            // Cash transactions are now 'pending' until admin confirms at exit cashier
             $transaction = Transaction::create([
                 'invoice_code' => $this->generateInvoiceCode(),
                 'store_id' => $store->id,
@@ -87,8 +89,8 @@ class CheckoutService
                 'payment_method' => 'cash',
                 'amount_paid' => $amountPaid,
                 'change_due' => $changeDue,
-                'status' => 'paid',
-                'paid_at' => now(),
+                'status' => 'pending',
+                'paid_at' => null,
             ]);
 
             foreach ($preparedItems as $item) {
@@ -96,10 +98,10 @@ class CheckoutService
                 TransactionItem::create($item);
             }
 
-            // Immediately calculate revenue split for cash paid
-            $this->revenueSplitService->calculate($transaction);
+            // Revenue split is calculated AFTER admin confirms payment, not at checkout
+            // See TransactionVerificationService::confirmCash()
 
-            return $transaction->load(['items', 'store', 'cashier', 'revenueSplit']);
+            return $transaction->load(['items', 'store', 'cashier']);
         });
     }
 

@@ -26,10 +26,10 @@
         <div>
             <div class="flex items-center gap-2">
                 <span class="px-3.5 py-0.5 rounded-full bg-[#e8f5fd] text-[#1d9bf0] text-[10px] font-black uppercase border border-[#bde2f9]">Audit Finansial Platform</span>
-                <span class="text-xs text-[#0f1419] font-semibold">Flat Fee Rp1.000 / Tx</span>
+                <span class="text-xs text-[#0f1419] font-semibold">Fee Platform 2.5% dari Omzet</span>
             </div>
             <h2 class="text-xl sm:text-2xl font-black text-[#0f1419] tracking-tight mt-1">Laporan Fee Developer</h2>
-            <p class="text-xs sm:text-sm text-[#0f1419] font-medium mt-0.5">Rekapitulasi pendapatan lisensi sistem JADISATU berbasis potongan tetap Rp1.000 per transaksi paid</p>
+            <p class="text-xs sm:text-sm text-[#0f1419] font-medium mt-0.5">Rekapitulasi pendapatan lisensi sistem JADISATU berbasis persentase 2.5% dari omzet</p>
         </div>
 
         <!-- Export Action Buttons (PDF, Word, Excel) -->
@@ -74,7 +74,7 @@
         <div class="bg-gradient-to-br from-[#1d9bf0] to-[#1271b3] rounded-3xl p-6 text-white shadow-lg shadow-[#1d9bf0]/25">
             <span class="text-xs font-bold text-white/90 uppercase tracking-wider block">Akumulasi Fee Developer</span>
             <h3 class="text-2xl sm:text-3xl font-black mt-2 tracking-tight text-white" x-text="formatRupiah(totalSuperAdminFee)"></h3>
-            <p class="text-xs text-white/90 mt-2 font-medium">Rp1.000 flat × <span class="font-black text-white" x-text="reportTransactions.length"></span> transaksi paid</p>
+            <p class="text-xs text-white/90 mt-2 font-medium">2.5% dari total omzet paid</p>
         </div>
 
         <div class="bg-white rounded-3xl p-6 border border-[#eff3f4] shadow-xs flex flex-col justify-between">
@@ -97,7 +97,7 @@
     <!-- Transactions Audit Table (Twitter UI) -->
     <div class="bg-white rounded-3xl border border-[#eff3f4] shadow-xs overflow-hidden">
         <div class="p-5 border-b border-[#eff3f4] flex items-center justify-between">
-            <h3 class="font-black text-base text-[#0f1419]">Rincian Transaksi Paid & Potongan Rp1.000</h3>
+            <h3 class="font-black text-base text-[#0f1419]">Rincian Transaksi Paid & Potongan Platform 2.5%</h3>
             <span class="text-xs text-[#536471]">Menampilkan seluruh transaksi Paid valid</span>
         </div>
 
@@ -123,8 +123,8 @@
                             <td class="px-4 py-3 font-black text-[#0f1419]" x-text="tx.store_name"></td>
                             <td class="px-4 py-3 uppercase font-black text-[10px] text-[#1d9bf0]" x-text="tx.payment_method"></td>
                             <td class="px-4 py-3 font-black text-[#0f1419]" x-text="formatRupiah(tx.total_amount)"></td>
-                            <td class="px-4 py-3 font-black text-[#1d9bf0] bg-[#f7f9f9]" x-text="formatRupiah(1000)"></td>
-                            <td class="px-4 py-3 font-black text-[#0f1419]" x-text="formatRupiah(tx.revenue_split?.admin_net_share || (tx.total_amount * 0.25) - 1000)"></td>
+                            <td class="px-4 py-3 font-black text-[#1d9bf0] bg-[#f7f9f9]" x-text="formatRupiah(tx.revenue_split?.superadmin_share || tx.total_amount * 0.025)"></td>
+                            <td class="px-4 py-3 font-black text-[#0f1419]" x-text="formatRupiah(tx.revenue_split?.admin_net_share || (tx.total_amount * 0.225))"></td>
                             <td class="px-4 py-3 font-black text-[#1d9bf0]" x-text="formatRupiah(tx.revenue_split?.owner_share || tx.total_amount * 0.75)"></td>
                         </tr>
                     </template>

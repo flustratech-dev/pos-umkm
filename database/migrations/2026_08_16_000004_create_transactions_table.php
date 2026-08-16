@@ -20,7 +20,7 @@ return new class extends Migration
             $table->enum('payment_method', ['cash', 'qris']);
             $table->decimal('amount_paid', 12, 2)->nullable();
             $table->decimal('change_due', 12, 2)->nullable();
-            $table->enum('status', ['pending_verification', 'paid', 'rejected', 'cancelled'])->default('pending_verification')->index();
+            $table->enum('status', ['pending', 'pending_verification', 'paid', 'rejected', 'cancelled'])->default('pending_verification')->index();
             $table->timestamp('paid_at')->nullable();
             $table->foreignId('verified_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamp('verified_at')->nullable();

@@ -9,9 +9,11 @@ use Illuminate\Support\Facades\DB;
 class RevenueSplitService
 {
     /**
-     * Super Admin flat fee per paid transaction.
+     * Revenue split percentages.
      */
-    public const SUPERADMIN_FLAT_FEE = 1000.00;
+    public const OWNER_PERCENTAGE = 0.75;       // 75% for Warung/Tenant
+    public const ADMIN_PERCENTAGE = 0.225;       // 22.5% for Admin/EO
+    public const SUPERADMIN_PERCENTAGE = 0.025;  // 2.5% for Developer/Superadmin
 
     /**
      * Calculate and persist revenue split for a paid transaction.
@@ -21,10 +23,10 @@ class RevenueSplitService
         return DB::transaction(function () use ($transaction) {
             $total = (float) $transaction->total_amount;
 
-            $ownerShare = round($total * 0.75, 2);
-            $adminGrossShare = round($total * 0.25, 2);
-            $superadminShare = self::SUPERADMIN_FLAT_FEE;
-            $adminNetShare = round($adminGrossShare - $superadminShare, 2);
+            $ownerShare = round($total * self::OWNER_PERCENTAGE, 2);
+            $adminGrossShare = round($total * self::ADMIN_PERCENTAGE, 2);
+            $superadminShare = round($total * self::SUPERADMIN_PERCENTAGE, 2);
+            $adminNetShare = $adminGrossShare; // Admin net = admin gross (dev fee is separate)
 
             return RevenueSplit::updateOrCreate(
                 ['transaction_id' => $transaction->id],

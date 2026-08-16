@@ -16,6 +16,7 @@ class Store extends Model
         'owner_id',
         'name',
         'booth_number',
+        'access_uuid',
         'category',
         'is_active',
     ];

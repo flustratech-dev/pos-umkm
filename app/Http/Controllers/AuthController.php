@@ -3,16 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\Auth\LoginRequest;
-use App\Http\Requests\Auth\RegisterRequest;
 use App\Models\Event;
-use App\Models\Store;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -55,10 +51,29 @@ class AuthController extends Controller
         $request->session()->regenerate();
         $user = Auth::user();
 
+        // Prevent tenant users from logging in via login form
+        // Tenants should access via UUID link only
+        if ($user->role === 'user') {
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Akses tenant hanya melalui link yang diberikan oleh admin/EO.',
+                ], 403);
+            }
+
+            throw ValidationException::withMessages([
+                'login' => ['Akses tenant hanya melalui link yang diberikan oleh admin/EO.'],
+            ]);
+        }
+
         $redirectUrl = match ($user->role) {
             'superadmin' => route('superadmin.dashboard'),
             'admin' => route('admin.dashboard'),
-            default => route('user.kasir'),
+            default => route('admin.dashboard'),
         };
 
         if ($request->expectsJson() || $request->ajax()) {
@@ -77,79 +92,6 @@ class AuthController extends Controller
         }
 
         return redirect()->intended($redirectUrl);
-    }
-
-    public function showRegister(): View|RedirectResponse
-    {
-        if (Auth::check()) {
-            return $this->redirectBasedOnRole(Auth::user());
-        }
-
-        $activeEvent = Event::getActive();
-        return view('auth.register', compact('activeEvent'));
-    }
-
-    public function register(RegisterRequest $request): JsonResponse|RedirectResponse
-    {
-        return DB::transaction(function () use ($request) {
-            $activeEvent = Event::getActive();
-            if (!$activeEvent) {
-                $activeEvent = Event::create([
-                    'name' => 'Bazar Kuliner & UMKM Nusantara 2026',
-                    'slug' => 'bazar-kuliner-umkm-2026',
-                    'start_date' => now()->toDateString(),
-                    'end_date' => now()->addDays(7)->toDateString(),
-                    'location' => 'Parkir Timur Senayan, Jakarta',
-                    'is_active' => true,
-                ]);
-            }
-
-            $user = User::create([
-                'name' => $request->name,
-                'username' => $request->username,
-                'email' => $request->email,
-                'phone' => $request->phone,
-                'role' => 'user',
-                'password' => Hash::make($request->password),
-            ]);
-
-            // Hitung nomor urut stand pada event aktif saat ini (mulai dari Stand 01)
-            $existingBoothCount = Store::where('event_id', $activeEvent->id)->count() + 1;
-            $autoBoothNumber = 'Stand ' . str_pad($existingBoothCount, 2, '0', STR_PAD_LEFT);
-
-            $store = Store::create([
-                'event_id' => $activeEvent->id,
-                'owner_id' => $user->id,
-                'name' => $request->store_name,
-                'booth_number' => $request->booth_number ?: $autoBoothNumber,
-                'category' => $request->category ?: 'Makanan & Minuman',
-                'is_active' => true,
-            ]);
-
-            $user->update(['store_id' => $store->id]);
-
-            Auth::login($user);
-            $request->session()->regenerate();
-
-            $redirectUrl = route('user.kasir');
-
-            if ($request->expectsJson() || $request->ajax()) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Registrasi warung berhasil! Selamat berjualan.',
-                    'redirect' => $redirectUrl,
-                    'user' => [
-                        'id' => $user->id,
-                        'name' => $user->name,
-                        'email' => $user->email,
-                        'role' => $user->role,
-                        'store_id' => $store->id,
-                    ],
-                ]);
-            }
-
-            return redirect()->route('user.kasir')->with('success', 'Registrasi warung berhasil! Selamat berjualan.');
-        });
     }
 
     public function logout(Request $request): RedirectResponse

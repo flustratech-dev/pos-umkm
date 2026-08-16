@@ -50,9 +50,19 @@ class Transaction extends Model
         return $query->where('status', 'paid');
     }
 
+    public function scopePending($query)
+    {
+        return $query->where('status', 'pending');
+    }
+
     public function scopePendingVerification($query)
     {
         return $query->where('status', 'pending_verification');
+    }
+
+    public function scopePendingAll($query)
+    {
+        return $query->whereIn('status', ['pending', 'pending_verification']);
     }
 
     public function scopeForActiveEvent($query)

@@ -130,7 +130,7 @@
             >
                 <option value="all">Semua Status</option>
                 <option value="paid">Paid (Sukses)</option>
-                <option value="pending_verification">Pending QRIS</option>
+                <option value="pending">Pending Cash</option>                <option value="pending_verification">Pending QRIS</option>
                 <option value="cancelled">Cancelled</option>
                 <option value="rejected">Rejected</option>
             </select>
@@ -184,18 +184,18 @@
                                     class="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[10px] font-bold"
                                     :class="{
                                         'bg-[#e8f5fd] text-[#1d9bf0] border border-[#bde2f9]': tx.status === 'paid',
-                                        'bg-amber-50 text-[#ff7a00] border border-amber-200': tx.status === 'pending_verification',
+                                        'bg-amber-50 text-[#ff7a00] border border-amber-200': tx.status === 'pending_verification' || tx.status === 'pending',
                                         'bg-rose-50 text-[#f4212e] border border-rose-200': tx.status === 'rejected',
                                         'bg-slate-100 text-slate-500 line-through': tx.status === 'cancelled'
                                     }"
                                 >
                                     <span class="w-1.5 h-1.5 rounded-full" :class="{
                                         'bg-[#1d9bf0]': tx.status === 'paid',
-                                        'bg-[#ff7a00]': tx.status === 'pending_verification',
+                                        'bg-[#ff7a00]': tx.status === 'pending_verification' || tx.status === 'pending',
                                         'bg-[#f4212e]': tx.status === 'rejected',
                                         'bg-slate-400': tx.status === 'cancelled'
                                     }"></span>
-                                    <span x-text="tx.status === 'pending_verification' ? 'Pending' : tx.status"></span>
+                                    <span x-text="tx.status === 'pending_verification' ? 'Pending Verif' : (tx.status === 'pending' ? 'Belum Bayar' : tx.status)"></span>
                                 </span>
                             </td>
                             <td class="px-4 py-3 text-center">
@@ -230,11 +230,11 @@
                             class="px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold shrink-0"
                             :class="{
                                 'bg-[#e8f5fd] text-[#1d9bf0] border border-[#bde2f9]': tx.status === 'paid',
-                                'bg-amber-50 text-[#ff7a00] border border-amber-200': tx.status === 'pending_verification',
+                                'bg-amber-50 text-[#ff7a00] border border-amber-200': tx.status === 'pending_verification' || tx.status === 'pending',
                                 'bg-rose-50 text-[#f4212e] border border-rose-200': tx.status === 'rejected',
                                 'bg-slate-100 text-slate-500': tx.status === 'cancelled'
                             }"
-                            x-text="tx.status === 'pending_verification' ? 'Pending' : tx.status"
+                            x-text="tx.status === 'pending_verification' ? 'Pending Verif' : (tx.status === 'pending' ? 'Belum Bayar' : tx.status)"
                         ></span>
                     </div>
 

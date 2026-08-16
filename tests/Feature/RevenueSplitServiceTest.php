@@ -58,8 +58,9 @@ class RevenueSplitServiceTest extends TestCase
 
         $split = $this->service->calculate($tx);
 
+        // 75% Owner = 30.000, 22.5% Admin = 9.000, 2.5% Superadmin/Platform = 1.000
         $this->assertEquals(30000.00, (float) $split->owner_share);
-        $this->assertEquals(10000.00, (float) $split->admin_gross_share);
+        $this->assertEquals(9000.00, (float) $split->admin_gross_share);
         $this->assertEquals(1000.00, (float) $split->superadmin_share);
         $this->assertEquals(9000.00, (float) $split->admin_net_share);
     }
@@ -70,16 +71,17 @@ class RevenueSplitServiceTest extends TestCase
             'invoice_code' => 'INV-TEST-002',
             'store_id' => $this->store->id,
             'cashier_id' => $this->cashier->id,
-            'total_amount' => 3000.00,
+            'total_amount' => 10000.00,
             'payment_method' => 'cash',
             'status' => 'paid',
         ]);
 
         $split = $this->service->calculate($tx);
 
-        $this->assertEquals(2250.00, (float) $split->owner_share);
-        $this->assertEquals(750.00, (float) $split->admin_gross_share);
-        $this->assertEquals(1000.00, (float) $split->superadmin_share);
-        $this->assertEquals(-250.00, (float) $split->admin_net_share);
+        // 75% Owner = 7.500, 22.5% Admin = 2.250, 2.5% Superadmin/Platform = 250
+        $this->assertEquals(7500.00, (float) $split->owner_share);
+        $this->assertEquals(2250.00, (float) $split->admin_gross_share);
+        $this->assertEquals(250.00, (float) $split->superadmin_share);
+        $this->assertEquals(2250.00, (float) $split->admin_net_share);
     }
 }

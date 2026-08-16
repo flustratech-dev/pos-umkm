@@ -140,7 +140,7 @@
                 <th width="8%">Metode</th>
                 <th width="13%" class="text-right">Gross Transaksi</th>
                 <th width="12%" class="text-right">Hak Warung (75%)</th>
-                <th width="12%" class="text-right">Net EO (25%-1k)</th>
+                <th width="12%" class="text-right">Net EO (22.5%)</th>
                 <th width="12%" class="text-center">Status</th>
             </tr>
         </thead>
@@ -161,7 +161,7 @@
                     </td>
                     <td class="text-right bold" style="color: #0f1419;">
                         @if($tx->status === 'paid')
-                            Rp {{ number_format($tx->revenueSplit?->admin_net_share ?: (($tx->total_amount * 0.25) - 1000), 0, ',', '.') }}
+                            Rp {{ number_format($tx->revenueSplit?->admin_net_share ?: (($tx->total_amount * 0.225)), 0, ',', '.') }}
                         @else
                             -
                         @endif
