@@ -50,15 +50,15 @@ class AuthTest extends TestCase
     {
         $admin = User::create([
             'name' => 'Admin EO',
-            'username' => 'admin.eo',
-            'email' => 'admin@pos-umkm.id',
+            'username' => 'admin',
+            'email' => 'admin@gmail.com',
             'role' => 'admin',
-            'password' => bcrypt('password123'),
+            'password' => bcrypt('12345678'),
         ]);
 
         $response = $this->post('/login', [
-            'login' => 'admin@pos-umkm.id',
-            'password' => 'password123',
+            'login' => 'admin@gmail.com',
+            'password' => '12345678',
         ]);
 
         $response->assertRedirect(route('admin.dashboard'));

@@ -4,23 +4,20 @@
 
 @section('content')
 <div x-data="{
-    email: 'warung.busiti@gmail.com',
-    password: 'password123',
+    email: 'admin@gmail.com',
+    password: 'password',
     remember: true,
     isLoading: false,
 
     async handleLogin(role = null) {
         this.isLoading = true;
 
-        if (role === 'user') {
-            this.email = 'warung.busiti@gmail.com';
-            this.password = 'password123';
-        } else if (role === 'admin') {
-            this.email = 'admin@pos-umkm.id';
-            this.password = 'password123';
+        if (role === 'admin') {
+            this.email = 'admin@gmail.com';
+            this.password = '12345678';
         } else if (role === 'superadmin') {
-            this.email = 'superadmin@pos-umkm.id';
-            this.password = 'password123';
+            this.email = 'superadmin@gmail.com';
+            this.password = '12345678';
         }
 
         try {
@@ -75,27 +72,20 @@
             <span>⚡ Demo Akses Cepat (1-Klik):</span>
             <span class="text-[10px] text-[#1d9bf0] font-black">Pilih Role</span>
         </p>
-        <div class="grid grid-cols-3 gap-2 text-xs">
-            <button 
-                type="button" 
-                @click="setDemoCredentials('user')" 
-                class="py-2.5 px-2 rounded-full bg-white hover:bg-[#e8f5fd] text-[#1d9bf0] border border-[#bde2f9] font-black transition-all text-center shadow-2xs cursor-pointer"
-            >
-                🛒 Warung
-            </button>
+        <div class="grid grid-cols-2 gap-2 text-xs">
             <button 
                 type="button" 
                 @click="setDemoCredentials('admin')" 
                 class="py-2.5 px-2 rounded-full bg-white hover:bg-[#e8f5fd] text-[#1d9bf0] border border-[#bde2f9] font-black transition-all text-center shadow-2xs cursor-pointer"
             >
-                🛡️ Admin EO
+                🛡️ Admin EO (admin@gmail.com)
             </button>
             <button 
                 type="button" 
                 @click="setDemoCredentials('superadmin')" 
                 class="py-2.5 px-2 rounded-full bg-white hover:bg-[#e8f5fd] text-[#1d9bf0] border border-[#bde2f9] font-black transition-all text-center shadow-2xs cursor-pointer"
             >
-                👑 Superadmin
+                👑 Superadmin (superadmin@gmail.com)
             </button>
         </div>
     </div>

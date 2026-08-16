@@ -198,21 +198,21 @@ Alpine.store('app', {
         },
 
         getCurrentUser() {
-            if (this.currentRole === 'superadmin') return this.users.find(u => u.role === 'superadmin');
-            if (this.currentRole === 'admin') return this.users.find(u => u.role === 'admin');
-            return this.users.find(u => u.role === 'user' && u.id === 3) || this.users[2];
+            if (this.currentRole === 'superadmin') return this.users.find(u => u.role === 'superadmin') || { name: 'Super Admin', email: 'superadmin@gmail.com', role: 'superadmin' };
+            if (this.currentRole === 'admin') return this.users.find(u => u.role === 'admin') || { name: 'Admin EO', email: 'admin@gmail.com', role: 'admin' };
+            return this.users.find(u => u.role === 'user') || { name: 'Pemilik Warung', email: 'user@umkm.id', role: 'user' };
         },
 
         getActiveEvent() {
-            return this.events.find(e => e.is_active) || this.events[0];
+            return this.events.find(e => e.is_active) || this.events[0] || { name: 'Event Bazar UMKM 2026' };
         },
 
         getCurrentStore() {
             const user = this.getCurrentUser();
             if (user && user.store_id) {
-                return this.stores.find(s => s.id === user.store_id) || this.stores[0];
+                return this.stores.find(s => s.id === user.store_id) || this.stores[0] || { name: 'Warung Stand UMKM', booth_number: 'Stand A-01' };
             }
-            return this.stores[0];
+            return this.stores[0] || { name: 'Warung Stand UMKM', booth_number: 'Stand A-01' };
         },
 
         // Toast notifications
