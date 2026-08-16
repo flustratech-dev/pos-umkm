@@ -1,122 +1,109 @@
 <?php
 
+use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\EventController as AdminEventController;
+use App\Http\Controllers\Admin\GuideController as AdminGuideController;
+use App\Http\Controllers\Admin\HelpdeskController as AdminHelpdeskController;
+use App\Http\Controllers\Admin\ProductController as AdminProductController;
+use App\Http\Controllers\Admin\QrisVerificationController as AdminQrisVerificationController;
+use App\Http\Controllers\Admin\ReportController as AdminReportController;
+use App\Http\Controllers\Admin\StoreController as AdminStoreController;
+use App\Http\Controllers\Admin\TransactionController as AdminTransactionController;
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\ReceiptController;
+use App\Http\Controllers\SuperAdmin\DashboardController as SuperAdminDashboardController;
+use App\Http\Controllers\SuperAdmin\EventController as SuperAdminEventController;
+use App\Http\Controllers\SuperAdmin\PlatformReportController as SuperAdminPlatformReportController;
+use App\Http\Controllers\User\GuideController as UserGuideController;
+use App\Http\Controllers\User\HelpdeskController as UserHelpdeskController;
+use App\Http\Controllers\User\KasirController as UserKasirController;
+use App\Http\Controllers\User\ProductController as UserProductController;
+use App\Http\Controllers\User\ReportController as UserReportController;
 use Illuminate\Support\Facades\Route;
-
-/*
-|--------------------------------------------------------------------------
-| Web Routes — POS Kasir UMKM Event (Fase 1 Frontend)
-|--------------------------------------------------------------------------
-| Seluruh rute frontend terhubung ke view Blade interaktif
-| didukung Alpine.js reactive store & mock state management.
-*/
 
 // Home / Root Landing -> Redirect to default active terminal
 Route::get('/', function () {
-    return redirect('/user/kasir');
+    if (auth()->check()) {
+        $user = auth()->user();
+        if ($user->isSuperAdmin()) return redirect()->route('superadmin.dashboard');
+        if ($user->isAdmin()) return redirect()->route('admin.dashboard');
+        return redirect()->route('user.kasir');
+    }
+    return redirect()->route('login');
 });
 
 // Authentication Routes
-Route::get('/login', function () {
-    return view('auth.login');
-})->name('login');
+Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
+Route::post('/login', [AuthController::class, 'login']);
+Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
+Route::post('/register', [AuthController::class, 'register']);
+Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
-Route::get('/register', function () {
-    return view('auth.register');
-})->name('register');
+// Shared Receipts / Public Print Routes
+Route::get('/receipt/{transaction}', [ReceiptController::class, 'show'])->name('receipt.show');
+Route::get('/receipt/{transaction}/print', [ReceiptController::class, 'print'])->name('receipt.print');
 
 // 1. User (Pemilik Warung) Routes
-Route::prefix('user')->name('user.')->group(function () {
-    Route::get('/kasir', function () {
-        return view('user.kasir');
-    })->name('kasir');
+Route::prefix('user')->name('user.')->middleware(['auth', 'role:user'])->group(function () {
+    Route::get('/kasir', [UserKasirController::class, 'index'])->name('kasir');
+    Route::post('/kasir/checkout-cash', [UserKasirController::class, 'checkoutCash'])->name('kasir.checkout-cash');
+    Route::post('/kasir/checkout-qris', [UserKasirController::class, 'checkoutQris'])->name('kasir.checkout-qris');
 
-    Route::get('/produk', function () {
-        return view('user.produk');
-    })->name('produk');
+    Route::get('/produk', [UserProductController::class, 'index'])->name('produk');
+    Route::post('/produk', [UserProductController::class, 'store'])->name('produk.store');
+    Route::post('/produk/{product}', [UserProductController::class, 'update'])->name('produk.update');
+    Route::delete('/produk/{product}', [UserProductController::class, 'destroy'])->name('produk.destroy');
 
-    Route::get('/laporan', function () {
-        return view('user.laporan');
-    })->name('laporan');
+    Route::get('/laporan', [UserReportController::class, 'index'])->name('laporan');
+    Route::get('/laporan/pdf', [UserReportController::class, 'downloadPdf'])->name('laporan.pdf');
 
-    Route::get('/helpdesk', function () {
-        return view('user.helpdesk');
-    })->name('helpdesk');
+    Route::get('/helpdesk', [UserHelpdeskController::class, 'index'])->name('helpdesk');
+    Route::post('/helpdesk', [UserHelpdeskController::class, 'store'])->name('helpdesk.store');
+    Route::post('/helpdesk/{ticket}/reply', [UserHelpdeskController::class, 'reply'])->name('helpdesk.reply');
 
-    Route::get('/panduan', function () {
-        return view('user.guide');
-    })->name('panduan');
+    Route::get('/panduan', [UserGuideController::class, 'index'])->name('panduan');
 });
 
 // 2. Admin (EO - Event Organizer) Routes
-Route::prefix('admin')->name('admin.')->group(function () {
-    Route::get('/dashboard', function () {
-        return view('admin.dashboard');
-    })->name('dashboard');
+Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->group(function () {
+    Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
+    Route::get('/events', [AdminEventController::class, 'index'])->name('events');
 
-    Route::get('/events', function () {
-        return view('superadmin.events');
-    })->name('events');
+    Route::get('/verifikasi-qris', [AdminQrisVerificationController::class, 'index'])->name('verifikasi-qris.index');
+    Route::post('/verifikasi-qris/{transaction}/approve', [AdminQrisVerificationController::class, 'approve'])->name('verifikasi-qris.approve');
+    Route::post('/verifikasi-qris/{transaction}/reject', [AdminQrisVerificationController::class, 'reject'])->name('verifikasi-qris.reject');
 
-    Route::get('/verifikasi-qris', function () {
-        return view('admin.verifikasi-qris');
-    })->name('verifikasi-qris');
+    Route::post('/transaksi/{transaction}/cancel', [AdminTransactionController::class, 'cancel'])->name('transaksi.cancel');
 
-    Route::get('/produk', function () {
-        return view('admin.produk');
-    })->name('produk');
+    Route::get('/produk', [AdminProductController::class, 'index'])->name('produk');
+    Route::get('/warung', [AdminStoreController::class, 'index'])->name('warung');
+    Route::get('/warung/{store}', [AdminStoreController::class, 'show'])->name('warung.show');
 
-    Route::get('/warung', function () {
-        return view('admin.warung');
-    })->name('warung');
+    Route::get('/laporan', [AdminReportController::class, 'index'])->name('laporan');
+    Route::get('/laporan/pdf', [AdminReportController::class, 'downloadPdf'])->name('laporan.pdf');
 
-    Route::get('/laporan', function () {
-        return view('admin.laporan');
-    })->name('laporan');
+    Route::get('/helpdesk', [AdminHelpdeskController::class, 'index'])->name('helpdesk');
+    Route::post('/helpdesk/{ticket}/status', [AdminHelpdeskController::class, 'updateStatus'])->name('helpdesk.status');
+    Route::post('/helpdesk/{ticket}/reply', [AdminHelpdeskController::class, 'reply'])->name('helpdesk.reply');
 
-    Route::get('/helpdesk', function () {
-        return view('admin.helpdesk');
-    })->name('helpdesk');
-
-    Route::get('/panduan', function () {
-        return view('admin.guide');
-    })->name('panduan');
+    Route::get('/panduan', [AdminGuideController::class, 'index'])->name('panduan');
 });
 
-// 3. Super Admin Routes (Full System Visibility sesuai PRD Section 2)
-Route::prefix('superadmin')->name('superadmin.')->group(function () {
-    Route::get('/dashboard', function () {
-        return view('superadmin.dashboard');
-    })->name('dashboard');
+// 3. Super Admin Routes (Full System Visibility)
+Route::prefix('superadmin')->name('superadmin.')->middleware(['auth', 'role:superadmin'])->group(function () {
+    Route::get('/dashboard', [SuperAdminDashboardController::class, 'index'])->name('dashboard');
 
-    Route::get('/events', function () {
-        return view('superadmin.events');
-    })->name('events');
+    Route::get('/events', [SuperAdminEventController::class, 'index'])->name('events.index');
+    Route::post('/events', [SuperAdminEventController::class, 'store'])->name('events.store');
+    Route::post('/events/{event}/activate', [SuperAdminEventController::class, 'activate'])->name('events.activate');
 
-    Route::get('/laporan', function () {
-        return view('superadmin.laporan');
-    })->name('laporan');
+    Route::get('/laporan', [SuperAdminPlatformReportController::class, 'index'])->name('laporan');
+    Route::get('/laporan/pdf', [SuperAdminPlatformReportController::class, 'downloadPdf'])->name('laporan.pdf');
 
-    Route::get('/verifikasi-qris', function () {
-        return view('admin.verifikasi-qris');
-    })->name('verifikasi-qris');
-
-    Route::get('/produk', function () {
-        return view('admin.produk');
-    })->name('produk');
-
-    Route::get('/warung', function () {
-        return view('admin.warung');
-    })->name('warung');
-
-    Route::get('/helpdesk', function () {
-        return view('admin.helpdesk');
-    })->name('helpdesk');
-
-    Route::get('/kasir', function () {
-        return view('user.kasir');
-    })->name('kasir');
-
-    Route::get('/panduan', function () {
-        return view('admin.guide');
-    })->name('panduan');
+    Route::get('/verifikasi-qris', [AdminQrisVerificationController::class, 'index'])->name('verifikasi-qris');
+    Route::get('/produk', [AdminProductController::class, 'index'])->name('produk');
+    Route::get('/warung', [AdminStoreController::class, 'index'])->name('warung');
+    Route::get('/helpdesk', [AdminHelpdeskController::class, 'index'])->name('helpdesk');
+    Route::get('/kasir', [UserKasirController::class, 'index'])->name('kasir');
+    Route::get('/panduan', [AdminGuideController::class, 'index'])->name('panduan');
 });

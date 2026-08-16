@@ -9,42 +9,58 @@
     remember: true,
     isLoading: false,
 
-    handleLogin(role = null) {
+    async handleLogin(role = null) {
         this.isLoading = true;
-        
-        let targetRole = role || 'user';
-        if (!role) {
-            if (this.email.includes('admin@')) targetRole = 'admin';
-            else if (this.email.includes('superadmin@')) targetRole = 'superadmin';
-            else targetRole = 'user';
-        }
 
-        $store.app.currentRole = targetRole;
-        localStorage.setItem('pos_umkm_role', targetRole);
-
-        setTimeout(() => {
-            this.isLoading = false;
-            $store.app.notify('success', 'Login Berhasil', `Selamat datang kembali di ${$store.app.getRoleLabel(targetRole)}`);
-            if (targetRole === 'user') window.location.href = '/user/kasir';
-            else if (targetRole === 'admin') window.location.href = '/admin/dashboard';
-            else if (targetRole === 'superadmin') window.location.href = '/superadmin/dashboard';
-        }, 400);
-    },
-
-    setDemoCredentials(role) {
         if (role === 'user') {
             this.email = 'warung.busiti@gmail.com';
             this.password = 'password123';
-            this.handleLogin('user');
         } else if (role === 'admin') {
             this.email = 'admin@pos-umkm.id';
             this.password = 'password123';
-            this.handleLogin('admin');
         } else if (role === 'superadmin') {
             this.email = 'superadmin@pos-umkm.id';
             this.password = 'password123';
-            this.handleLogin('superadmin');
         }
+
+        try {
+            const token = document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || '';
+            const res = await fetch('/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': token
+                },
+                body: JSON.stringify({
+                    login: this.email,
+                    password: this.password,
+                    remember: this.remember
+                })
+            });
+
+            const data = await res.json();
+
+            if (res.ok && data.success) {
+                if (window.Alpine && Alpine.store('app')) {
+                    Alpine.store('app').currentRole = data.user.role;
+                    localStorage.setItem('pos_umkm_role', data.user.role);
+                }
+                window.location.href = data.redirect || '/';
+            } else {
+                alert(data.message || 'Login gagal. Periksa email dan password Anda.');
+            }
+        } catch (err) {
+            console.error(err);
+            // Fallback standard submit if fetch fails
+            document.getElementById('loginForm')?.submit();
+        } finally {
+            this.isLoading = false;
+        }
+    },
+
+    setDemoCredentials(role) {
+        this.handleLogin(role);
     }
 }">
     <!-- Heading -->

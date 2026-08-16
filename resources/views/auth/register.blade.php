@@ -32,7 +32,7 @@
                this.agreeTerms;
     },
 
-    handleRegister() {
+    async handleRegister() {
         if (!this.isFormValid) {
             $store.app.notify('error', 'Form Belum Lengkap', 'Harap periksa kelengkapan input dan konfirmasi kata sandi.');
             return;
@@ -40,47 +40,50 @@
 
         this.isLoading = true;
 
-        setTimeout(() => {
-            // Register warung and store directly to dummy state
-            const newUserId = Date.now();
-            const newStoreId = Date.now() + 1;
-            
-            const newUser = {
-                id: newUserId,
-                name: this.name.trim(),
-                username: this.username.trim(),
-                email: `${this.username.trim()}@umkm.id`,
-                role: 'user',
-                store_id: newStoreId,
-                store_name: this.store_name.trim(),
-                phone: this.phone.trim()
-            };
+        try {
+            const token = document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || '';
+            const emailGenerated = `${this.username.trim()}@umkm.id`;
 
-            const newStore = {
-                id: newStoreId,
-                event_id: $store.app.getActiveEvent()?.id || 1,
-                owner_id: newUserId,
-                name: this.store_name.trim(),
-                owner_name: this.name.trim(),
-                phone: this.phone.trim(),
-                booth_number: 'Stand Baru',
-                category: 'Makanan & Minuman',
-                is_active: true,
-                created_at: new Date().toISOString().replace('T', ' ').substring(0, 19)
-            };
+            const res = await fetch('/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': token
+                },
+                body: JSON.stringify({
+                    name: this.name.trim(),
+                    store_name: this.store_name.trim(),
+                    username: this.username.trim(),
+                    email: emailGenerated,
+                    phone: this.phone.trim(),
+                    password: this.password,
+                    password_confirmation: this.password_confirmation
+                })
+            });
 
-            $store.app.users.push(newUser);
-            $store.app.stores.push(newStore);
-            $store.app.currentRole = 'user';
-            localStorage.setItem('pos_umkm_role', 'user');
+            const data = await res.json();
 
+            if (res.ok && data.success) {
+                if (window.Alpine && Alpine.store('app')) {
+                    Alpine.store('app').currentRole = 'user';
+                    localStorage.setItem('pos_umkm_role', 'user');
+                }
+                window.location.href = data.redirect || '/user/kasir';
+            } else {
+                let errMsg = data.message || 'Registrasi gagal. Silakan periksa kembali input Anda.';
+                if (data.errors) {
+                    const firstKey = Object.keys(data.errors)[0];
+                    errMsg = data.errors[firstKey][0];
+                }
+                alert(errMsg);
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Terjadi kesalahan koneksi server. Silakan coba lagi.');
+        } finally {
             this.isLoading = false;
-            $store.app.notify('success', 'Registrasi Berhasil!', 'Akun langsung aktif! Selamat berjualan di event ini.');
-            
-            setTimeout(() => {
-                window.location.href = '/user/kasir';
-            }, 400);
-        }, 500);
+        }
     }
 }">
     <!-- Heading -->
