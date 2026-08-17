@@ -139,7 +139,8 @@
                             :src="$store.app.getProductPhoto(product.photo)" 
                             :alt="product.title"
                             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                            loading="lazy"
+                            decoding="async"
+                            loading="eager"
                         >
                         <span 
                             class="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider backdrop-blur-md"

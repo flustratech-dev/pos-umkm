@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pos-jadisatu-v1';
+const CACHE_NAME = 'pos-jadisatu-v2';
 const STATIC_ASSETS = [
     '/images/favicon.png',
     '/images/favicon-32x32.png',
@@ -38,17 +38,21 @@ self.addEventListener('fetch', (e) => {
     // Only cache GET requests
     if (e.request.method !== 'GET') return;
 
-    // Cache static build assets and fonts with Cache-First strategy
-    if (
+    // Cache static build assets, storage images, and fonts with Cache-First / Stale-While-Revalidate
+    const isImageOrAsset = (
         url.pathname.startsWith('/build/assets/') ||
         url.pathname.startsWith('/images/') ||
+        url.pathname.startsWith('/storage/') ||
         url.hostname === 'fonts.googleapis.com' ||
-        url.hostname === 'fonts.gstatic.com'
-    ) {
+        url.hostname === 'fonts.gstatic.com' ||
+        url.hostname.includes('unsplash.com') ||
+        /\.(png|jpe?g|webp|svg|gif|ico)(\?.*)?$/i.test(url.pathname)
+    );
+
+    if (isImageOrAsset) {
         e.respondWith(
             caches.match(e.request).then((cached) => {
-                if (cached) return cached;
-                return fetch(e.request).then((response) => {
+                const fetchPromise = fetch(e.request).then((response) => {
                     if (response && response.status === 200) {
                         const copy = response.clone();
                         caches.open(CACHE_NAME).then((cache) => {
@@ -57,6 +61,9 @@ self.addEventListener('fetch', (e) => {
                     }
                     return response;
                 }).catch(() => cached);
+
+                // Return cached version in 0ms if available, while fetchPromise updates cache in background
+                return cached || fetchPromise;
             })
         );
         return;

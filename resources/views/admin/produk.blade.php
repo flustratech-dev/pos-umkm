@@ -85,7 +85,7 @@
                 <!-- Thumbnail -->
                 <div>
                     <div class="relative w-full h-28 sm:h-36 bg-[#f7f9f9] rounded-xl overflow-hidden mb-2">
-                        <img :src="$store.app.getProductPhoto(product.photo)" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
+                        <img :src="$store.app.getProductPhoto(product.photo)" decoding="async" loading="eager" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
                         <span class="absolute top-1.5 right-1.5 px-2 py-0.5 rounded-full text-[9px] font-black bg-[#1d9bf0] text-white shadow-xs" x-text="product.category"></span>
                     </div>
 
