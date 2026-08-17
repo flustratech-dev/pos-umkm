@@ -1,29 +1,29 @@
-<!-- Global Minimal Circular Spinning Logo (Pure Logo Spinner, No Card, No Text) -->
+<!-- Global Minimal Circular Spinning Logo (Clean Bright Backdrop, No Black Overlay) -->
 <div 
     id="page-preloader"
     x-data="{ preloaderActive: true }"
     x-show="$store.app?.globalLoading || preloaderActive"
     x-init="
-        window.addEventListener('load', () => { setTimeout(() => { preloaderActive = false; }, 80); });
+        window.addEventListener('load', () => { setTimeout(() => { preloaderActive = false; }, 60); });
         setTimeout(() => { preloaderActive = false; }, 2000);
     "
-    x-transition:enter="transition ease-out duration-150"
-    x-transition:enter-start="opacity-0 scale-90"
+    x-transition:enter="transition ease-out duration-100"
+    x-transition:enter-start="opacity-0 scale-95"
     x-transition:enter-end="opacity-100 scale-100"
-    x-transition:leave="transition ease-in duration-200"
+    x-transition:leave="transition ease-in duration-150"
     x-transition:leave-start="opacity-100 scale-100"
-    x-transition:leave-end="opacity-0 scale-90"
-    class="fixed inset-0 z-[999999] flex items-center justify-center bg-black/20 backdrop-blur-[2px] select-none"
+    x-transition:leave-end="opacity-0 scale-95"
+    class="fixed inset-0 z-[999999] flex items-center justify-center bg-white/40 backdrop-blur-[1.5px] select-none"
 >
     <!-- Pure Circular Spinning Logo -->
     <div class="relative flex items-center justify-center">
-        <!-- Subtle pulsing glow -->
-        <div class="absolute -inset-2 rounded-full bg-[#1d9bf0]/25 animate-ping"></div>
+        <!-- Subtle soft blue glow ring -->
+        <div class="absolute -inset-2 rounded-full bg-[#1d9bf0]/15 animate-ping"></div>
         <!-- Perfect Circular Spinning Logo -->
         <img 
             src="{{ asset('images/favicon.png') }}" 
             alt="Loading..." 
-            class="w-14 h-14 sm:w-16 sm:h-16 rounded-full object-cover shadow-2xl border-2 border-white/80 animate-spin"
+            class="w-12 h-12 sm:w-14 sm:h-14 rounded-full object-cover shadow-lg border-2 border-white animate-spin"
         >
     </div>
 </div>
