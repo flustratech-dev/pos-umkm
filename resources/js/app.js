@@ -1,9 +1,20 @@
 import './bootstrap';
+import './instant-nav';
 import Alpine from 'alpinejs';
-import Chart from 'chart.js/auto';
 import Swal from 'sweetalert2';
 import 'sweetalert2/dist/sweetalert2.min.css';
 import { evaluatePasswordStrength } from './password-meter';
+
+// Lazy loader for Chart.js (drastically cuts initial bundle size)
+window.loadChartJs = async function() {
+    if (window.Chart) return window.Chart;
+    if (window.__chartPromise) return window.__chartPromise;
+    window.__chartPromise = import('chart.js/auto').then(m => {
+        window.Chart = m.default || m;
+        return window.Chart;
+    });
+    return window.__chartPromise;
+};
 
 // Helper for making API calls with CSRF
 const apiFetch = async (url, options = {}) => {
@@ -36,7 +47,6 @@ const apiFetch = async (url, options = {}) => {
 };
 
 window.Alpine = Alpine;
-window.Chart = Chart;
 window.Swal = Swal;
 window.evaluatePasswordStrength = evaluatePasswordStrength;
 

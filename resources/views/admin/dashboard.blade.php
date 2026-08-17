@@ -7,9 +7,11 @@
 window.__adminSalesChart = null;
 window.__adminMethodChart = null;
 
-function renderAdminSalesChart(timeframe) {
+async function renderAdminSalesChart(timeframe) {
     const ctxHourly = document.getElementById('hourlySalesChart');
-    if (!ctxHourly || !window.Chart) return;
+    if (!ctxHourly) return;
+    if (window.loadChartJs) await window.loadChartJs();
+    if (!window.Chart) return;
 
     let labels = [];
     let cashData = [];
@@ -230,9 +232,11 @@ function renderAdminSalesChart(timeframe) {
     });
 }
 
-function renderAdminMethodChart() {
+async function renderAdminMethodChart() {
     const ctxMethod = document.getElementById('methodDonutChart');
-    if (!ctxMethod || !window.Chart) return;
+    if (!ctxMethod) return;
+    if (window.loadChartJs) await window.loadChartJs();
+    if (!window.Chart) return;
     if (window.__adminMethodChart) {
         window.__adminMethodChart.destroy();
         window.__adminMethodChart = null;

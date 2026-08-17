@@ -7,6 +7,14 @@
 
     <title>@yield('title', 'Kasir JADISATU') — JADISATU</title>
 
+    <!-- PWA & Mobile Standalone Settings -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#1d9bf0">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Kasir POS">
+
     <!-- Favicon (High Curvature Squircle) -->
     <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('images/favicon-32x32.png') }}?v=3">
     <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('images/favicon-16x16.png') }}?v=3">
@@ -252,5 +260,14 @@
 
     <!-- Global Thermal Receipt Modal -->
     @include('components.receipt-modal')
+
+    <!-- Service Worker Registration for Instant Asset Caching -->
+    <script>
+        if ('serviceWorker' in navigator && (window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').catch(err => console.debug('[SW] Registration notice:', err));
+            });
+        }
+    </script>
 </body>
 </html>
