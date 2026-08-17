@@ -73,6 +73,10 @@
     }
 }
 
+[x-cloak] {
+    display: none !important;
+}
+
 /* Base resets for Twitter-style clean crispness */
 body {
     background-color: #f7f9f9;

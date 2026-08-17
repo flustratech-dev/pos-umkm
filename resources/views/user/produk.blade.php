@@ -28,6 +28,7 @@
         <!-- Tambah Menu Button (Twitter Blue Pill) -->
         <button 
             x-show="$store.app.activeStoreEventActive"
+            x-cloak
             @click="$store.app.openAddProductModal()"
             class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white text-xs sm:text-sm font-black shadow-md shadow-[#1d9bf0]/25 transition-all active:scale-95 shrink-0 cursor-pointer"
         >
@@ -37,7 +38,7 @@
     </div>
 
     <!-- Readonly Banner -->
-    <div x-show="!$store.app.activeStoreEventActive" class="mb-6 p-4 rounded-2xl bg-[#f4212e]/10 border border-[#f4212e]/20 flex gap-3">
+    <div x-show="!$store.app.activeStoreEventActive" x-cloak class="mb-6 p-4 rounded-2xl bg-[#f4212e]/10 border border-[#f4212e]/20 flex gap-3">
         <svg class="w-5 h-5 text-[#f4212e] shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
         <div>
             <h3 class="text-sm font-black text-[#f4212e]">Event Ini Sudah Berakhir</h3>
@@ -158,7 +159,7 @@
                 <div class="flex items-center justify-between pt-2 border-t border-[#eff3f4] mt-2">
                     <span class="text-xs sm:text-sm font-black text-[#0f1419]" x-text="formatRupiah(product.price)"></span>
                     
-                    <div x-show="$store.app.activeStoreEventActive" class="flex items-center gap-0.5">
+                    <div x-show="$store.app.activeStoreEventActive" x-cloak class="flex items-center gap-0.5">
                         <!-- Edit Button -->
                         <button 
                             @click="$store.app.openEditProductModal(product)"

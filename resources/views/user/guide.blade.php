@@ -15,7 +15,7 @@
     </div>
 
     <!-- Readonly Banner -->
-    <div x-show="!$store.app.activeStoreEventActive" class="p-4 rounded-2xl bg-[#f4212e]/10 border border-[#f4212e]/20 flex gap-3">
+    <div x-show="!$store.app.activeStoreEventActive" x-cloak class="p-4 rounded-2xl bg-[#f4212e]/10 border border-[#f4212e]/20 flex gap-3">
         <svg class="w-5 h-5 text-[#f4212e] shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
         <div>
             <h3 class="text-sm font-black text-[#f4212e]">Konteks Readonly</h3>
@@ -67,7 +67,7 @@
                 <span>Bagaimana skema bagi hasil penjualan di event ini?</span>
                 <span class="text-[#536471]" x-text="openFaq === 1 ? '▲' : '▼'"></span>
             </button>
-            <div x-show="openFaq === 1" x-transition class="mt-2 text-xs text-[#536471] leading-relaxed space-y-1">
+            <div x-show="openFaq === 1" x-cloak x-transition class="mt-2 text-xs text-[#536471] leading-relaxed space-y-1">
                 <p>Dari total transaksi yang berhasil (Paid):</p>
                 <ul class="list-disc pl-5 space-y-0.5 text-[#0f1419] font-medium">
                     <li><strong>75%</strong> menjadi hak bersih Pemilik Warung.</li>
@@ -85,7 +85,7 @@
                 <span>Kenapa transaksi QRIS berstatus Pending setelah diunggah?</span>
                 <span class="text-[#536471]" x-text="openFaq === 2 ? '▲' : '▼'"></span>
             </button>
-            <div x-show="openFaq === 2" x-transition class="mt-2 text-xs text-[#536471] leading-relaxed">
+            <div x-show="openFaq === 2" x-cloak x-transition class="mt-2 text-xs text-[#536471] leading-relaxed">
                 <p>Karena QRIS yang digunakan adalah 1 rekening resmi EO untuk mempermudah pengunjung, panitia EO akan memverifikasi mutasi bank dan bukti screenshot Anda terlebih dahulu. Setelah disetujui, status transaksi akan otomatis berubah menjadi <strong>Paid</strong>.</p>
             </div>
         </div>
@@ -99,7 +99,7 @@
                 <span>Bagaimana jika terjadi salah input harga atau pembeli membatalkan pesanan?</span>
                 <span class="text-[#536471]" x-text="openFaq === 3 ? '▲' : '▼'"></span>
             </button>
-            <div x-show="openFaq === 3" x-transition class="mt-2 text-xs text-[#536471] leading-relaxed">
+            <div x-show="openFaq === 3" x-cloak x-transition class="mt-2 text-xs text-[#536471] leading-relaxed">
                 <p>Untuk menjaga transparansi audit, pembatalan transaksi berstatus Paid hanya dapat dilakukan oleh Panitia EO melalui menu Pembatalan Transaksi. Laporkan ke panitia melalui menu <strong>Helpdesk</strong> atau hubungi langsung tenda panitia.</p>
             </div>
         </div>

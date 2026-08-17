@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\ReportController as AdminReportController;
 use App\Http\Controllers\Admin\StoreController as AdminStoreController;
 use App\Http\Controllers\Admin\TransactionController as AdminTransactionController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\ImpersonateController;
 use App\Http\Controllers\ReceiptController;
 use App\Http\Controllers\TenantAccessController;
 use App\Http\Controllers\SuperAdmin\DashboardController as SuperAdminDashboardController;
@@ -46,6 +47,7 @@ Route::get('/tenda/{uuid}', [TenantAccessController::class, 'access'])->name('te
 Route::middleware(['auth'])->group(function () {
     Route::get('/profile', [\App\Http\Controllers\ProfileController::class, 'edit'])->name('profile.edit');
     Route::put('/profile', [\App\Http\Controllers\ProfileController::class, 'update'])->name('profile.update');
+    Route::post('/impersonate/leave', [ImpersonateController::class, 'leave'])->name('impersonate.leave');
 });
 // Shared Receipts / Public Print Routes
 Route::get('/receipt/{transaction}', [ReceiptController::class, 'show'])->name('receipt.show');
@@ -112,6 +114,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
 
     Route::get('/panduan', [AdminGuideController::class, 'index'])->name('panduan');
     Route::post('/warung/pull', [AdminStoreController::class, 'pull'])->name('warung.pull');
+    Route::post('/impersonate/{store}', [ImpersonateController::class, 'impersonate'])->name('impersonate');
 });
 // 3. Super Admin Routes (Full System Visibility)
 Route::prefix('superadmin')->name('superadmin.')->middleware(['auth', 'role:superadmin'])->group(function () {
@@ -133,4 +136,5 @@ Route::prefix('superadmin')->name('superadmin.')->middleware(['auth', 'role:supe
     Route::get('/helpdesk', [AdminHelpdeskController::class, 'index'])->name('helpdesk');
     Route::get('/kasir', [UserKasirController::class, 'index'])->name('kasir');
     Route::get('/panduan', [AdminGuideController::class, 'index'])->name('panduan');
+    Route::post('/impersonate/{store}', [ImpersonateController::class, 'impersonate'])->name('impersonate');
 });

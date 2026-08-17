@@ -199,8 +199,8 @@ Alpine.store('app', {
 
         get activeStoreEventActive() {
             if (!this.user || this.user.role !== 'user' || !this.user.store_id) return true;
-            const userStore = this.userStores.find(s => s.id === this.user.store_id);
-            return userStore ? userStore.event_is_active : false;
+            const userStore = this.userStores.find(s => Number(s.id) === Number(this.user.store_id));
+            return userStore ? Boolean(userStore.event_is_active) : false;
         },
 
         // Cart state for User POS

@@ -144,12 +144,12 @@
 
                 <!-- Action Links (Twitter Style Pills) -->
                 <div class="pt-2 border-t border-[#eff3f4] flex flex-wrap items-center justify-between gap-2">
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-1.5 flex-wrap">
                         <!-- WhatsApp Link -->
                         <a 
                             :href="`https://wa.me/${store.phone ? store.phone.replace(/^0/, '62') : '6281234567890'}`" 
                             target="_blank"
-                            class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-[#e8f5fd] hover:bg-[#1d9bf0] text-[#1d9bf0] hover:text-white text-xs font-black transition-colors border border-[#bde2f9] cursor-pointer"
+                            class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#e8f5fd] hover:bg-[#1d9bf0] text-[#1d9bf0] hover:text-white text-xs font-black transition-colors border border-[#bde2f9] cursor-pointer"
                         >
                             <span>💬 Chat WA</span>
                         </a>
@@ -158,19 +158,32 @@
                         <button 
                             @click="$store.app.printTenantReport(store.id)" 
                             type="button"
-                            class="inline-flex items-center gap-1 px-3 py-2 rounded-full bg-[#0f1419] hover:bg-[#272c30] text-white text-xs font-black transition-colors shadow-2xs cursor-pointer"
+                            class="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#0f1419] hover:bg-[#272c30] text-white text-xs font-black transition-colors shadow-2xs cursor-pointer"
                             title="Cetak PDF / Dokumen Stand Ini"
                         >
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
                             <span>PDF</span>
                         </button>
+
+                        <!-- Impersonate Button (Masuk sebagai Stand) -->
+                        <form :action="`{{ (auth()->user() && auth()->user()->isSuperAdmin()) ? '/superadmin/impersonate/' : '/admin/impersonate/' }}${store.id}`" method="POST" class="inline">
+                            @csrf
+                            <button 
+                                type="submit" 
+                                class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#0f1419] hover:bg-[#272c30] text-white text-xs font-black transition-all cursor-pointer shadow-xs active:scale-95"
+                                title="Buka terminal kasir dan kelola menu langsung sebagai warung ini"
+                            >
+                                <svg class="w-3.5 h-3.5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                <span>Inspeksi Kasir</span>
+                            </button>
+                        </form>
                     </div>
 
                     <!-- Detail Menu Modal Trigger (Twitter Blue Pill) -->
                     <button 
                         @click="openDetail(store)" 
                         type="button" 
-                        class="px-4 py-2 rounded-full bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white text-xs font-black shadow-xs transition-colors cursor-pointer"
+                        class="px-4 py-1.5 rounded-full bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white text-xs font-black shadow-xs transition-colors cursor-pointer"
                     >
                         Lihat Menu Stand &rarr;
                     </button>
@@ -249,8 +262,15 @@
                     </template>
                 </div>
 
-                <div class="pt-2 text-right">
-                    <button @click="storeDetailModalOpen = false" class="w-full sm:w-auto px-6 py-2.5 bg-[#1d9bf0] text-white text-xs font-black rounded-full cursor-pointer hover:bg-[#1a8cd8] shadow-md shadow-[#1d9bf0]/25 transition-all">
+                <div class="pt-3 border-t border-[#eff3f4] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
+                    <form :action="selectedStoreDetail ? `{{ (auth()->user() && auth()->user()->isSuperAdmin()) ? '/superadmin/impersonate/' : '/admin/impersonate/' }}${selectedStoreDetail.id}` : '#'" method="POST">
+                        @csrf
+                        <button type="submit" class="w-full sm:w-auto px-5 py-2.5 bg-[#0f1419] hover:bg-[#272c30] text-white text-xs font-black rounded-full cursor-pointer shadow-xs transition-all flex items-center justify-center gap-1.5">
+                            <svg class="w-3.5 h-3.5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                            <span>Masuk & Kelola sebagai Stand Ini</span>
+                        </button>
+                    </form>
+                    <button @click="storeDetailModalOpen = false" class="w-full sm:w-auto px-6 py-2.5 bg-[#eff3f4] text-[#0f1419] text-xs font-black rounded-full cursor-pointer hover:bg-slate-200 transition-all">
                         Tutup
                     </button>
                 </div>

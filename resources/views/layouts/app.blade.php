@@ -179,14 +179,17 @@
         if ($authUser && $authUser->isUser()) {
             $dbUserStores = \App\Models\Store::with('event')
                 ->where('owner_id', $authUser->id)
+                ->orWhere('id', $userStoreId ?: 0)
                 ->latest()
                 ->get()
+                ->unique('id')
+                ->values()
                 ->map(function($s) {
                     return [
                         'id' => $s->id,
                         'name' => $s->name,
                         'event_name' => $s->event ? $s->event->name : 'Unknown Event',
-                        'event_is_active' => $s->event ? $s->event->is_active : false,
+                        'event_is_active' => $s->event ? (bool)$s->event->is_active : false,
                     ];
                 });
         }
@@ -232,6 +235,9 @@
 
     <!-- Main Content Area -->
     <div class="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto overflow-x-hidden">
+        <!-- Impersonation Inspection Floating Banner -->
+        @include('components.impersonate-banner')
+
         <!-- Header / Topbar (Twitter UI) -->
         @include('components.topbar')
 

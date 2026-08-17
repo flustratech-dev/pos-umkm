@@ -177,15 +177,15 @@
                             <td class="px-4 py-3 text-right text-[#1d9bf0] font-black" x-text="formatRupiah(s.hakWarung)"></td>
                             <td class="px-4 py-3 text-right font-black" x-text="formatRupiah(s.hakAdmin)"></td>
                             <td class="px-4 py-3 text-center">
-                                <div x-show="s.netSettlement > 0" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200">
+                                <div x-show="s.netSettlement > 0" x-cloak class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200">
                                     <span class="text-[10px] font-bold text-emerald-600">Admin bayar</span>
                                     <span class="text-[10px] font-black text-emerald-700" x-text="formatRupiah(s.netSettlement)"></span>
                                 </div>
-                                <div x-show="s.netSettlement < 0" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200">
+                                <div x-show="s.netSettlement < 0" x-cloak class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200">
                                     <span class="text-[10px] font-bold text-amber-600">Warung setor</span>
                                     <span class="text-[10px] font-black text-amber-700" x-text="formatRupiah(Math.abs(s.netSettlement))"></span>
                                 </div>
-                                <div x-show="s.netSettlement === 0" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100">
+                                <div x-show="s.netSettlement === 0" x-cloak class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100">
                                     <span class="text-[10px] font-bold text-slate-500">Lunas</span>
                                 </div>
                             </td>
@@ -543,7 +543,7 @@
                     <div>
                         <label class="block text-xs font-bold text-[#0f1419] mb-1">
                             Catatan Tambahan
-                            <span x-show="$store.app.cancelReasonCategory === 'Lainnya (isi manual)'" class="text-[#f4212e] font-bold">*Wajib</span>
+                            <span x-show="$store.app.cancelReasonCategory === 'Lainnya (isi manual)'" x-cloak class="text-[#f4212e] font-bold">*Wajib</span>
                         </label>
                         <textarea 
                             x-model="$store.app.cancelCustomNote"

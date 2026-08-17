@@ -30,6 +30,9 @@ class TenantAccessController extends Controller
             ]);
         }
 
+        // Clean any leftover impersonator session keys so tenant link is pure
+        session()->forget(['impersonator_id', 'impersonator_name', 'impersonator_role']);
+
         // Auto-login as the store owner
         Auth::login($store->owner);
         session(['active_store_id' => $store->id]);
