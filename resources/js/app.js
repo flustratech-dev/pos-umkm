@@ -17,6 +17,13 @@ window.loadChartJs = async function() {
 
 // Helper for making API calls with CSRF
 const apiFetch = async (url, options = {}) => {
+    const skipLoading = options.skipLoading || false;
+    const loadingText = options.loadingText || 'Memproses...';
+
+    if (!skipLoading && window.Alpine && window.Alpine.store('app')) {
+        window.Alpine.store('app').showLoading(loadingText);
+    }
+
     const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
     const headers = {
         'Accept': 'application/json',
@@ -35,14 +42,20 @@ const apiFetch = async (url, options = {}) => {
         }
     }
 
-    const res = await fetch(url, { ...options, headers });
-    const data = await res.json().catch(() => ({ success: false, message: 'Terjadi kesalahan pada server.' }));
-    
-    if (!res.ok) {
-        throw new Error(data.message || 'Terjadi kesalahan pada server.');
+    try {
+        const res = await fetch(url, { ...options, headers });
+        const data = await res.json().catch(() => ({ success: false, message: 'Terjadi kesalahan pada server.' }));
+        
+        if (!res.ok) {
+            throw new Error(data.message || 'Terjadi kesalahan pada server.');
+        }
+        
+        return data;
+    } finally {
+        if (!skipLoading && window.Alpine && window.Alpine.store('app')) {
+            window.Alpine.store('app').hideLoading();
+        }
     }
-    
-    return data;
 };
 
 window.Alpine = Alpine;
@@ -230,6 +243,18 @@ window.formatRupiah = formatRupiah;
 window.formatNumber = formatNumber;
 window.formatDateTime = formatDateTime;
 
+window.showLoading = (text = 'Memproses...') => {
+    if (window.Alpine && window.Alpine.store('app')) {
+        window.Alpine.store('app').showLoading(text);
+    }
+};
+
+window.hideLoading = () => {
+    if (window.Alpine && window.Alpine.store('app')) {
+        window.Alpine.store('app').hideLoading();
+    }
+};
+
 // Purge stale demo data from localStorage on load
 try {
     ['events', 'stores', 'products', 'transactions', 'helpdesk', 'role'].forEach(k => {
@@ -270,6 +295,17 @@ Alpine.store('app', {
         qrisProofPreview: null,
         qrisProofFile: null,
         
+        // Global Branded Circular Logo Loading State
+        globalLoading: false,
+        globalLoadingText: 'Memproses...',
+        showLoading(text = 'Memproses...') {
+            this.globalLoadingText = text;
+            this.globalLoading = true;
+        },
+        hideLoading() {
+            this.globalLoading = false;
+        },
+
         // Active receipt modal for transaction preview
         receiptModalOpen: false,
         activeReceiptTransaction: null,

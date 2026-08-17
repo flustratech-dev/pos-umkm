@@ -261,6 +261,9 @@
     <!-- Global Thermal Receipt Modal -->
     @include('components.receipt-modal')
 
+    <!-- Global Circular Logo Loading Spinner Overlay -->
+    @include('components.loading-overlay')
+
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.getRegistrations().then(function(registrations) {

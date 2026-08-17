@@ -68,5 +68,7 @@
             @yield('content')
         </div>
     </div>
+    <!-- Global Circular Logo Loading Spinner Overlay -->
+    @include('components.loading-overlay')
 </body>
 </html>
