@@ -261,11 +261,12 @@
     <!-- Global Thermal Receipt Modal -->
     @include('components.receipt-modal')
 
-    <!-- Service Worker Registration for Instant Asset Caching -->
     <script>
-        if ('serviceWorker' in navigator && (window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js').catch(err => console.debug('[SW] Registration notice:', err));
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                for (let registration of registrations) {
+                    registration.unregister();
+                }
             });
         }
     </script>
