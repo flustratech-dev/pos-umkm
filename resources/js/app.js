@@ -148,8 +148,20 @@ export const compressImage = (file, maxWidth = 800, maxHeight = 800, quality = 0
 
 export const formatNumber = (number) => {
     if (number === null || number === undefined || number === '') return '';
-    const parsed = typeof number === 'string' ? parseFloat(number.replace(/\D/g, '')) : number;
-    if (isNaN(parsed)) return '';
+    let parsed;
+    if (typeof number === 'number') {
+        parsed = number;
+    } else if (typeof number === 'string') {
+        const trimmed = number.trim();
+        // If string is pure decimal representation from database (e.g. "10000.00" or "10000")
+        if (/^\d+(\.\d+)?$/.test(trimmed)) {
+            parsed = Math.round(parseFloat(trimmed));
+        } else {
+            // Otherwise it's a formatted string from user input (e.g. "10.000"), strip non-digits
+            parsed = parseFloat(trimmed.replace(/\D/g, ''));
+        }
+    }
+    if (isNaN(parsed) || parsed === undefined) return '';
     return new Intl.NumberFormat('id-ID').format(parsed);
 };
 
@@ -605,10 +617,11 @@ Alpine.store('app', {
 
         openEditProductModal(product) {
             this.isEditingProduct = true;
+            const cleanPrice = product.price !== null && product.price !== undefined ? Math.round(parseFloat(product.price)) : '';
             this.productFormData = {
                 id: product.id,
                 title: product.title,
-                price: product.price,
+                price: isNaN(cleanPrice) ? '' : cleanPrice,
                 category: product.category || 'Makanan',
                 description: product.description || '',
                 photo: product.photo || '',
