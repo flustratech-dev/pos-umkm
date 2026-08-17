@@ -55,14 +55,8 @@
         $dbEvents = \App\Models\Event::all();
         $activeEventId = $activeEv ? $activeEv->id : null;
         
-        // Stores Query — scoped to active event for Admin/SuperAdmin, own store for User
-        $storesQuery = \App\Models\Store::with('owner');
-        if ($authUser && $authUser->isUser()) {
-            $storesQuery->where('id', $userStoreId ?: 0);
-        } elseif ($activeEventId) {
-            $storesQuery->where('event_id', $activeEventId);
-        }
-        $dbStores = $storesQuery->get()->map(function($s) {
+        // Stores Mapping (Only if passed from controller)
+        $dbStores = isset($stores) ? $stores->map(function($s) {
             return [
                 'id' => $s->id,
                 'event_id' => $s->event_id,
@@ -74,24 +68,10 @@
                 'category' => $s->category,
                 'is_active' => $s->is_active,
             ];
-        });
+        }) : collect();
 
-        // Get store IDs for current active event (used to scope products, transactions, helpdesk)
-        $activeStoreIds = $activeEventId 
-            ? \App\Models\Store::where('event_id', $activeEventId)->pluck('id')->toArray() 
-            : [];
-
-        // Products Query — scoped to active event stores for Admin/SuperAdmin
-        $productsQuery = \App\Models\Product::where('is_active', true);
-        if ($authUser && $authUser->isUser()) {
-            $productsQuery->where('store_id', $userStoreId ?: 0);
-        } elseif (!empty($activeStoreIds)) {
-            $productsQuery->whereIn('store_id', $activeStoreIds);
-        } elseif ($activeEventId && empty($activeStoreIds)) {
-            // Active event exists but has no stores — show nothing
-            $productsQuery->whereRaw('1 = 0');
-        }
-        $dbProducts = $productsQuery->get()->map(function($p) {
+        // Products Mapping (Only if passed from controller)
+        $dbProducts = isset($products) ? $products->map(function($p) {
             return [
                 'id' => $p->id,
                 'store_id' => $p->store_id,
@@ -103,18 +83,11 @@
                 'stock_badge' => $p->stock_badge,
                 'is_active' => $p->is_active,
             ];
-        });
+        }) : collect();
 
-        // Transactions Query — scoped to active event stores for Admin/SuperAdmin
-        $txQuery = \App\Models\Transaction::with(['items', 'store', 'paymentProof', 'revenueSplit'])->orderBy('id', 'desc');
-        if ($authUser && $authUser->isUser()) {
-            $txQuery->where('store_id', $userStoreId ?: 0);
-        } elseif (!empty($activeStoreIds)) {
-            $txQuery->whereIn('store_id', $activeStoreIds);
-        } elseif ($activeEventId && empty($activeStoreIds)) {
-            $txQuery->whereRaw('1 = 0');
-        }
-        $dbTransactions = $txQuery->get()->map(function($t) {
+        // Transactions Mapping (Only if passed from controller, handling various names)
+        $rawTransactions = $transactions ?? $recentTransactions ?? $pendingTransactions ?? $historyTransactions ?? collect();
+        $dbTransactions = $rawTransactions->map(function($t) {
             return [
                 'id' => $t->id,
                 'invoice_code' => $t->invoice_code,
@@ -131,7 +104,7 @@
                 'created_at' => $t->created_at ? $t->created_at->toIso8601String() : null,
                 'payment_proof' => $t->paymentProof ? $t->paymentProof->proof_url : null,
                 'proof_image' => $t->paymentProof ? $t->paymentProof->proof_url : null,
-                'items' => $t->items->map(function($item) {
+                'items' => $t->items ? $t->items->map(function($item) {
                     return [
                         'product_id' => $item->product_id,
                         'title' => $item->title,
@@ -139,7 +112,7 @@
                         'qty' => $item->qty,
                         'subtotal' => (float)$item->subtotal,
                     ];
-                }),
+                }) : collect(),
                 'revenue_split' => $t->revenueSplit ? [
                     'owner_share' => (float)$t->revenueSplit->owner_share,
                     'admin_gross_share' => (float)$t->revenueSplit->admin_gross_share,
@@ -149,16 +122,8 @@
             ];
         });
 
-        // Helpdesk Tickets — scoped to active event stores for Admin/SuperAdmin
-        $ticketsQuery = \App\Models\HelpdeskTicket::with(['user', 'store', 'replies.user'])->orderBy('id', 'desc');
-        if ($authUser && $authUser->isUser()) {
-            $ticketsQuery->where('user_id', $authUser->id);
-        } elseif (!empty($activeStoreIds)) {
-            $ticketsQuery->whereIn('store_id', $activeStoreIds);
-        } elseif ($activeEventId && empty($activeStoreIds)) {
-            $ticketsQuery->whereRaw('1 = 0');
-        }
-        $dbTickets = $ticketsQuery->get()->map(function($tk) {
+        // Helpdesk Tickets Mapping (Only if passed from controller)
+        $dbTickets = isset($tickets) ? $tickets->map(function($tk) {
             return [
                 'id' => $tk->id,
                 'ticket_code' => $tk->ticket_code,
@@ -170,7 +135,7 @@
                 'subject' => $tk->subject,
                 'status' => $tk->status,
                 'created_at' => $tk->created_at ? $tk->created_at->toIso8601String() : null,
-                'replies' => $tk->replies->map(function($r) {
+                'replies' => $tk->replies ? $tk->replies->map(function($r) {
                     return [
                         'id' => $r->id,
                         'user_id' => $r->user_id,
@@ -178,9 +143,9 @@
                         'message' => $r->message,
                         'created_at' => $r->created_at ? $r->created_at->toIso8601String() : null,
                     ];
-                }),
+                }) : collect(),
             ];
-        });
+        }) : collect();
 
         // User's owned stores (for switching events)
         $dbUserStores = collect();
