@@ -289,8 +289,8 @@
     </nav>
 
     <!-- Footer Logout -->
-    <div class="p-4 border-t border-[#eff3f4]">
-        @auth
+    @if(auth()->check() && (auth()->user()->isAdmin() || auth()->user()->isSuperAdmin()))
+        <div class="p-4 border-t border-[#eff3f4]">
             <form action="{{ route('logout') }}" method="POST" class="block w-full">
                 @csrf
                 <button type="submit" class="w-full flex items-center justify-center gap-2.5 px-4 py-2.5 rounded-full bg-[#eff3f4] text-[#536471] hover:bg-rose-50 hover:text-[#f4212e] text-sm font-bold transition-colors cursor-pointer" title="Keluar dari akun">
@@ -298,6 +298,6 @@
                     Keluar
                 </button>
             </form>
-        @endauth
-    </div>
+        </div>
+    @endif
 </aside>

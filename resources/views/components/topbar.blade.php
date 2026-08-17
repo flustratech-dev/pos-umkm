@@ -145,14 +145,16 @@
                             Profil
                         </a>
 
-                        <!-- Logout Form -->
-                        <form action="{{ route('logout') }}" method="POST" class="block w-full border-t border-[#eff3f4] mt-1 pt-1">
-                            @csrf
-                            <button type="submit" class="w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs font-bold text-[#f4212e] hover:bg-[#fff3f4] transition-colors text-left cursor-pointer">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
-                                Keluar
-                            </button>
-                        </form>
+                        <!-- Logout Form (Admin & SuperAdmin only) -->
+                        @if(auth()->user()->isAdmin() || auth()->user()->isSuperAdmin())
+                            <form action="{{ route('logout') }}" method="POST" class="block w-full border-t border-[#eff3f4] mt-1 pt-1">
+                                @csrf
+                                <button type="submit" class="w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs font-bold text-[#f4212e] hover:bg-[#fff3f4] transition-colors text-left cursor-pointer">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                                    Keluar
+                                </button>
+                            </form>
+                        @endif
                     </div>
                 </div>
             @endauth
