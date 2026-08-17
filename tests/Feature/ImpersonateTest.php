@@ -102,20 +102,42 @@ class ImpersonateTest extends TestCase
         $this->assertEquals($otherTenant->id, auth()->id());
     }
 
-    public function test_tenant_uuid_link_is_pure_and_clears_impersonator_session(): void
+    public function test_admin_accessing_tenant_uuid_link_activates_inspection_mode(): void
     {
         $this->store->update(['access_uuid' => 'test-uuid-1234']);
 
-        // Set stale impersonator session
-        session(['impersonator_id' => 999]);
+        // 1. Admin is authenticated
+        $this->actingAs($this->admin);
 
-        // Access via tenant UUID link
+        // 2. Admin opens tenant link
         $response = $this->get(route('tenant.access', ['uuid' => 'test-uuid-1234']));
 
         $response->assertRedirect(route('user.kasir'));
-        $response->assertSessionMissing('impersonator_id');
+        $response->assertSessionHas('impersonator_id', $this->admin->id);
 
-        // Current session is pure tenant
+        // Current session is tenant
         $this->assertEquals($this->tenant->id, auth()->id());
+
+        // 3. Leave inspection mode
+        $leaveResponse = $this->post(route('impersonate.leave'));
+        $leaveResponse->assertRedirect(route('admin.warung'));
+
+        // Restored to Admin
+        $this->assertEquals($this->admin->id, auth()->id());
+    }
+
+    public function test_tenant_user_visiting_login_page_clears_tenant_session(): void
+    {
+        // 1. Tenant is logged in
+        $this->actingAs($this->tenant);
+
+        // 2. Visits login page
+        $response = $this->get(route('login'));
+
+        $response->assertOk();
+        $response->assertViewIs('auth.login');
+
+        // Session was cleared
+        $this->assertNull(auth()->user());
     }
 }

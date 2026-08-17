@@ -17,7 +17,15 @@ class AuthController extends Controller
     public function showLogin(): View|RedirectResponse
     {
         if (Auth::check()) {
-            return $this->redirectBasedOnRole(Auth::user());
+            $user = Auth::user();
+            if ($user->isAdmin() || $user->isSuperAdmin()) {
+                return $this->redirectBasedOnRole($user);
+            }
+
+            // If currently in a tenant user session, invalidate it so admin can access login form
+            Auth::logout();
+            request()->session()->invalidate();
+            request()->session()->regenerateToken();
         }
 
         $activeEvent = Event::getActive();

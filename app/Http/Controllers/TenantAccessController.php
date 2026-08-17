@@ -30,8 +30,15 @@ class TenantAccessController extends Controller
             ]);
         }
 
-        // Clean any leftover impersonator session keys so tenant link is pure
-        session()->forget(['impersonator_id', 'impersonator_name', 'impersonator_role']);
+        // If an Admin or SuperAdmin is currently authenticated in this browser, preserve their session
+        if (Auth::check()) {
+            $currentUser = Auth::user();
+            if ($currentUser->isAdmin() || $currentUser->isSuperAdmin()) {
+                session()->put('impersonator_id', $currentUser->id);
+                session()->put('impersonator_name', $currentUser->name);
+                session()->put('impersonator_role', $currentUser->role);
+            }
+        }
 
         // Auto-login as the store owner
         Auth::login($store->owner);
