@@ -16,6 +16,7 @@
         }
 
         this.isLoading = true;
+        if (window.showLoading) window.showLoading('Masuk ke Sistem...');
 
         try {
             const token = document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || '';
@@ -38,6 +39,7 @@
             if (res.ok && data.success) {
                 window.location.href = data.redirect || '/';
             } else {
+                if (window.hideLoading) window.hideLoading();
                 window.showSwal('error', 'Login Gagal', data.message || 'Periksa kembali email dan password Anda.');
             }
         } catch (err) {
