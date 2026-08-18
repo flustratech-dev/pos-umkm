@@ -112,6 +112,7 @@
                             <option value="makanan" {{ old('store_category', $user->store->category) == 'makanan' ? 'selected' : '' }}>Makanan</option>
                             <option value="minuman" {{ old('store_category', $user->store->category) == 'minuman' ? 'selected' : '' }}>Minuman</option>
                             <option value="snack" {{ old('store_category', $user->store->category) == 'snack' ? 'selected' : '' }}>Snack</option>
+                            <option value="merchandise" {{ old('store_category', $user->store->category) == 'merchandise' ? 'selected' : '' }}>Merchandise</option>
                             <option value="lainnya" {{ old('store_category', $user->store->category) == 'lainnya' ? 'selected' : '' }}>Lainnya</option>
                         </select>
                     </div>

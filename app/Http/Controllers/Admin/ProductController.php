@@ -51,7 +51,7 @@ class ProductController extends Controller
             'store_id' => $store->id,
             'title' => $request->title,
             'price' => $request->price,
-            'category' => $request->category ?: 'Makanan',
+            'category' => $request->category ?: Product::DEFAULT_CATEGORY,
             'description' => $request->description,
             'photo' => $photoPath,
             'stock_badge' => $request->stock_badge ?: 'Tersedia',
