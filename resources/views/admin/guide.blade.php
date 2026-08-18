@@ -8,7 +8,7 @@
     <div class="text-center sm:text-left">
         <span class="px-3.5 py-1 rounded-full bg-[#0f1419] text-white font-bold text-xs">Handbook Panitia Event</span>
         <h2 class="text-2xl sm:text-3xl font-extrabold text-[#0f1419] tracking-tight mt-2">SOP & Panduan Operasional Admin EO</h2>
-        <p class="text-xs sm:text-sm text-[#536471] mt-1">Pedoman operasional kasir, verifikasi QRIS, dan pembatalan transaksi berstatus Paid</p>
+        <p class="text-xs sm:text-sm text-[#536471] mt-1">Pedoman operasional verifikasi kas fisik, QRIS, manajemen tenant stand, dan penutupan event</p>
     </div>
 
     <!-- 3 Core Operational Pillars (Twitter UI) -->
@@ -16,11 +16,11 @@
         <!-- Pillar 1 -->
         <div class="bg-white rounded-3xl p-6 border border-[#eff3f4] shadow-xs space-y-2.5">
             <div class="w-10 h-10 rounded-full bg-amber-50 text-[#ff7a00] flex items-center justify-center font-black">
-                📱
+                💵
             </div>
-            <h4 class="font-extrabold text-base text-[#0f1419]">1. Verifikasi QRIS</h4>
+            <h4 class="font-extrabold text-base text-[#0f1419]">1. Verifikasi Cash</h4>
             <p class="text-xs text-[#536471] leading-relaxed">
-                Selalu cocokkan nominal transfer dan jam transaksi pada screenshot pengunjung dengan notifikasi/mutasi m-banking rekening panitia sebelum menekan tombol <strong>Setujui (Paid)</strong>.
+                Stand mengumpulkan uang tunai dari pembeli. Admin EO wajib memverifikasi uang fisik yang disetorkan sebelum menekan tombol <strong>Setujui (Paid)</strong> pada menu <em>Verifikasi Cash</em>.
             </p>
         </div>
 
@@ -42,7 +42,7 @@
             </div>
             <h4 class="font-extrabold text-base text-[#0f1419]">3. Bagi Hasil 75/25</h4>
             <p class="text-xs text-[#536471] leading-relaxed">
-                Porsi hak warung adalah 75% dari total transaksi Paid. Porsi EO adalah 25% dikurangi flat lisensi Rp1.000 per transaksi yang menjadi hak Developer.
+                Porsi hak warung adalah <strong>75%</strong> dari total transaksi berstatus Paid, dan porsi hak Panitia Penyelenggara (EO) adalah <strong>25%</strong> dari total transaksi Paid.
             </p>
         </div>
     </div>
@@ -54,15 +54,15 @@
         <div class="space-y-4 text-xs text-[#536471]">
             <div class="flex gap-3">
                 <span class="font-bold text-[#1d9bf0] shrink-0">Langkah 1:</span>
-                <p>Pastikan seluruh transaksi berstatus <strong>Pending Verification</strong> sudah selesai diproses (disetujui atau ditolak).</p>
+                <p>Pastikan seluruh setoran fisik tunai stand pada menu <strong>Verifikasi Cash</strong> sudah selesai diproses dan disetujui (tidak ada yang menggantung).</p>
             </div>
             <div class="flex gap-3">
                 <span class="font-bold text-[#1d9bf0] shrink-0">Langkah 2:</span>
-                <p>Buka menu <strong>Laporan Full</strong>, cetak atau ekspor PDF rekapitulasi penjualan seluruh warung.</p>
+                <p>Buka menu <strong>Laporan & Bagi Hasil</strong>, cetak atau ekspor PDF, Word, atau Excel rekapitulasi penjualan seluruh stand/warung.</p>
             </div>
             <div class="flex gap-3">
                 <span class="font-bold text-[#1d9bf0] shrink-0">Langkah 3:</span>
-                <p>Lakukan transfer rekonsiliasi hak 75% hasil penjualan QRIS kepada masing-masing rekening pemilik warung.</p>
+                <p>Lakukan rekonsiliasi dan pencairan hak 75% hasil penjualan QRIS kepada masing-masing rekening pemilik warung sesuai data rekapitulasi.</p>
             </div>
         </div>
     </div>
