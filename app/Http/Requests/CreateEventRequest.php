@@ -20,6 +20,7 @@ class CreateEventRequest extends FormRequest
             'location' => ['nullable', 'string', 'max:255'],
             'is_active' => ['nullable', 'boolean'],
             'qris_image' => ['nullable', 'image', 'max:2048'],
+            'qris_payload' => ['nullable', 'string'],
         ];
     }
 }

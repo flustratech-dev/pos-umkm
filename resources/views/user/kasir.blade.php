@@ -17,16 +17,8 @@
         });
     },
 
-    handleProofUpload(event) {
-        const file = event.target.files[0];
-        if (file) {
-            $store.app.qrisProofFile = file;
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                $store.app.qrisProofPreview = e.target.result;
-            };
-            reader.readAsDataURL(file);
-        }
+    get uniqueCode() {
+        return $store.app.getCurrentStore()?.id || 0;
     }
 }" class="space-y-4">
 
@@ -320,7 +312,7 @@
                     <!-- Total Bill -->
                     <div class="flex items-center justify-between pb-3 border-b border-[#eff3f4]">
                         <span class="text-xs font-bold text-[#0f1419] uppercase tracking-wider">Total Tagihan</span>
-                        <span class="text-2xl font-black text-[#0f1419]" x-text="formatRupiah($store.app.cartTotal)"></span>
+                        <span class="text-2xl font-black text-[#0f1419]" x-text="formatRupiah($store.app.cartTotal + ($store.app.activePaymentTab === 'qris' ? uniqueCode : 0))"></span>
                     </div>
 
                     <!-- Payment Method Tabs: CASH vs QRIS (Twitter Blue Pills) -->
@@ -336,12 +328,12 @@
                                 💵 Cash / Tunai
                             </button>
                             <button 
-                                @click="$store.app.activePaymentTab = 'qris'"
+                                @click="$store.app.activePaymentTab = 'qris'; $store.app.generateDynamicQris()"
                                 type="button" 
                                 class="py-2.5 rounded-full text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                                 :class="$store.app.activePaymentTab === 'qris' ? 'bg-[#1d9bf0] text-white shadow-sm' : 'text-[#0f1419] hover:text-[#1d9bf0]'"
                             >
-                                📱 QRIS Statis
+                                📱 QRIS
                             </button>
                         </div>
                     </div>
@@ -414,50 +406,135 @@
                             @click="$store.app.processCashCheckout()"
                             type="button" 
                             :disabled="!$store.app.isCashValid"
-                            class="w-full py-3.5 px-4 rounded-full bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white font-black text-sm shadow-md shadow-[#1d9bf0]/25 transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98] cursor-pointer"
+                            class="w-full py-3.5 px-4 rounded-full bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white font-black text-sm shadow-md shadow-[#1d9bf0]/25 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                         >
-                            <span>Buat Pesanan & Cetak Nota</span>
+                            <span>Bayar Tunai & Cetak Nota</span>
                         </button>
-                        <p class="text-[10px] text-[#536471] text-center italic font-medium">
-                            *Pesanan berstatus Pending. Pembeli membayar tunai di Kasir Admin (dekat pintu keluar).
-                        </p>
                     </div>
 
                     <!-- TAB 2: QRIS PAYMENT (Twitter Blue CTA) -->
                     <div x-show="$store.app.activePaymentTab === 'qris'" x-cloak class="space-y-3 pt-1">
                         <!-- QRIS Display Box -->
-                        <div class="p-4 bg-white rounded-2xl border border-[#eff3f4] text-center space-y-2">
-                            <span class="text-[11px] font-bold text-[#0f1419] block uppercase">Scan QRIS Panitia EO Resmi</span>
-                            <template x-if="window.__ACTIVE_EVENT__ && window.__ACTIVE_EVENT__.qris_image_url">
-                                <div class="flex flex-col items-center justify-center py-1">
-                                    <img :src="window.__ACTIVE_EVENT__.qris_image_url" alt="QRIS Code" class="w-40 h-40 object-contain rounded-xl border border-[#eff3f4] p-1">
-                                    <p class="text-xs font-black text-[#0f1419] mt-2" x-text="window.__ACTIVE_EVENT__.name"></p>
+                        <div class="bg-[#f7f9f9] border border-[#eff3f4] rounded-2xl p-4 text-center">
+                            <template x-if="$store.app.getCurrentStore()?.use_dynamic_qris && window.__ACTIVE_EVENT__?.qris_payload">
+                                <div>
+                                    <span class="text-[11px] font-bold text-[#0f1419] block uppercase">Scan QRIS Pembayaran</span>
+                                    <div x-show="$store.app.dynamicQrisLoading" class="flex flex-col items-center justify-center py-6 h-40">
+                                        <svg class="w-8 h-8 text-[#1d9bf0] animate-spin" fill="none" viewBox="0 0 24 24">
+                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        <p class="text-xs font-bold text-[#536471] mt-2">Menyiapkan QRIS...</p>
+                                    </div>
+                                    <div x-show="!$store.app.dynamicQrisLoading && $store.app.dynamicQrisDataUrl" class="flex flex-col items-center justify-center py-1">
+                                        <img :src="$store.app.dynamicQrisDataUrl" alt="QRIS Code" class="w-40 h-40 object-contain rounded-xl border border-[#eff3f4] p-1 bg-white">
+                                        <p class="text-[11px] font-bold text-[#1d9bf0] mt-2 tracking-wide uppercase">NMID: {{ \App\Models\Event::getActive() ? \App\Models\Event::getActive()->name : '-' }}</p>
+                                        <p class="text-xs font-black text-[#0f1419] mt-1" x-text="window.__ACTIVE_EVENT__.name"></p>
+                                        <p class="text-[10px] text-[#00ba7c] font-bold mt-2 bg-emerald-50 border border-emerald-200/60 px-2.5 py-1.5 rounded-lg">Nominal otomatis terisi: <span x-text="formatRupiah($store.app.cartTotal + uniqueCode)"></span></p>
+                                    </div>
                                 </div>
                             </template>
-                            <template x-if="!window.__ACTIVE_EVENT__ || !window.__ACTIVE_EVENT__.qris_image_url">
-                                <div class="py-6 flex flex-col items-center justify-center border-2 border-dashed border-[#eff3f4] rounded-xl">
-                                    <svg class="w-8 h-8 text-[#536471] mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                                    <p class="text-xs font-bold text-[#536471]">QRIS Belum Tersedia</p>
-                                    <p class="text-[10px] text-[#536471] mt-1">Harap hubungi Admin EO untuk menambahkan QRIS Event.</p>
+                            <template x-if="!$store.app.getCurrentStore()?.use_dynamic_qris || !window.__ACTIVE_EVENT__?.qris_payload">
+                                <div>
+                                    <span class="text-[11px] font-bold text-[#0f1419] block uppercase">Scan QRIS Pembayaran</span>
+                                    <template x-if="window.__ACTIVE_EVENT__ && window.__ACTIVE_EVENT__.qris_image_url">
+                                        <div class="flex flex-col items-center justify-center py-1">
+                                            <img :src="window.__ACTIVE_EVENT__.qris_image_url" alt="QRIS Code" class="w-40 h-40 object-contain rounded-xl border border-[#eff3f4] p-1 bg-white">
+                                            <p class="text-xs font-black text-[#0f1419] mt-2" x-text="window.__ACTIVE_EVENT__.name"></p>
+                                            
+                                            <!-- Alert Input Manual untuk QRIS Statis -->
+                                            <div class="mt-2.5 p-3 bg-amber-50 border border-amber-200 rounded-xl text-left flex items-start gap-2.5 text-amber-900 w-full">
+                                                <svg class="w-4 h-4 text-amber-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                                                <div>
+                                                    <p class="text-xs font-bold">Input Nominal Manual</p>
+                                                    <p class="text-[11px] text-amber-800 mt-0.5 leading-snug">Customer wajib memasukkan nominal transfer secara manual sebesar <span class="font-black text-amber-950" x-text="formatRupiah($store.app.cartTotal + uniqueCode)"></span> (termasuk kode unik).</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                    <template x-if="!window.__ACTIVE_EVENT__ || (!window.__ACTIVE_EVENT__.qris_image_url && !window.__ACTIVE_EVENT__.qris_payload)">
+                                        <div class="py-6 flex flex-col items-center justify-center border-2 border-dashed border-[#eff3f4] rounded-xl">
+                                            <svg class="w-8 h-8 text-[#536471] mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                                            <p class="text-xs font-bold text-[#536471]">QRIS Belum Tersedia</p>
+                                            <p class="text-[10px] text-[#536471] mt-1">Harap hubungi Admin EO untuk menambahkan QRIS Event.</p>
+                                        </div>
+                                    </template>
                                 </div>
                             </template>
                         </div>
 
-                        <!-- Proof of Payment Upload Input -->
-                        <div>
-                            <label class="block text-xs font-bold text-[#0f1419] mb-1">Unggah Bukti Transfer QRIS (Wajib)</label>
+                        <!-- Upload Bukti Pembayaran QRIS (Foto / Struk untuk Arsip Laporan) -->
+                        <div class="bg-white border border-[#eff3f4] rounded-2xl p-3.5 space-y-2.5">
+                            <div class="flex items-center justify-between">
+                                <label class="block text-xs font-bold text-[#0f1419]">
+                                    Upload Bukti Transfer <span class="text-[10px] text-[#536471] font-normal">(Opsional / Arsip Laporan)</span>
+                                </label>
+                                <template x-if="$store.app.qrisProofFile">
+                                    <span class="text-[10px] text-[#00ba7c] font-black flex items-center gap-1">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
+                                        Terlampir
+                                    </span>
+                                </template>
+                            </div>
+
+                            <!-- Hidden Inputs: Direct Camera & Gallery Picker -->
                             <input 
                                 type="file" 
-                                accept="image/*"
-                                @change="handleProofUpload($event)"
-                                class="w-full text-xs text-[#0f1419] file:mr-3 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-black file:bg-[#1d9bf0] file:text-white hover:file:bg-[#1a8cd8] cursor-pointer"
+                                id="qris_proof_camera" 
+                                accept="image/*" 
+                                capture="environment" 
+                                class="hidden" 
+                                @change="$store.app.handleQrisProofUpload($event)"
                             >
-                            
-                            <!-- Proof Image Preview -->
+                            <input 
+                                type="file" 
+                                id="qris_proof_gallery" 
+                                accept="image/*" 
+                                class="hidden" 
+                                @change="$store.app.handleQrisProofUpload($event)"
+                            >
+
+                            <!-- If Proof Attached: Preview Box -->
                             <template x-if="$store.app.qrisProofPreview">
-                                <div class="mt-2 p-2 bg-white rounded-xl border border-[#bde2f9] flex items-center gap-3">
-                                    <img :src="$store.app.qrisProofPreview" class="w-12 h-12 rounded-lg object-cover border">
-                                    <span class="text-xs text-[#1d9bf0] font-black">✓ Bukti siap dikirim ke antrean EO</span>
+                                <div class="relative w-full rounded-xl border border-[#bde2f9] bg-[#e8f5fd]/50 p-2.5 flex items-center gap-3">
+                                    <img :src="$store.app.qrisProofPreview" class="w-14 h-14 object-cover rounded-lg border border-white shadow-xs shrink-0">
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-xs font-black text-[#0f1419] truncate" x-text="$store.app.qrisProofFile?.name || 'Bukti Transfer QRIS'"></p>
+                                        <p class="text-[10px] text-[#536471] mt-0.5">Tersimpan di arsip laporan.</p>
+                                        <button 
+                                            @click="$store.app.removeQrisProof()"
+                                            type="button" 
+                                            class="text-[11px] text-[#f4212e] font-black hover:underline mt-1 cursor-pointer inline-flex items-center gap-1"
+                                        >
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                            <span>Hapus / Ganti Foto</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <!-- If No Proof Attached: 2 Buttons (Camera & Gallery) -->
+                            <template x-if="!$store.app.qrisProofPreview">
+                                <div class="flex gap-2">
+                                    <!-- Option 1: Direct Camera Trigger (HTML5 capture="environment" for Android & iOS) -->
+                                    <button 
+                                        type="button" 
+                                        onclick="document.getElementById('qris_proof_camera').click()"
+                                        class="flex-1 py-2.5 px-3 rounded-xl bg-[#e8f5fd] hover:bg-[#d8eefc] text-[#1d9bf0] font-black text-xs flex items-center justify-center gap-1.5 transition-all border border-[#bde2f9] active:scale-95 cursor-pointer shadow-2xs"
+                                    >
+                                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                                        <span>Buka Kamera</span>
+                                    </button>
+
+                                    <!-- Option 2: Gallery Picker -->
+                                    <button 
+                                        type="button" 
+                                        onclick="document.getElementById('qris_proof_gallery').click()"
+                                        class="flex-1 py-2.5 px-3 rounded-xl bg-white hover:bg-[#f7f9f9] text-[#0f1419] font-bold text-xs flex items-center justify-center gap-1.5 transition-all border border-[#eff3f4] active:scale-95 cursor-pointer shadow-2xs"
+                                    >
+                                        <svg class="w-4 h-4 shrink-0 text-[#536471]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                        <span>Pilih Galeri</span>
+                                    </button>
                                 </div>
                             </template>
                         </div>
@@ -466,13 +543,12 @@
                         <button 
                             @click="$store.app.processQrisCheckout()"
                             type="button" 
-                            :disabled="!$store.app.qrisProofPreview"
-                            class="w-full py-3.5 px-4 rounded-full bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white font-black text-sm shadow-md shadow-[#1d9bf0]/25 transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98] cursor-pointer"
+                            class="w-full py-3.5 px-4 rounded-full bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white font-black text-sm shadow-md shadow-[#1d9bf0]/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
                         >
-                            <span>Kirim Bukti untuk Verifikasi</span>
+                            <span>Bayar & Cetak Nota Otomatis</span>
                         </button>
                         <p class="text-[10px] text-[#536471] text-center italic font-medium">
-                            *Status transaksi akan menjadi Pending sampai disetujui oleh panitia EO.
+                            *Pembayaran QRIS otomatis tersimpan langsung ke sistem & laporan.
                         </p>
                     </div>
                 </div>

@@ -58,6 +58,7 @@ Route::prefix('user')->name('user.')->middleware(['auth', 'role:user'])->group(f
     Route::get('/kasir', [UserKasirController::class, 'index'])->name('kasir');
     Route::post('/kasir/checkout-cash', [UserKasirController::class, 'checkoutCash'])->name('kasir.checkout-cash');
     Route::post('/kasir/checkout-qris', [UserKasirController::class, 'checkoutQris'])->name('kasir.checkout-qris');
+    Route::post('/kasir/generate-qris', [UserKasirController::class, 'generateQris'])->name('kasir.generate-qris');
 
     Route::get('/produk', [UserProductController::class, 'index'])->name('produk');
     Route::post('/produk', [UserProductController::class, 'store'])->name('produk.store');
@@ -83,6 +84,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::match(['put', 'post'], '/events/{event}', [AdminEventController::class, 'update'])->name('events.update');
     Route::delete('/events/{event}', [AdminEventController::class, 'destroy'])->name('events.destroy');
     Route::post('/events/{event}/activate', [AdminEventController::class, 'activate'])->name('events.activate');
+    Route::post('/events/{event}/toggle-testing', [AdminEventController::class, 'toggleTesting'])->name('events.toggle-testing');
+    Route::post('/events/{event}/reset-testing', [AdminEventController::class, 'resetTesting'])->name('events.reset-testing');
 
     // Event Detail + Tenant Registration
     Route::get('/events/{event}/detail', [AdminEventDetailController::class, 'show'])->name('events.detail');
@@ -90,10 +93,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::delete('/events/{event}/tenants/{store}', [AdminEventDetailController::class, 'removeTenant'])->name('events.remove-tenant');
     Route::post('/events/{event}/tenants/{store}/regenerate-link', [AdminEventDetailController::class, 'regenerateLink'])->name('events.regenerate-link');
 
-    // Verifikasi QRIS
-    Route::get('/verifikasi-qris', [AdminQrisVerificationController::class, 'index'])->name('verifikasi-qris.index');
-    Route::post('/verifikasi-qris/{transaction}/approve', [AdminQrisVerificationController::class, 'approve'])->name('verifikasi-qris.approve');
-    Route::post('/verifikasi-qris/{transaction}/reject', [AdminQrisVerificationController::class, 'reject'])->name('verifikasi-qris.reject');
+
 
     // Verifikasi Cash
     Route::get('/verifikasi-cash', [AdminCashVerificationController::class, 'index'])->name('verifikasi-cash.index');
@@ -102,8 +102,12 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::post('/transaksi/{transaction}/cancel', [AdminTransactionController::class, 'cancel'])->name('transaksi.cancel');
 
     Route::get('/produk', [AdminProductController::class, 'index'])->name('produk');
+    Route::post('/produk', [AdminProductController::class, 'store'])->name('produk.store');
+    Route::match(['put', 'post'], '/produk/{product}', [AdminProductController::class, 'update'])->name('produk.update');
+    Route::delete('/produk/{product}', [AdminProductController::class, 'destroy'])->name('produk.destroy');
     Route::get('/warung', [AdminStoreController::class, 'index'])->name('warung');
     Route::get('/warung/{store}', [AdminStoreController::class, 'show'])->name('warung.show');
+    Route::put('/warung/{store}', [AdminStoreController::class, 'update'])->name('warung.update');
 
     Route::get('/laporan', [AdminReportController::class, 'index'])->name('laporan');
     Route::get('/laporan/pdf', [AdminReportController::class, 'downloadPdf'])->name('laporan.pdf');
@@ -125,11 +129,13 @@ Route::prefix('superadmin')->name('superadmin.')->middleware(['auth', 'role:supe
     Route::match(['put', 'post'], '/events/{event}', [SuperAdminEventController::class, 'update'])->name('events.update');
     Route::delete('/events/{event}', [SuperAdminEventController::class, 'destroy'])->name('events.destroy');
     Route::post('/events/{event}/activate', [SuperAdminEventController::class, 'activate'])->name('events.activate');
+    Route::post('/events/{event}/toggle-testing', [SuperAdminEventController::class, 'toggleTesting'])->name('events.toggle-testing');
+    Route::post('/events/{event}/reset-testing', [SuperAdminEventController::class, 'resetTesting'])->name('events.reset-testing');
 
     Route::get('/laporan', [SuperAdminPlatformReportController::class, 'index'])->name('laporan');
     Route::get('/laporan/pdf', [SuperAdminPlatformReportController::class, 'downloadPdf'])->name('laporan.pdf');
 
-    Route::get('/verifikasi-qris', [AdminQrisVerificationController::class, 'index'])->name('verifikasi-qris');
+
     Route::get('/verifikasi-cash', [AdminCashVerificationController::class, 'index'])->name('verifikasi-cash');
     Route::get('/produk', [AdminProductController::class, 'index'])->name('produk');
     Route::get('/warung', [AdminStoreController::class, 'index'])->name('warung');

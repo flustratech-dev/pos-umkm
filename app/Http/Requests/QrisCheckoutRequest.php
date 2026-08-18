@@ -17,7 +17,7 @@ class QrisCheckoutRequest extends FormRequest
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_id' => ['required', 'integer', 'exists:products,id'],
             'items.*.qty' => ['required', 'integer', 'min:1'],
-            'proof_image' => ['required', 'image', 'mimes:jpeg,png,jpg,webp', 'max:5120'],
+            'proof_image' => ['nullable', 'image', 'max:10240'],
         ];
     }
 }

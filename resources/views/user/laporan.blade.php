@@ -7,6 +7,8 @@
     searchInvoice: '',
     selectedStatus: 'all',
     selectedMethod: 'all',
+    proofModalOpen: false,
+    selectedProofUrl: '',
 
     get myTransactions() {
         const store = this.$store?.app?.getCurrentStore?.();
@@ -78,7 +80,7 @@
     </div>
 
     <!-- Revenue Summary Cards (Twitter UI Style) -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+    <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
         <!-- Net Share (Twitter Blue Gradient) -->
         <div class="bg-gradient-to-br from-[#1d9bf0] to-[#1271b3] rounded-3xl p-5 text-white shadow-lg shadow-[#1d9bf0]/25 col-span-2 sm:col-span-1">
             <span class="text-xs font-bold text-white/90 uppercase tracking-wider block">Pendapatan Bersih</span>
@@ -91,6 +93,13 @@
             <span class="text-xs font-bold text-[#0f1419] uppercase tracking-wider block">Total Omzet Bruto</span>
             <h3 class="text-lg sm:text-xl font-black text-[#0f1419] mt-1" x-text="formatRupiah(stats.totalGross)"></h3>
             <p class="text-[11px] text-[#536471] mt-2 font-semibold"><span class="font-black text-[#0f1419]" x-text="stats.totalCount"></span> transaksi sukses</p>
+        </div>
+
+        <!-- Potongan EO (25%) -->
+        <div class="bg-white rounded-3xl p-5 border border-[#eff3f4] shadow-xs">
+            <span class="text-xs font-bold text-[#0f1419] uppercase tracking-wider block">Potongan EO (25%)</span>
+            <h3 class="text-lg sm:text-xl font-black text-[#0f1419] mt-1" x-text="formatRupiah(stats.totalGross * 0.25)"></h3>
+            <p class="text-[11px] text-[#536471] mt-2 font-semibold">Porsi bagian pihak EO</p>
         </div>
 
         <!-- Pending QRIS -->
@@ -156,9 +165,10 @@
                         <th class="px-4 py-3.5">Waktu</th>
                         <th class="px-4 py-3.5">Metode</th>
                         <th class="px-4 py-3.5">Total Belanja</th>
+                        <th class="px-4 py-3.5">Potongan EO (25%)</th>
                         <th class="px-4 py-3.5">Uang Diterima (Cash)</th>
                         <th class="px-4 py-3.5">Kembalian (Cash)</th>
-                        <th class="px-4 py-3.5">Porsi Warung</th>
+                        <th class="px-4 py-3.5 text-[#1d9bf0]">Hak Warung (75%)</th>
                         <th class="px-4 py-3.5">Status</th>
                         <th class="px-4 py-3.5 text-center">Aksi</th>
                     </tr>
@@ -176,6 +186,7 @@
                                 ></span>
                             </td>
                             <td class="px-4 py-3 font-black text-[#0f1419]" x-text="formatRupiah(tx.total_amount)"></td>
+                            <td class="px-4 py-3 font-black text-[#0f1419]" x-text="tx.status === 'paid' ? formatRupiah(tx.revenue_split?.admin_gross_share || tx.total_amount * 0.25) : '-'"></td>
                             <td class="px-4 py-3 text-[#0f1419] font-bold" x-text="tx.payment_method === 'cash' ? formatRupiah(tx.amount_paid) : '-'"></td>
                             <td class="px-4 py-3 text-[#1d9bf0] font-black" x-text="tx.payment_method === 'cash' ? formatRupiah(tx.change_due) : '-'"></td>
                             <td class="px-4 py-3 font-black text-[#1d9bf0]" x-text="tx.status === 'paid' ? formatRupiah(tx.revenue_split?.owner_share || tx.total_amount * 0.75) : '-'"></td>
@@ -199,14 +210,26 @@
                                 </span>
                             </td>
                             <td class="px-4 py-3 text-center">
-                                <button 
-                                    @click="$store.app.openReceipt(tx)"
-                                    type="button" 
-                                    class="p-2 text-[#1d9bf0] hover:bg-[#e8f5fd] rounded-full transition-colors cursor-pointer"
-                                    title="Lihat Struk"
-                                >
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                                </button>
+                                <div class="flex items-center justify-center gap-1">
+                                    <template x-if="tx.payment_method === 'qris' && (tx.proof_image || tx.payment_proof)">
+                                        <button 
+                                            @click="selectedProofUrl = tx.proof_image || tx.payment_proof; proofModalOpen = true"
+                                            type="button" 
+                                            class="p-2 text-[#1d9bf0] hover:bg-[#e8f5fd] rounded-full transition-colors cursor-pointer"
+                                            title="Lihat Bukti Transfer"
+                                        >
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                        </button>
+                                    </template>
+                                    <button 
+                                        @click="$store.app.openReceipt(tx)"
+                                        type="button" 
+                                        class="p-2 text-[#1d9bf0] hover:bg-[#e8f5fd] rounded-full transition-colors cursor-pointer"
+                                        title="Lihat Struk"
+                                    >
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                     </template>
@@ -244,6 +267,10 @@
                             <span class="font-black text-[11px] sm:text-xs text-[#0f1419] truncate block" x-text="formatRupiah(tx.total_amount)"></span>
                         </div>
                         <div>
+                            <span class="text-[9px] sm:text-[10px] text-[#536471] block font-semibold">Potongan EO (25%)</span>
+                            <span class="font-black text-[11px] sm:text-xs text-[#0f1419] truncate block" x-text="tx.status === 'paid' ? formatRupiah(tx.revenue_split?.admin_gross_share || tx.total_amount * 0.25) : '-'"></span>
+                        </div>
+                        <div>
                             <span class="text-[9px] sm:text-[10px] text-[#536471] block font-semibold">Metode Bayar</span>
                             <span class="font-black uppercase text-[10px] sm:text-[11px] text-[#1d9bf0]" x-text="tx.payment_method"></span>
                         </div>
@@ -265,18 +292,29 @@
 
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 pt-1">
                     <div class="min-w-0">
-                        <span class="text-[9px] sm:text-[10px] text-[#536471] font-semibold block">Bagian Warung:</span>
+                        <span class="text-[9px] sm:text-[10px] text-[#536471] font-semibold block">Hak Warung (75%):</span>
                         <span class="text-[11px] sm:text-xs font-black text-[#1d9bf0] truncate block" x-text="tx.status === 'paid' ? formatRupiah(tx.revenue_split?.owner_share || tx.total_amount * 0.75) : '-'"></span>
                     </div>
 
-                    <!-- Twitter Blue Struk Button -->
-                    <button 
-                        @click="$store.app.openReceipt(tx)"
-                        type="button" 
-                        class="w-full sm:w-auto px-3 sm:px-4 py-1 bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white font-black text-[10px] sm:text-xs rounded-full transition-colors cursor-pointer shadow-xs text-center"
-                    >
-                        Struk
-                    </button>
+                    <!-- Action Buttons -->
+                    <div class="flex items-center gap-1">
+                        <template x-if="tx.payment_method === 'qris' && (tx.proof_image || tx.payment_proof)">
+                            <button 
+                                @click="selectedProofUrl = tx.proof_image || tx.payment_proof; proofModalOpen = true"
+                                type="button" 
+                                class="px-2.5 py-1 bg-white hover:bg-[#f7f9f9] text-[#1d9bf0] border border-[#bde2f9] font-black text-[10px] sm:text-xs rounded-full transition-colors cursor-pointer shadow-xs text-center"
+                            >
+                                Bukti
+                            </button>
+                        </template>
+                        <button 
+                            @click="$store.app.openReceipt(tx)"
+                            type="button" 
+                            class="w-full sm:w-auto px-3 sm:px-4 py-1 bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white font-black text-[10px] sm:text-xs rounded-full transition-colors cursor-pointer shadow-xs text-center"
+                        >
+                            Struk
+                        </button>
+                    </div>
                 </div>
             </div>
         </template>
@@ -288,5 +326,40 @@
             <p class="text-xs text-[#0f1419] font-bold">Tidak ada riwayat transaksi yang cocok dengan filter.</p>
         </div>
     </template>
+
+    <!-- Modal Preview Bukti Pembayaran QRIS -->
+    <div 
+        x-show="proofModalOpen" 
+        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs"
+        x-cloak
+    >
+        <div 
+            x-show="proofModalOpen"
+            x-transition:enter="transition ease-out duration-200"
+            x-transition:enter-start="opacity-0 scale-95"
+            x-transition:enter-end="opacity-100 scale-100"
+            x-transition:leave="transition ease-in duration-150"
+            x-transition:leave-start="opacity-100 scale-100"
+            x-transition:leave-end="opacity-0 scale-95"
+            @click.away="proofModalOpen = false"
+            class="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-[#eff3f4] space-y-4"
+        >
+            <div class="flex items-center justify-between">
+                <h3 class="text-sm font-black text-[#0f1419]">Bukti Transfer QRIS</h3>
+                <button @click="proofModalOpen = false" class="text-[#0f1419] hover:text-[#1d9bf0] p-1.5 rounded-full hover:bg-[#eff3f4] cursor-pointer">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="rounded-2xl overflow-hidden bg-[#f7f9f9] border border-[#eff3f4] flex items-center justify-center min-h-[200px] max-h-[60vh]">
+                <img :src="selectedProofUrl" alt="Bukti Transfer QRIS" class="w-full h-auto max-h-[60vh] object-contain">
+            </div>
+            <button 
+                @click="proofModalOpen = false"
+                class="w-full py-2.5 rounded-full bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white font-black text-xs transition-all shadow-md shadow-[#1d9bf0]/25 cursor-pointer"
+            >
+                Tutup
+            </button>
+        </div>
+    </div>
 </div>
 @endsection

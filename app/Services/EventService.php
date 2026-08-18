@@ -41,6 +41,7 @@ class EventService
                 'location' => $data['location'] ?? null,
                 'is_active' => $isActive,
                 'qris_image' => $qrisImagePath,
+                'qris_payload' => $data['qris_payload'] ?? null,
                 'created_by' => $creator?->id,
             ]);
         });
@@ -65,6 +66,7 @@ class EventService
                 'start_date' => $data['start_date'] ?? $event->start_date,
                 'end_date' => $data['end_date'] ?? $event->end_date,
                 'location' => $data['location'] ?? $event->location,
+                'qris_payload' => array_key_exists('qris_payload', $data) ? $data['qris_payload'] : $event->qris_payload,
             ];
 
             if (isset($data['qris_image']) && $data['qris_image'] instanceof \Illuminate\Http\UploadedFile) {

@@ -3,6 +3,8 @@ import Alpine from 'alpinejs';
 import Swal from 'sweetalert2';
 import 'sweetalert2/dist/sweetalert2.min.css';
 import { evaluatePasswordStrength } from './password-meter';
+import QRCode from 'qrcode';
+window.QRCode = QRCode;
 
 // Lazy loader for Chart.js (drastically cuts initial bundle size)
 window.loadChartJs = async function() {
@@ -20,8 +22,8 @@ const apiFetch = async (url, options = {}) => {
     const skipLoading = options.skipLoading || false;
     const loadingText = options.loadingText || 'Memproses...';
 
-    if (!skipLoading && window.Alpine && window.Alpine.store('app')) {
-        window.Alpine.store('app').showLoading(loadingText);
+    if (!skipLoading && typeof window.showLoading === 'function') {
+        window.showLoading(loadingText);
     }
 
     const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
@@ -52,8 +54,8 @@ const apiFetch = async (url, options = {}) => {
         
         return data;
     } finally {
-        if (!skipLoading && window.Alpine && window.Alpine.store('app')) {
-            window.Alpine.store('app').hideLoading();
+        if (!skipLoading && typeof window.hideLoading === 'function') {
+            window.hideLoading();
         }
     }
 };
@@ -108,6 +110,7 @@ export const showConfirm = async (title = 'Konfirmasi', text = '', confirmText =
 
 window.showSwal = showSwal;
 window.showConfirm = showConfirm;
+window.apiFetch = apiFetch;
 
 // Utility formatters
 export const formatRupiah = (number) => {
@@ -243,17 +246,6 @@ window.formatRupiah = formatRupiah;
 window.formatNumber = formatNumber;
 window.formatDateTime = formatDateTime;
 
-window.showLoading = (text = 'Memproses...') => {
-    if (window.Alpine && window.Alpine.store('app')) {
-        window.Alpine.store('app').showLoading(text);
-    }
-};
-
-window.hideLoading = () => {
-    if (window.Alpine && window.Alpine.store('app')) {
-        window.Alpine.store('app').hideLoading();
-    }
-};
 
 // Purge stale demo data from localStorage on load
 try {
@@ -284,6 +276,14 @@ Alpine.store('app', {
             return userStore ? Boolean(userStore.event_is_active) : false;
         },
 
+        get stats() {
+            const pendingCashCount = this.transactions.filter(t => t.status === 'pending' && t.payment_method === 'cash').length;
+            return {
+                pendingCashCount,
+                pendingCount: pendingCashCount,
+            };
+        },
+
         // Cart state for User POS
         cart: [],
         
@@ -294,6 +294,8 @@ Alpine.store('app', {
         cashAmountPaid: '',
         qrisProofPreview: null,
         qrisProofFile: null,
+        dynamicQrisLoading: false,
+        dynamicQrisDataUrl: null,
         
         // Global Branded Circular Logo Loading State
         globalLoading: false,
@@ -432,6 +434,9 @@ Alpine.store('app', {
         getCurrentStore() {
             const user = this.getCurrentUser();
             if (user && (user.store_id || user.store_name)) {
+                const foundStore = this.stores.find(s => s.id == user.store_id) || this.userStores.find(s => s.id == user.store_id);
+                if (foundStore) return foundStore;
+                
                 return {
                     id: user.store_id,
                     name: user.store_name || 'Stand Saya',
@@ -451,6 +456,12 @@ Alpine.store('app', {
         },
 
         // CART MANAGEMENT (for User POS)
+        _refreshQrisIfActive() {
+            if (this.activePaymentTab === 'qris') {
+                this.generateDynamicQris();
+            }
+        },
+
         addToCart(product) {
             const existing = this.cart.find(item => item.product.id === product.id);
             if (existing) {
@@ -463,6 +474,7 @@ Alpine.store('app', {
                 });
             }
             this.notify('success', 'Produk Ditambahkan', `${product.title} (x1) masuk keranjang`);
+            this._refreshQrisIfActive();
         },
 
         updateCartQty(productId, delta) {
@@ -472,11 +484,13 @@ Alpine.store('app', {
                 if (this.cart[index].qty <= 0) {
                     this.cart.splice(index, 1);
                 }
+                this._refreshQrisIfActive();
             }
         },
 
         removeFromCart(productId) {
             this.cart = this.cart.filter(item => item.product.id !== productId);
+            this._refreshQrisIfActive();
         },
 
         clearCart() {
@@ -543,31 +557,96 @@ Alpine.store('app', {
             }
         },
 
-        async processQrisCheckout() {
-            if (!this.qrisProofFile) {
-                this.notify('error', 'Bukti Diperlukan', 'Harap unggah screenshot bukti transfer QRIS terlebih dahulu.');
+        async generateDynamicQris() {
+            const currentStore = this.getCurrentStore();
+            if (!currentStore || !currentStore.use_dynamic_qris || !window.__ACTIVE_EVENT__ || !window.__ACTIVE_EVENT__.qris_payload) {
                 return;
             }
 
+            if (this.cartTotal <= 0) {
+                this.dynamicQrisDataUrl = null;
+                return;
+            }
+            
+            this.dynamicQrisLoading = true;
             try {
-                const formData = new FormData();
-                formData.append('proof_image', this.qrisProofFile);
-                
-                this.cart.forEach((c, index) => {
-                    formData.append(`items[${index}][product_id]`, c.product.id);
-                    formData.append(`items[${index}][qty]`, c.qty);
+                const response = await apiFetch('/user/kasir/generate-qris', {
+                    method: 'POST',
+                    body: { amount: this.cartTotal }
                 });
+                const payload = response.qris_payload || response.payload;
+                if (response.success && payload) {
+                    this.dynamicQrisDataUrl = await window.QRCode.toDataURL(payload, {
+                        width: 400,
+                        margin: 2,
+                        color: {
+                            dark: '#0f1419',
+                            light: '#ffffff'
+                        }
+                    });
+                } else {
+                    console.error('Failed to generate dynamic QRIS:', response.message);
+                }
+            } catch (err) {
+                console.error('Error generating dynamic QRIS', err);
+            } finally {
+                this.dynamicQrisLoading = false;
+            }
+        },
+
+        handleQrisProofUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                this.qrisProofFile = file;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    this.qrisProofPreview = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        },
+
+        removeQrisProof() {
+            this.qrisProofFile = null;
+            this.qrisProofPreview = null;
+            const camInput = document.getElementById('qris_proof_camera');
+            if (camInput) camInput.value = '';
+            const galInput = document.getElementById('qris_proof_gallery');
+            if (galInput) galInput.value = '';
+        },
+
+        async processQrisCheckout() {
+            try {
+                let body;
+                if (this.qrisProofFile) {
+                    const formData = new FormData();
+                    this.cart.forEach((c, idx) => {
+                        formData.append(`items[${idx}][product_id]`, c.product.id);
+                        formData.append(`items[${idx}][qty]`, c.qty);
+                    });
+                    formData.append('proof_image', this.qrisProofFile);
+                    body = formData;
+                } else {
+                    body = {
+                        items: this.cart.map(c => ({
+                            product_id: c.product.id,
+                            qty: c.qty
+                        }))
+                    };
+                }
 
                 const data = await apiFetch('/user/kasir/checkout-qris', {
                     method: 'POST',
-                    body: formData
+                    body: body
                 });
 
                 if (data.success && data.transaction) {
                     this.transactions.unshift(data.transaction);
+                    this.activeReceiptTransaction = data.transaction;
+                    this.receiptModalOpen = true;
                     this.isCheckoutOpen = false;
                     this.clearCart();
-                    this.notify('warning', 'Bukti Terkirim', 'Menunggu verifikasi admin EO — transaksi belum berhasil.');
+                    this.notify('success', 'Berhasil', data.message);
                 }
             } catch (error) {
                 this.notify('error', 'Gagal', error.message);
@@ -690,7 +769,8 @@ Alpine.store('app', {
                 photo: '',
                 photoFile: null,
                 photoPreview: '',
-                stock_badge: 'Tersedia'
+                stock_badge: 'Tersedia',
+                store_id: ''
             };
             this.productModalOpen = true;
         },
@@ -707,7 +787,8 @@ Alpine.store('app', {
                 photo: product.photo || '',
                 photoFile: null,
                 photoPreview: product.photo_url || product.photo || '',
-                stock_badge: product.stock_badge || 'Tersedia'
+                stock_badge: product.stock_badge || 'Tersedia',
+                store_id: product.store_id || ''
             };
             this.productModalOpen = true;
         },
@@ -729,11 +810,18 @@ Alpine.store('app', {
         async saveProduct() {
             if (!this.productFormData.title.trim() || !this.productFormData.price) {
                 this.notify('error', 'Validasi Form', 'Judul produk dan harga wajib diisi.');
+                if (typeof window.hideLoading === 'function') window.hideLoading();
+                return;
+            }
+            if (!this.productFormData.store_id) {
+                this.notify('error', 'Validasi Form', 'Pilih warung/tenant terlebih dahulu.');
+                if (typeof window.hideLoading === 'function') window.hideLoading();
                 return;
             }
 
             try {
-                const url = this.isEditingProduct ? `/user/produk/${this.productFormData.id}` : '/user/produk';
+                const basePath = window.location.pathname.startsWith('/admin') ? '/admin' : '/user';
+                const url = this.isEditingProduct ? `${basePath}/produk/${this.productFormData.id}` : `${basePath}/produk`;
                 
                 let payload;
                 if (this.productFormData.photoFile) {
@@ -743,6 +831,7 @@ Alpine.store('app', {
                     payload.append('category', this.productFormData.category);
                     payload.append('description', this.productFormData.description || '');
                     payload.append('stock_badge', this.productFormData.stock_badge);
+                    payload.append('store_id', this.productFormData.store_id);
                     payload.append('photo', this.productFormData.photoFile);
                     if (this.isEditingProduct) {
                         payload.append('_method', 'PUT'); // Laravel form spoofing
@@ -753,7 +842,8 @@ Alpine.store('app', {
                         price: parseFloat(this.productFormData.price),
                         category: this.productFormData.category,
                         description: this.productFormData.description,
-                        stock_badge: this.productFormData.stock_badge
+                        stock_badge: this.productFormData.stock_badge,
+                        store_id: this.productFormData.store_id
                     };
                 }
 
@@ -793,7 +883,8 @@ Alpine.store('app', {
             if (!this.productToDelete) return;
             
             try {
-                const data = await apiFetch(`/user/produk/${this.productToDelete.id}`, {
+                const basePath = window.location.pathname.startsWith('/admin') ? '/admin' : '/user';
+                const data = await apiFetch(`${basePath}/produk/${this.productToDelete.id}`, {
                     method: 'DELETE'
                 });
                 
@@ -817,7 +908,8 @@ Alpine.store('app', {
                 slug: '',
                 start_date: '',
                 end_date: '',
-                location: ''
+                location: '',
+                qris_payload: ''
             };
             this.eventModalOpen = true;
         },
@@ -828,10 +920,11 @@ Alpine.store('app', {
                 id: ev.id,
                 name: ev.name,
                 slug: ev.slug,
-                start_date: ev.start_date || '',
-                end_date: ev.end_date || '',
+                start_date: ev.start_date ? String(ev.start_date).substring(0, 10) : '',
+                end_date: ev.end_date ? String(ev.end_date).substring(0, 10) : '',
                 location: ev.location || '',
-                qris_image_url: ev.qris_image_url || null
+                qris_image_url: ev.qris_image_url || null,
+                qris_payload: ev.qris_payload || ''
             };
             this.eventModalOpen = true;
         },
@@ -1075,6 +1168,17 @@ Alpine.store('app', {
                     .invoice-info {
                         text-align: right;
                     }
+                    .transaction-code {
+                        font-size: 24px;
+                        font-weight: 900;
+                        color: #1d4ed8;
+                        text-align: center;
+                        margin: 16px 0;
+                        padding: 8px;
+                        border: 2px dashed #1d4ed8;
+                        border-radius: 8px;
+                        letter-spacing: 4px;
+                    }
                     .badge-paid {
                         display: inline-block;
                         background: #ecfdf5;
@@ -1162,17 +1266,34 @@ Alpine.store('app', {
                     .footer {
                         border-top: 1px dashed #cbd5e1;
                         padding-top: 14px;
+                        margin-top: 32px;
                         text-align: center;
                         font-size: 11px;
-                        color: #64748b;
+                        color: #94a3b8;
+                        border-top: 1px solid #e2e8f0;
+                        padding-top: 16px;
                     }
                     .footer p {
                         margin-bottom: 2px;
                     }
+                    @media print {
+                        body {
+                            background: none;
+                            padding: 0;
+                        }
+                        .container {
+                            border: none;
+                            padding: 0;
+                            max-width: 100%;
+                        }
+                    }
                 </style>
             </head>
-            <body>
+            <body onload="window.print(); window.onafterprint = function(){ window.close(); }">
                 <div class="container">
+                    <div class="transaction-code">
+                        ${String(tx.id || 0).padStart(4, '0')}
+                    </div>
                     <!-- Header -->
                     <div class="header">
                         <div>
@@ -1233,12 +1354,8 @@ Alpine.store('app', {
                                 </tr>
                                 ${tx.status === 'paid' ? `
                                 <tr>
-                                    <td style="padding: 4px 0; color: #ef4444; font-size: 11px;">Potongan EO (22.5%):</td>
-                                    <td style="padding: 4px 0; text-align: right; color: #ef4444; font-size: 11px; font-weight: 600;">- ${formatRupiah(tx.revenue_split?.admin_net_share || (tx.total_amount * 0.225))}</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding: 4px 0; color: #ef4444; font-size: 11px;">Fee Platform (2.5%):</td>
-                                    <td style="padding: 4px 0; text-align: right; color: #ef4444; font-size: 11px; font-weight: 600;">- ${formatRupiah(tx.revenue_split?.superadmin_share || (tx.total_amount * 0.025))}</td>
+                                    <td style="padding: 4px 0; color: #ef4444; font-size: 11px;">Potongan EO (25%):</td>
+                                    <td style="padding: 4px 0; text-align: right; color: #ef4444; font-size: 11px; font-weight: 600;">- ${formatRupiah(tx.revenue_split?.admin_gross_share || (tx.total_amount * 0.25))}</td>
                                 </tr>
                                 <tr>
                                     <td style="padding: 4px 0; color: #1d9bf0; font-weight: 700;">Hak Bersih Warung (75%):</td>
@@ -1369,7 +1486,7 @@ Alpine.store('app', {
                     <td style="text-align: center; border: 1px solid #000; padding: 5px 6px; text-transform: uppercase; font-size: 11px;">${t.payment_method}</td>
                     <td style="text-align: right; border: 1px solid #000; padding: 5px 6px; font-weight: bold;">${formatRupiah(t.total_amount)}</td>
                     <td style="text-align: right; border: 1px solid #000; padding: 5px 6px;">${t.status === 'paid' ? formatRupiah(t.revenue_split?.owner_share || t.total_amount * 0.75) : '-'}</td>
-                    <td style="text-align: right; border: 1px solid #000; padding: 5px 6px;">${t.status === 'paid' ? formatRupiah(t.revenue_split?.admin_net_share || t.total_amount * 0.225) : '-'}</td>
+                    <td style="text-align: right; border: 1px solid #000; padding: 5px 6px;">${t.status === 'paid' ? formatRupiah(t.revenue_split?.admin_gross_share || t.total_amount * 0.25) : '-'}</td>
                     <td style="text-align: center; border: 1px solid #000; padding: 5px 6px; font-weight: bold; font-size: 11px;">${t.status.toUpperCase()}</td>
                 </tr>
             `).join('');
@@ -1523,25 +1640,20 @@ Alpine.store('app', {
                 <div class="section-title">1. Ringkasan Eksekutif Finansial</div>
                 <table class="summary-grid">
                     <tr>
-                        <td style="width: 25%;">
+                        <td style="width: 33.3%;">
                             <span class="summary-label">Total Omzet Bruto</span>
                             <span class="summary-value">${formatRupiah(stats.totalGross)}</span>
                             <span class="summary-sub">${stats.paidCount} Transaksi Paid</span>
                         </td>
-                        <td style="width: 25%;">
+                        <td style="width: 33.3%;">
                             <span class="summary-label">Porsi Stand/Warung (75%)</span>
                             <span class="summary-value">${formatRupiah(stats.ownerTotal)}</span>
                             <span class="summary-sub">Hak Seluruh Tenant</span>
                         </td>
-                        <td style="width: 25%;">
-                            <span class="summary-label">Total Potongan (25%)</span>
+                        <td style="width: 33.3%; background: #f2f2f2;">
+                            <span class="summary-label">Bagian EO (25%)</span>
                             <span class="summary-value">${formatRupiah(stats.adminGross)}</span>
-                            <span class="summary-sub">Sebelum Fee Platform</span>
-                        </td>
-                        <td style="width: 25%; background: #f2f2f2;">
-                            <span class="summary-label">Pendapatan Bersih EO</span>
-                            <span class="summary-value">${formatRupiah(stats.adminNet)}</span>
-                            <span class="summary-sub">Porsi 22.5% Net</span>
+                            <span class="summary-sub">Total Porsi Penyelenggara</span>
                         </td>
                     </tr>
                 </table>
@@ -1556,7 +1668,7 @@ Alpine.store('app', {
                             <th style="text-align: center; width: 60px;">Tx Paid</th>
                             <th style="text-align: right; width: 95px;">Total Omzet</th>
                             <th style="text-align: right; width: 95px;">Hak Warung (75%)</th>
-                            <th style="text-align: right; width: 95px;">Potongan (25%)</th>
+                            <th style="text-align: right; width: 95px;">Potongan EO (25%)</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1575,7 +1687,7 @@ Alpine.store('app', {
                             <th style="text-align: center; width: 50px;">Metode</th>
                             <th style="text-align: right; width: 80px;">Nominal</th>
                             <th style="text-align: right; width: 80px;">Warung (75%)</th>
-                            <th style="text-align: right; width: 80px;">Net EO</th>
+                            <th style="text-align: right; width: 80px;">Bagian EO (25%)</th>
                             <th style="text-align: center; width: 60px;">Status</th>
                         </tr>
                     </thead>
@@ -1615,7 +1727,7 @@ Alpine.store('app', {
 
         // PROPER FORMAL MONOCHROME (B&W) SINGLE TENANT / STAND REPORT EXPORT (SAME DESIGN AS ALL EO REPORT)
         printTenantReport(storeId) {
-            const store = this.stores.find(s => s.id == storeId) || { id: storeId, name: 'Stand Warung', booth_number: '-' };
+            const store = this.stores.find(s => s.id == storeId) || this.userStores.find(s => s.id == storeId) || { id: storeId, name: 'Stand Warung', booth_number: '-' };
             const event = this.getActiveEvent() || { name: 'Event Bazaar UMKM', location: '-' };
             const txList = this.transactions.filter(t => t.store_id == storeId);
             
@@ -1645,7 +1757,7 @@ Alpine.store('app', {
                     <td style="text-align: center; border: 1px solid #000; padding: 5px 6px; text-transform: uppercase; font-size: 11px;">${t.payment_method}</td>
                     <td style="text-align: right; border: 1px solid #000; padding: 5px 6px; font-weight: bold;">${formatRupiah(t.total_amount)}</td>
                     <td style="text-align: right; border: 1px solid #000; padding: 5px 6px; font-weight: bold;">${t.status === 'paid' ? formatRupiah(t.revenue_split?.owner_share || t.total_amount * 0.75) : '-'}</td>
-                    <td style="text-align: right; border: 1px solid #000; padding: 5px 6px;">${t.status === 'paid' ? formatRupiah(t.revenue_split?.admin_net_share || t.total_amount * 0.225) : '-'}</td>
+                    <td style="text-align: right; border: 1px solid #000; padding: 5px 6px; font-weight: bold;">${t.status === 'paid' ? formatRupiah(t.revenue_split?.admin_gross_share || t.total_amount * 0.25) : '-'}</td>
                     <td style="text-align: center; border: 1px solid #000; padding: 5px 6px; font-weight: bold; font-size: 11px;">${t.status.toUpperCase()}</td>
                 </tr>
             `).join('');
@@ -1799,25 +1911,20 @@ Alpine.store('app', {
                 <div class="section-title">1. Ringkasan Eksekutif Finansial Stand</div>
                 <table class="summary-grid">
                     <tr>
-                        <td style="width: 25%;">
+                        <td style="width: 33.3%;">
                             <span class="summary-label">Total Omzet Stand</span>
                             <span class="summary-value">${formatRupiah(totalGross)}</span>
                             <span class="summary-sub">${paidCount} Tx Paid (${cashCount} Cash / ${qrisCount} QRIS)</span>
                         </td>
-                        <td style="width: 25%; background: #f2f2f2;">
+                        <td style="width: 33.3%; background: #f2f2f2;">
                             <span class="summary-label">Hak Bersih Warung (75%)</span>
                             <span class="summary-value">${formatRupiah(ownerTotal)}</span>
                             <span class="summary-sub">Porsi Hak Pemilik Stand</span>
                         </td>
-                        <td style="width: 25%;">
-                            <span class="summary-label">Bagian EO (22.5%)</span>
-                            <span class="summary-value">${formatRupiah(adminNet)}</span>
+                        <td style="width: 33.3%;">
+                            <span class="summary-label">Bagian EO (25%)</span>
+                            <span class="summary-value">${formatRupiah(totalGross * 0.25)}</span>
                             <span class="summary-sub">Bagi Hasil Penyelenggara</span>
-                        </td>
-                        <td style="width: 25%;">
-                            <span class="summary-label">Fee Platform (2.5%)</span>
-                            <span class="summary-value">${formatRupiah(platformFee)}</span>
-                            <span class="summary-sub">Lisensi Developer</span>
                         </td>
                     </tr>
                 </table>
@@ -1832,7 +1939,7 @@ Alpine.store('app', {
                             <th style="text-align: center; width: 60px;">Metode</th>
                             <th style="text-align: right; width: 90px;">Nominal</th>
                             <th style="text-align: right; width: 95px;">Warung (75%)</th>
-                            <th style="text-align: right; width: 90px;">Net EO (22.5%)</th>
+                            <th style="text-align: right; width: 90px;">Bagian EO (25%)</th>
                             <th style="text-align: center; width: 70px;">Status</th>
                         </tr>
                     </thead>
@@ -1894,6 +2001,7 @@ Alpine.store('app', {
                     <td style="text-align: center; border: 1px solid #000; padding: 5px 6px; text-transform: uppercase; font-size: 11px;">${t.payment_method}</td>
                     <td style="text-align: right; border: 1px solid #000; padding: 5px 6px; font-weight: bold;">${formatRupiah(t.total_amount)}</td>
                     <td style="text-align: right; border: 1px solid #000; padding: 5px 6px; font-weight: bold;">${t.status === 'paid' ? formatRupiah(t.revenue_split?.owner_share || t.total_amount * 0.75) : '-'}</td>
+                    <td style="text-align: right; border: 1px solid #000; padding: 5px 6px; font-weight: bold;">${t.status === 'paid' ? formatRupiah(t.revenue_split?.admin_gross_share || t.total_amount * 0.25) : '-'}</td>
                     <td style="text-align: center; border: 1px solid #000; padding: 5px 6px; font-weight: bold; font-size: 11px;">${t.status.toUpperCase()}</td>
                 </tr>
             `).join('');
@@ -2047,17 +2155,18 @@ Alpine.store('app', {
                 <table class="data-table">
                     <thead>
                         <tr>
-                            <th style="text-align: center; width: 30px;">No</th>
-                            <th style="width: 120px;">Invoice</th>
-                            <th style="width: 110px;">Waktu</th>
-                            <th style="text-align: center; width: 70px;">Metode</th>
-                            <th style="text-align: right; width: 110px;">Total Belanja</th>
-                            <th style="text-align: right; width: 110px;">Hak Warung (75%)</th>
-                            <th style="text-align: center; width: 75px;">Status</th>
+                            <th style="text-align: center; width: 28px;">No</th>
+                            <th style="width: 110px;">Invoice</th>
+                            <th style="width: 100px;">Waktu</th>
+                            <th style="text-align: center; width: 60px;">Metode</th>
+                            <th style="text-align: right; width: 95px;">Total Belanja</th>
+                            <th style="text-align: right; width: 95px;">Hak Warung (75%)</th>
+                            <th style="text-align: right; width: 95px;">Potongan EO (25%)</th>
+                            <th style="text-align: center; width: 65px;">Status</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${txRows.length > 0 ? txRows : '<tr><td colspan="7" style="text-align: center; padding: 8px; border: 1px solid #000;">Belum ada transaksi</td></tr>'}
+                        ${txRows.length > 0 ? txRows : '<tr><td colspan="8" style="text-align: center; padding: 8px; border: 1px solid #000;">Belum ada transaksi</td></tr>'}
                     </tbody>
                 </table>
 
@@ -2331,9 +2440,10 @@ Alpine.store('app', {
                     <td style="border: 1pt solid #000; padding: 4pt 5pt;">${t.store_name || '-'}</td>
                     <td style="text-align: center; border: 1pt solid #000; padding: 4pt 5pt; text-transform: uppercase; font-size: 8.5pt;">${t.payment_method}</td>
                     <td style="text-align: right; border: 1pt solid #000; padding: 4pt 5pt; font-weight: bold;">${formatRupiah(t.total_amount)}</td>
+                    <td style="text-align: right; border: 1pt solid #000; padding: 4pt 5pt;">${formatRupiah(t.revenue_split?.owner_share || t.total_amount * 0.75)}</td>
+                    <td style="text-align: right; border: 1pt solid #000; padding: 4pt 5pt;">${formatRupiah(t.revenue_split?.admin_gross_share || t.total_amount * 0.25)}</td>
                     <td style="text-align: right; border: 1pt solid #000; padding: 4pt 5pt; font-weight: bold; background: #f2f2f2;">${formatRupiah(t.revenue_split?.superadmin_share || (t.total_amount * 0.025))}</td>
                     <td style="text-align: right; border: 1pt solid #000; padding: 4pt 5pt;">${formatRupiah(t.revenue_split?.admin_net_share || t.total_amount * 0.225)}</td>
-                    <td style="text-align: right; border: 1pt solid #000; padding: 4pt 5pt;">${formatRupiah(t.revenue_split?.owner_share || t.total_amount * 0.75)}</td>
                 </tr>
             `).join('');
 
@@ -2418,19 +2528,19 @@ Alpine.store('app', {
                         </tr>
                     </table>
 
-                    <div class="section-title">2. Rincian Transaksi Paid & Potongan Flat Fee Platform</div>
+                    <div class="section-title">2. Rincian Transaksi Paid & Breakdown Bagi Hasil</div>
                     <table>
                         <thead>
                             <tr>
-                                <th style="text-align: center; width: 25pt;">No</th>
-                                <th style="width: 80pt;">Invoice</th>
-                                <th style="width: 70pt;">Waktu</th>
+                                <th style="text-align: center; width: 20pt;">No</th>
+                                <th style="width: 70pt;">Invoice</th>
+                                <th style="width: 65pt;">Waktu</th>
                                 <th>Stand Tenant</th>
-                                <th style="text-align: center; width: 45pt;">Metode</th>
-                                <th style="text-align: right; width: 65pt;">Gross</th>
-                                <th style="text-align: right; width: 60pt;">Developer</th>
-                                <th style="text-align: right; width: 65pt;">Net EO</th>
-                                <th style="text-align: right; width: 65pt;">Warung (75%)</th>
+                                <th style="text-align: center; width: 40pt;">Metode</th>
+                                <th style="text-align: right; width: 60pt;">Gross</th>
+                                <th style="text-align: right; width: 60pt;">Warung (75%)</th>
+                                <th style="text-align: right; width: 60pt;">Potongan EO (25%)</th>
+                                <th style="text-align: right; width: 55pt;">Fee Dev (10%)</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -2491,9 +2601,9 @@ Alpine.store('app', {
                     <td style="border: 1px solid #000;">${t.store_name || '-'}</td>
                     <td style="text-align: center; border: 1px solid #000; text-transform: uppercase;">${t.payment_method}</td>
                     <td style="text-align: right; border: 1px solid #000;">${t.total_amount}</td>
-                    <td style="text-align: right; border: 1px solid #000; font-weight: bold; background: #e6f2ff;">${t.revenue_split?.superadmin_share || (t.total_amount * 0.025)}</td>
-                    <td style="text-align: right; border: 1px solid #000;">${t.revenue_split?.admin_net_share || t.total_amount * 0.225}</td>
                     <td style="text-align: right; border: 1px solid #000;">${t.revenue_split?.owner_share || t.total_amount * 0.75}</td>
+                    <td style="text-align: right; border: 1px solid #000;">${t.revenue_split?.admin_gross_share || t.total_amount * 0.25}</td>
+                    <td style="text-align: right; border: 1px solid #000; font-weight: bold; background: #e6f2ff;">${t.revenue_split?.superadmin_share || (t.total_amount * 0.025)}</td>
                 </tr>
             `).join('');
 
@@ -2518,31 +2628,33 @@ Alpine.store('app', {
             </head>
             <body>
                 <table>
-                    <tr><td colspan="9" style="font-size: 14pt; font-weight: bold;">LAPORAN AUDIT FINANSIAL DEVELOPER PLATFORM</td></tr>
-                    <tr><td colspan="9" style="font-size: 11pt; font-weight: bold; color: #1d9bf0;">SKEMA FEE PLATFORM 2.5% DARI OMZET</td></tr>
-                    <tr><td colspan="9" style="font-size: 9pt; color: #555;">Tanggal Ekspor: ${dateNow} | Sistem: JADISATU Platform</td></tr>
-                    <tr><td colspan="9"></td></tr>
+                    <tr><td colspan="10" style="font-size: 14pt; font-weight: bold;">LAPORAN AUDIT FINANSIAL DEVELOPER PLATFORM</td></tr>
+                    <tr><td colspan="10" style="font-size: 11pt; font-weight: bold; color: #1d9bf0;">BREAKDOWN: 75% WARUNG • 25% EO • FEE DEV 10% DARI 25% (= 2.5%)</td></tr>
+                    <tr><td colspan="10" style="font-size: 9pt; color: #555;">Tanggal Ekspor: ${dateNow} | Sistem: JADISATU Platform</td></tr>
+                    <tr><td colspan="10"></td></tr>
                     <tr style="background-color: #f2f2f2; font-weight: bold;">
-                        <td colspan="3" style="border: 1px solid #000;">TOTAL FEE DEVELOPER (2.5%)</td>
-                        <td colspan="3" style="border: 1px solid #000;">TOTAL VOLUME GROSS TRANSAKSI</td>
-                        <td colspan="3" style="border: 1px solid #000;">TOTAL TRANSAKSI PAID</td>
+                        <td colspan="2" style="border: 1px solid #000;">FEE DEVELOPER (10% DARI 25%)</td>
+                        <td colspan="3" style="border: 1px solid #000;">TOTAL VOLUME GROSS</td>
+                        <td colspan="3" style="border: 1px solid #000;">HAK WARUNG (75%)</td>
+                        <td colspan="2" style="border: 1px solid #000;">POTONGAN EO (25%)</td>
                     </tr>
                     <tr style="font-weight: bold; font-size: 12pt;">
-                        <td colspan="3" style="border: 1px solid #000; color: #1d9bf0;">${formatRupiah(stats.totalSuperAdminRevenue)}</td>
+                        <td colspan="2" style="border: 1px solid #000; color: #1d9bf0;">${formatRupiah(stats.totalSuperAdminRevenue)}</td>
                         <td colspan="3" style="border: 1px solid #000;">${formatRupiah(stats.totalVolume)}</td>
-                        <td colspan="3" style="border: 1px solid #000;">${stats.paidCount} Transaksi</td>
+                        <td colspan="3" style="border: 1px solid #000; color: #1d9bf0;">${formatRupiah(stats.totalVolume * 0.75)}</td>
+                        <td colspan="2" style="border: 1px solid #000;">${formatRupiah(stats.totalVolume * 0.25)}</td>
                     </tr>
-                    <tr><td colspan="9"></td></tr>
+                    <tr><td colspan="10"></td></tr>
                     <tr style="background-color: #0f1419; color: #ffffff; font-weight: bold; text-align: center;">
                         <th style="border: 1px solid #000;">No</th>
                         <th style="border: 1px solid #000;">Invoice</th>
                         <th style="border: 1px solid #000;">Waktu</th>
                         <th style="border: 1px solid #000;">Stand Tenant</th>
                         <th style="border: 1px solid #000;">Metode</th>
-                        <th style="border: 1px solid #000;">Total Belanja (Gross)</th>
-                        <th style="border: 1px solid #000;">Fee Developer (2.5%)</th>
-                        <th style="border: 1px solid #000;">Net EO</th>
+                        <th style="border: 1px solid #000;">Gross (100%)</th>
                         <th style="border: 1px solid #000;">Hak Warung (75%)</th>
+                        <th style="border: 1px solid #000;">Potongan EO (25%)</th>
+                        <th style="border: 1px solid #000;">Fee Dev (10%)</th>
                     </tr>
                     ${txRows}
                 </table>
@@ -2620,7 +2732,7 @@ Alpine.store('app', {
                     <td style="text-align: center; border: 1pt solid #000; padding: 4pt 5pt; text-transform: uppercase;">${t.payment_method}</td>
                     <td style="text-align: right; border: 1pt solid #000; padding: 4pt 5pt; font-weight: bold;">${formatRupiah(t.total_amount)}</td>
                     <td style="text-align: right; border: 1pt solid #000; padding: 4pt 5pt;">${t.status === 'paid' ? formatRupiah(t.revenue_split?.owner_share || t.total_amount * 0.75) : '-'}</td>
-                    <td style="text-align: right; border: 1pt solid #000; padding: 4pt 5pt;">${t.status === 'paid' ? formatRupiah(t.revenue_split?.admin_net_share || t.total_amount * 0.225) : '-'}</td>
+                    <td style="text-align: right; border: 1pt solid #000; padding: 4pt 5pt;">${t.status === 'paid' ? formatRupiah(t.revenue_split?.admin_gross_share || t.total_amount * 0.25) : '-'}</td>
                     <td style="text-align: center; border: 1pt solid #000; padding: 4pt 5pt; font-weight: bold;">${t.status.toUpperCase()}</td>
                 </tr>
             `).join('');
@@ -2688,25 +2800,20 @@ Alpine.store('app', {
                     <div class="section-title">1. Ringkasan Eksekutif Finansial</div>
                     <table>
                         <tr>
-                            <td style="width: 25%;">
+                            <td style="width: 33.3%;">
                                 <div style="font-size: 8.5pt; font-weight: bold; text-transform: uppercase; color: #444;">Total Omzet Bruto</div>
                                 <div style="font-size: 12pt; font-weight: bold; margin-top: 2pt;">${formatRupiah(stats.totalGross)}</div>
                                 <div style="font-size: 8.5pt; color: #555;">${stats.paidCount} Transaksi Paid</div>
                             </td>
-                            <td style="width: 25%;">
+                            <td style="width: 33.3%;">
                                 <div style="font-size: 8.5pt; font-weight: bold; text-transform: uppercase; color: #444;">Porsi Stand/Warung (75%)</div>
                                 <div style="font-size: 12pt; font-weight: bold; margin-top: 2pt;">${formatRupiah(stats.ownerTotal)}</div>
                                 <div style="font-size: 8.5pt; color: #555;">Hak Seluruh Tenant</div>
                             </td>
-                            <td style="width: 25%;">
-                                <div style="font-size: 8.5pt; font-weight: bold; text-transform: uppercase; color: #444;">Total Potongan (25%)</div>
+                            <td style="width: 33.3%; background-color: #f2f2f2;">
+                                <div style="font-size: 8.5pt; font-weight: bold; text-transform: uppercase; color: #444;">Bagian EO (25%)</div>
                                 <div style="font-size: 12pt; font-weight: bold; margin-top: 2pt;">${formatRupiah(stats.adminGross)}</div>
-                                <div style="font-size: 8.5pt; color: #555;">Sebelum Fee Platform</div>
-                            </td>
-                            <td style="width: 25%; background-color: #f2f2f2;">
-                                <div style="font-size: 8.5pt; font-weight: bold; text-transform: uppercase; color: #444;">Pendapatan Bersih EO</div>
-                                <div style="font-size: 12pt; font-weight: bold; margin-top: 2pt;">${formatRupiah(stats.adminNet)}</div>
-                                <div style="font-size: 8.5pt; color: #555;">Porsi 22.5% Net</div>
+                                <div style="font-size: 8.5pt; color: #555;">Total Porsi Penyelenggara</div>
                             </td>
                         </tr>
                     </table>
@@ -2721,7 +2828,7 @@ Alpine.store('app', {
                                 <th style="text-align: center; width: 45pt;">Tx Paid</th>
                                 <th style="text-align: right; width: 75pt;">Total Omzet</th>
                                 <th style="text-align: right; width: 75pt;">Hak Warung (75%)</th>
-                                <th style="text-align: right; width: 75pt;">Potongan (25%)</th>
+                                <th style="text-align: right; width: 75pt;">Potongan EO (25%)</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -2740,7 +2847,7 @@ Alpine.store('app', {
                                 <th style="text-align: center; width: 40pt;">Metode</th>
                                 <th style="text-align: right; width: 65pt;">Nominal</th>
                                 <th style="text-align: right; width: 65pt;">Warung (75%)</th>
-                                <th style="text-align: right; width: 65pt;">Net EO</th>
+                                <th style="text-align: right; width: 65pt;">Bagian EO (25%)</th>
                                 <th style="text-align: center; width: 45pt;">Status</th>
                             </tr>
                         </thead>
@@ -2827,9 +2934,9 @@ Alpine.store('app', {
                     <td style="border: 1px solid #cbd5e1;">${formatDateTime(t.paid_at || t.created_at)}</td>
                     <td style="border: 1px solid #cbd5e1;">${t.store_name || '-'}</td>
                     <td style="text-align: center; border: 1px solid #cbd5e1; text-transform: uppercase;">${t.payment_method}</td>
-                    <td style="text-align: right; border: 1px solid #cbd5e1; font-weight: bold;">${t.total_amount}</td>
+                    <td style="text-align: right; border: 1px solid #cbd5e1;">${t.total_amount}</td>
                     <td style="text-align: right; border: 1px solid #cbd5e1;">${t.status === 'paid' ? (t.revenue_split?.owner_share || t.total_amount * 0.75) : 0}</td>
-                    <td style="text-align: right; border: 1px solid #cbd5e1;">${t.status === 'paid' ? (t.revenue_split?.admin_net_share || t.total_amount * 0.225) : 0}</td>
+                    <td style="text-align: right; border: 1px solid #cbd5e1;">${t.status === 'paid' ? (t.revenue_split?.admin_gross_share || t.total_amount * 0.25) : 0}</td>
                     <td style="text-align: center; border: 1px solid #cbd5e1; font-weight: bold;">${t.status.toUpperCase()}</td>
                 </tr>
             `).join('');
@@ -2879,17 +2986,9 @@ Alpine.store('app', {
                         <td colspan="2" style="font-weight: bold;">Hak Stand / Warung (75%):</td>
                         <td colspan="5">${stats.ownerTotal}</td>
                     </tr>
-                    <tr>
-                        <td colspan="2" style="font-weight: bold;">Total Potongan (25%):</td>
-                        <td colspan="5">${stats.adminGross}</td>
-                    </tr>
-                    <tr>
-                        <td colspan="2" style="font-weight: bold;">Platform Fee Superadmin:</td>
-                        <td colspan="5">${stats.superadminTotal} (2.5% dari Omzet Paid)</td>
-                    </tr>
                     <tr style="background-color: #f8fafc;">
-                        <td colspan="2" style="font-weight: bold; color: #0284c7;">Pendapatan Bersih EO (Net):</td>
-                        <td colspan="5" style="font-weight: bold; color: #0284c7;">${stats.adminNet}</td>
+                        <td colspan="2" style="font-weight: bold; color: #0284c7;">Bagian EO (25%):</td>
+                        <td colspan="5" style="font-weight: bold; color: #0284c7;">${stats.adminGross}</td>
                     </tr>
                     <tr><td colspan="7"></td></tr>
                     <tr style="background-color: #f1f5f9;">
@@ -2902,7 +3001,7 @@ Alpine.store('app', {
                         <th style="text-align: center;">Tx Paid</th>
                         <th style="text-align: right;">Total Omzet (Rp)</th>
                         <th style="text-align: right;">Hak Warung 75% (Rp)</th>
-                        <th style="text-align: right;">Potongan 25% (Rp)</th>
+                        <th style="text-align: right;">Potongan EO 25% (Rp)</th>
                     </tr>
                     ${storeRowsXml}
                     <tr><td colspan="7"></td></tr>
@@ -2917,7 +3016,7 @@ Alpine.store('app', {
                         <th style="text-align: center;">Metode</th>
                         <th style="text-align: right;">Total Belanja (Rp)</th>
                         <th style="text-align: right;">Warung 75% (Rp)</th>
-                        <th style="text-align: right;">Net EO (Rp)</th>
+                        <th style="text-align: right;">Bagian EO 25% (Rp)</th>
                         <th style="text-align: center;">Status</th>
                     </tr>
                     ${txRowsXml}
@@ -2954,6 +3053,7 @@ Alpine.store('app', {
                     <td style="text-align: center; border: 1pt solid #000; padding: 4pt 5pt; text-transform: uppercase;">${t.payment_method}</td>
                     <td style="text-align: right; border: 1pt solid #000; padding: 4pt 5pt; font-weight: bold;">${formatRupiah(t.total_amount)}</td>
                     <td style="text-align: right; border: 1pt solid #000; padding: 4pt 5pt; font-weight: bold;">${t.status === 'paid' ? formatRupiah(t.revenue_split?.owner_share || t.total_amount * 0.75) : '-'}</td>
+                    <td style="text-align: right; border: 1pt solid #000; padding: 4pt 5pt; font-weight: bold;">${t.status === 'paid' ? formatRupiah(t.revenue_split?.admin_gross_share || t.total_amount * 0.25) : '-'}</td>
                     <td style="text-align: center; border: 1pt solid #000; padding: 4pt 5pt; font-weight: bold;">${t.status.toUpperCase()}</td>
                 </tr>
             `).join('');
@@ -3035,17 +3135,18 @@ Alpine.store('app', {
                     <table>
                         <thead>
                             <tr>
-                                <th style="text-align: center; width: 25pt;">No</th>
-                                <th style="width: 90pt;">Invoice</th>
-                                <th style="width: 80pt;">Waktu</th>
-                                <th style="text-align: center; width: 50pt;">Metode</th>
-                                <th style="text-align: right; width: 80pt;">Total Belanja</th>
-                                <th style="text-align: right; width: 80pt;">Hak Warung (75%)</th>
-                                <th style="text-align: center; width: 55pt;">Status</th>
+                                <th style="text-align: center; width: 20pt;">No</th>
+                                <th style="width: 80pt;">Invoice</th>
+                                <th style="width: 70pt;">Waktu</th>
+                                <th style="text-align: center; width: 45pt;">Metode</th>
+                                <th style="text-align: right; width: 70pt;">Total Belanja</th>
+                                <th style="text-align: right; width: 70pt;">Hak Warung (75%)</th>
+                                <th style="text-align: right; width: 70pt;">Potongan EO (25%)</th>
+                                <th style="text-align: center; width: 50pt;">Status</th>
                             </tr>
                         </thead>
                         <tbody>
-                            ${txRows.length > 0 ? txRows : '<tr><td colspan="7" style="text-align: center; padding: 6pt;">Belum ada transaksi</td></tr>'}
+                            ${txRows.length > 0 ? txRows : '<tr><td colspan="8" style="text-align: center; padding: 6pt;">Belum ada transaksi</td></tr>'}
                         </tbody>
                     </table>
 
@@ -3083,6 +3184,7 @@ Alpine.store('app', {
                     <td style="text-align: center; border: 1px solid #cbd5e1; text-transform: uppercase;">${t.payment_method}</td>
                     <td style="text-align: right; border: 1px solid #cbd5e1; font-weight: bold;">${t.total_amount}</td>
                     <td style="text-align: right; border: 1px solid #cbd5e1; font-weight: bold;">${t.status === 'paid' ? (t.revenue_split?.owner_share || t.total_amount * 0.75) : 0}</td>
+                    <td style="text-align: right; border: 1px solid #cbd5e1; font-weight: bold;">${t.status === 'paid' ? (t.revenue_split?.admin_gross_share || t.total_amount * 0.25) : 0}</td>
                     <td style="text-align: center; border: 1px solid #cbd5e1; font-weight: bold;">${t.status.toUpperCase()}</td>
                 </tr>
             `).join('');
@@ -3138,7 +3240,7 @@ Alpine.store('app', {
                     </tr>
                     <tr><td colspan="7"></td></tr>
                     <tr style="background-color: #f1f5f9;">
-                        <th colspan="7" style="font-size: 11pt;">2. RINCIAN DATA TRANSAKSI</th>
+                        <th colspan="8" style="font-size: 11pt;">2. RINCIAN DATA TRANSAKSI</th>
                     </tr>
                     <tr>
                         <th style="text-align: center; width: 40px;">No</th>
@@ -3147,6 +3249,7 @@ Alpine.store('app', {
                         <th style="text-align: center;">Metode</th>
                         <th style="text-align: right;">Total Belanja (Rp)</th>
                         <th style="text-align: right;">Hak Warung 75% (Rp)</th>
+                        <th style="text-align: right;">Potongan EO 25% (Rp)</th>
                         <th style="text-align: center;">Status</th>
                     </tr>
                     ${txRowsXml}
@@ -3171,6 +3274,7 @@ Alpine.store('app', {
             return {
                 totalGross: totalGross || 0,
                 netIncome: netIncome || 0,
+                totalPotongan: (totalGross * 0.25) || 0,
                 totalCount: totalCount || 0,
                 cancelledCount: cancelledCount || 0,
                 pendingCount: pendingCount || 0
@@ -3199,7 +3303,8 @@ Alpine.store('app', {
             const cashHakAdmin = cashTx.reduce((sum, t) => sum + (t.revenue_split?.admin_gross_share || t.total_amount * 0.25), 0);
             const netSettlement = qrisHakWarung - cashHakAdmin; // Positive = admin bayar warung
 
-            const pendingCount = this.transactions.filter(t => t.status === 'pending_verification').length;
+            const pendingCashCount = this.transactions.filter(t => t.status === 'pending' && t.payment_method === 'cash').length;
+            const pendingCount = pendingCashCount;
             const cancelledCount = this.transactions.filter(t => t.status === 'cancelled').length;
 
             return {
@@ -3217,6 +3322,7 @@ Alpine.store('app', {
                 netSettlement,
                 paidCount: paidTx.length,
                 pendingCount,
+                pendingCashCount,
                 cancelledCount,
                 storesCount: this.stores.length
             };
@@ -3277,16 +3383,90 @@ Alpine.store('app', {
             const paidTx = this.transactions.filter(t => t.status === 'paid');
             const totalVolume = paidTx.reduce((sum, t) => sum + t.total_amount, 0);
             const totalSuperAdminRevenue = paidTx.reduce((sum, t) => sum + (t.revenue_split?.superadmin_share || (t.total_amount * 0.025)), 0);
+            const ownerTotal = paidTx.reduce((sum, t) => sum + (t.revenue_split?.owner_share || t.total_amount * 0.75), 0);
+            const potonganTotal = paidTx.reduce((sum, t) => sum + (t.revenue_split?.admin_gross_share || t.total_amount * 0.25), 0);
             const totalEvents = this.events.length;
             const activeEvent = this.getActiveEvent();
 
             return {
                 totalVolume,
                 totalSuperAdminRevenue,
+                ownerTotal,
+                potonganTotal,
                 totalEvents,
                 paidCount: paidTx.length,
                 activeEventName: activeEvent ? activeEvent.name : '-'
             };
+        },
+
+        // Testing Mode State & Actions
+        resetTestingModalOpen: false,
+        resetTestingEventTarget: null,
+
+        openResetTestingModal(event = null) {
+            this.resetTestingEventTarget = event || this.getActiveEvent();
+            this.resetTestingModalOpen = true;
+        },
+
+        async toggleEventTesting(eventId = null) {
+            const targetEvent = eventId ? (this.events.find(e => e.id == eventId) || this.getActiveEvent()) : this.getActiveEvent();
+            if (!targetEvent) {
+                showSwal('warn', 'Event Tidak Ditemukan', 'Harap pilih event terlebih dahulu.');
+                return;
+            }
+
+            const rolePrefix = this.currentRole === 'superadmin' ? 'superadmin' : 'admin';
+            try {
+                this.showLoading('Mengubah status Masa Testing...');
+                const res = await apiFetch(`/${rolePrefix}/events/${targetEvent.id}/toggle-testing`, {
+                    method: 'POST',
+                    body: { is_testing_mode: !targetEvent.is_testing_mode }
+                });
+
+                if (res.success) {
+                    targetEvent.is_testing_mode = res.is_testing_mode;
+                    if (this.activeEvent && this.activeEvent.id == targetEvent.id) {
+                        this.activeEvent.is_testing_mode = res.is_testing_mode;
+                    }
+                    showSwal('success', 'Status Berubah', res.message);
+                } else {
+                    showSwal('danger', 'Gagal', res.message || 'Gagal mengubah mode testing.');
+                }
+            } catch (err) {
+                showSwal('danger', 'Kesalahan', err.message || 'Terjadi kesalahan saat memproses permintaan.');
+            } finally {
+                this.hideLoading();
+            }
+        },
+
+        async confirmResetTesting() {
+            const targetEvent = this.resetTestingEventTarget || this.getActiveEvent();
+            if (!targetEvent) return;
+
+            const rolePrefix = this.currentRole === 'superadmin' ? 'superadmin' : 'admin';
+            this.resetTestingModalOpen = false;
+
+            try {
+                this.showLoading('Membersihkan seluruh data transaksi testing...');
+                const res = await apiFetch(`/${rolePrefix}/events/${targetEvent.id}/reset-testing`, {
+                    method: 'POST'
+                });
+
+                if (res.success) {
+                    // Filter out testing transactions from frontend store state
+                    this.transactions = this.transactions.filter(t => !t.is_testing);
+                    showSwal('success', 'Berhasil Direset', res.message);
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1200);
+                } else {
+                    showSwal('danger', 'Gagal Reset', res.message || 'Terjadi kesalahan saat reset transaksi.');
+                }
+            } catch (err) {
+                showSwal('danger', 'Kesalahan', err.message || 'Terjadi kesalahan pada server.');
+            } finally {
+                this.hideLoading();
+            }
         }
     });
 

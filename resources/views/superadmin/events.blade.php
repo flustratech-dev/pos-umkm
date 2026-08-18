@@ -188,6 +188,24 @@
                     </div>
 
                     <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <label class="block text-xs font-bold text-[#0f1419]">Payload Teks QRIS (Opsional - Untuk QRIS Dinamis)</label>
+                            <a href="https://zxing.org/w/decode.jspx" target="_blank" class="inline-flex items-center gap-1 px-2.5 py-1 bg-[#e8f5fd] text-[#1d9bf0] text-[10px] font-black rounded-full hover:bg-[#d8eefc] transition-colors">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                                Alat Ekstrak Teks QRIS
+                            </a>
+                        </div>
+                        <textarea 
+                            name="qris_payload"
+                            x-model="$store.app.eventFormData.qris_payload"
+                            placeholder="000201010211266500..." 
+                            rows="2"
+                            class="w-full px-3.5 py-2.5 bg-[#f7f9f9] border border-[#eff3f4] rounded-xl text-xs text-[#0f1419] focus:ring-2 focus:ring-[#1d9bf0] focus:outline-none font-mono"
+                        ></textarea>
+                        <p class="text-[10px] text-[#536471] mt-1 leading-tight">Gunakan "Alat Ekstrak Teks QRIS" di atas untuk mendapatkan teks ini dari gambar QRIS Anda. Ini **wajib diisi** jika ingin fitur QRIS Dinamis aktif.</p>
+                    </div>
+
+                    <div>
                         <label class="block text-xs font-bold text-[#0f1419] mb-1">Lokasi Penyelenggaraan</label>
                         <input 
                             type="text" 
