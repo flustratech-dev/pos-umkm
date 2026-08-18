@@ -50,6 +50,7 @@
             'location' => $activeEv->location,
             'is_active' => $activeEv->is_active,
             'qris_image_url' => $activeEv->qris_image_url,
+            'qris_payload' => $activeEv->qris_payload,
         ] : null;
 
         $dbEvents = \App\Models\Event::all();
@@ -67,6 +68,7 @@
                 'booth_number' => $s->booth_number,
                 'category' => $s->category,
                 'is_active' => $s->is_active,
+                'use_dynamic_qris' => $s->use_dynamic_qris,
             ];
         }) : collect();
 
@@ -150,7 +152,7 @@
 
         // User's owned stores (for switching events)
         $dbUserStores = collect();
-        if ($authUser && $authUser->isUser()) {
+        if ($authUser) {
             $dbUserStores = \App\Models\Store::with('event')
                 ->where('owner_id', $authUser->id)
                 ->orWhere('id', $userStoreId ?: 0)
@@ -164,6 +166,7 @@
                         'name' => $s->name,
                         'event_name' => $s->event ? $s->event->name : 'Unknown Event',
                         'event_is_active' => $s->event ? (bool)$s->event->is_active : false,
+                        'use_dynamic_qris' => $s->use_dynamic_qris,
                     ];
                 });
         }

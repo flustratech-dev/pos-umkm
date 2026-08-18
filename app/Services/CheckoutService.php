@@ -119,7 +119,7 @@ class CheckoutService
             throw new InvalidArgumentException('Keranjang belanja tidak boleh kosong.');
         }
 
-        return DB::transaction(function () use ($store, $cashier, $items, $proofFile) {
+        return DB::transaction(function () use ($store, $cashier, $items) {
             $totalAmount = 0;
             $preparedItems = [];
 

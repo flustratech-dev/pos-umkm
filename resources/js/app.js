@@ -3,6 +3,8 @@ import Alpine from 'alpinejs';
 import Swal from 'sweetalert2';
 import 'sweetalert2/dist/sweetalert2.min.css';
 import { evaluatePasswordStrength } from './password-meter';
+import QRCode from 'qrcode';
+window.QRCode = QRCode;
 
 // Lazy loader for Chart.js (drastically cuts initial bundle size)
 window.loadChartJs = async function() {
@@ -20,8 +22,8 @@ const apiFetch = async (url, options = {}) => {
     const skipLoading = options.skipLoading || false;
     const loadingText = options.loadingText || 'Memproses...';
 
-    if (!skipLoading && window.Alpine && window.Alpine.store('app')) {
-        window.Alpine.store('app').showLoading(loadingText);
+    if (!skipLoading && typeof window.showLoading === 'function') {
+        window.showLoading(loadingText);
     }
 
     const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
@@ -52,8 +54,8 @@ const apiFetch = async (url, options = {}) => {
         
         return data;
     } finally {
-        if (!skipLoading && window.Alpine && window.Alpine.store('app')) {
-            window.Alpine.store('app').hideLoading();
+        if (!skipLoading && typeof window.hideLoading === 'function') {
+            window.hideLoading();
         }
     }
 };
@@ -108,6 +110,7 @@ export const showConfirm = async (title = 'Konfirmasi', text = '', confirmText =
 
 window.showSwal = showSwal;
 window.showConfirm = showConfirm;
+window.apiFetch = apiFetch;
 
 // Utility formatters
 export const formatRupiah = (number) => {
@@ -243,17 +246,6 @@ window.formatRupiah = formatRupiah;
 window.formatNumber = formatNumber;
 window.formatDateTime = formatDateTime;
 
-window.showLoading = (text = 'Memproses...') => {
-    if (window.Alpine && window.Alpine.store('app')) {
-        window.Alpine.store('app').showLoading(text);
-    }
-};
-
-window.hideLoading = () => {
-    if (window.Alpine && window.Alpine.store('app')) {
-        window.Alpine.store('app').hideLoading();
-    }
-};
 
 // Purge stale demo data from localStorage on load
 try {
@@ -294,6 +286,8 @@ Alpine.store('app', {
         cashAmountPaid: '',
         qrisProofPreview: null,
         qrisProofFile: null,
+        dynamicQrisLoading: false,
+        dynamicQrisDataUrl: null,
         
         // Global Branded Circular Logo Loading State
         globalLoading: false,
@@ -432,6 +426,9 @@ Alpine.store('app', {
         getCurrentStore() {
             const user = this.getCurrentUser();
             if (user && (user.store_id || user.store_name)) {
+                const foundStore = this.stores.find(s => s.id == user.store_id) || this.userStores.find(s => s.id == user.store_id);
+                if (foundStore) return foundStore;
+                
                 return {
                     id: user.store_id,
                     name: user.store_name || 'Stand Saya',
@@ -451,6 +448,12 @@ Alpine.store('app', {
         },
 
         // CART MANAGEMENT (for User POS)
+        _refreshQrisIfActive() {
+            if (this.activePaymentTab === 'qris') {
+                this.generateDynamicQris();
+            }
+        },
+
         addToCart(product) {
             const existing = this.cart.find(item => item.product.id === product.id);
             if (existing) {
@@ -463,6 +466,7 @@ Alpine.store('app', {
                 });
             }
             this.notify('success', 'Produk Ditambahkan', `${product.title} (x1) masuk keranjang`);
+            this._refreshQrisIfActive();
         },
 
         updateCartQty(productId, delta) {
@@ -472,11 +476,13 @@ Alpine.store('app', {
                 if (this.cart[index].qty <= 0) {
                     this.cart.splice(index, 1);
                 }
+                this._refreshQrisIfActive();
             }
         },
 
         removeFromCart(productId) {
             this.cart = this.cart.filter(item => item.product.id !== productId);
+            this._refreshQrisIfActive();
         },
 
         clearCart() {
@@ -540,6 +546,43 @@ Alpine.store('app', {
                 }
             } catch (error) {
                 this.notify('error', 'Gagal', error.message);
+            }
+        },
+
+        async generateDynamicQris() {
+            const currentStore = this.getCurrentStore();
+            if (!currentStore || !currentStore.use_dynamic_qris || !window.__ACTIVE_EVENT__ || !window.__ACTIVE_EVENT__.qris_payload) {
+                return;
+            }
+
+            if (this.cartTotal <= 0) {
+                this.dynamicQrisDataUrl = null;
+                return;
+            }
+            
+            this.dynamicQrisLoading = true;
+            try {
+                const response = await apiFetch('/user/kasir/generate-qris', {
+                    method: 'POST',
+                    body: { amount: this.cartTotal }
+                });
+                const payload = response.qris_payload || response.payload;
+                if (response.success && payload) {
+                    this.dynamicQrisDataUrl = await window.QRCode.toDataURL(payload, {
+                        width: 400,
+                        margin: 2,
+                        color: {
+                            dark: '#0f1419',
+                            light: '#ffffff'
+                        }
+                    });
+                } else {
+                    console.error('Failed to generate dynamic QRIS:', response.message);
+                }
+            } catch (err) {
+                console.error('Error generating dynamic QRIS', err);
+            } finally {
+                this.dynamicQrisLoading = false;
             }
         },
 
@@ -727,6 +770,12 @@ Alpine.store('app', {
         async saveProduct() {
             if (!this.productFormData.title.trim() || !this.productFormData.price) {
                 this.notify('error', 'Validasi Form', 'Judul produk dan harga wajib diisi.');
+                if (typeof window.hideLoading === 'function') window.hideLoading();
+                return;
+            }
+            if (!this.productFormData.store_id) {
+                this.notify('error', 'Validasi Form', 'Pilih warung/tenant terlebih dahulu.');
+                if (typeof window.hideLoading === 'function') window.hideLoading();
                 return;
             }
 
@@ -819,7 +868,8 @@ Alpine.store('app', {
                 slug: '',
                 start_date: '',
                 end_date: '',
-                location: ''
+                location: '',
+                qris_payload: ''
             };
             this.eventModalOpen = true;
         },
@@ -830,10 +880,11 @@ Alpine.store('app', {
                 id: ev.id,
                 name: ev.name,
                 slug: ev.slug,
-                start_date: ev.start_date || '',
-                end_date: ev.end_date || '',
+                start_date: ev.start_date ? String(ev.start_date).substring(0, 10) : '',
+                end_date: ev.end_date ? String(ev.end_date).substring(0, 10) : '',
                 location: ev.location || '',
-                qris_image_url: ev.qris_image_url || null
+                qris_image_url: ev.qris_image_url || null,
+                qris_payload: ev.qris_payload || ''
             };
             this.eventModalOpen = true;
         },
@@ -1640,7 +1691,7 @@ Alpine.store('app', {
 
         // PROPER FORMAL MONOCHROME (B&W) SINGLE TENANT / STAND REPORT EXPORT (SAME DESIGN AS ALL EO REPORT)
         printTenantReport(storeId) {
-            const store = this.stores.find(s => s.id == storeId) || { id: storeId, name: 'Stand Warung', booth_number: '-' };
+            const store = this.stores.find(s => s.id == storeId) || this.userStores.find(s => s.id == storeId) || { id: storeId, name: 'Stand Warung', booth_number: '-' };
             const event = this.getActiveEvent() || { name: 'Event Bazaar UMKM', location: '-' };
             const txList = this.transactions.filter(t => t.store_id == storeId);
             

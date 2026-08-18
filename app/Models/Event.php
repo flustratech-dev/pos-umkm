@@ -20,6 +20,7 @@ class Event extends Model
         'location',
         'is_active',
         'qris_image',
+        'qris_payload',
         'created_by',
     ];
 

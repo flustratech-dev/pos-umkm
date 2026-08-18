@@ -328,12 +328,12 @@
                                 💵 Cash / Tunai
                             </button>
                             <button 
-                                @click="$store.app.activePaymentTab = 'qris'"
+                                @click="$store.app.activePaymentTab = 'qris'; $store.app.generateDynamicQris()"
                                 type="button" 
                                 class="py-2.5 rounded-full text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                                 :class="$store.app.activePaymentTab === 'qris' ? 'bg-[#1d9bf0] text-white shadow-sm' : 'text-[#0f1419] hover:text-[#1d9bf0]'"
                             >
-                                📱 QRIS Statis
+                                📱 QRIS
                             </button>
                         </div>
                     </div>
@@ -406,32 +406,59 @@
                             @click="$store.app.processCashCheckout()"
                             type="button" 
                             :disabled="!$store.app.isCashValid"
-                            class="w-full py-3.5 px-4 rounded-full bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white font-black text-sm shadow-md shadow-[#1d9bf0]/25 transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98] cursor-pointer"
+                            class="w-full py-3.5 px-4 rounded-full bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white font-black text-sm shadow-md shadow-[#1d9bf0]/25 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                         >
-                            <span>Buat Pesanan & Cetak Nota</span>
+                            <span>Bayar Tunai & Cetak Nota</span>
                         </button>
-                        <p class="text-[10px] text-[#536471] text-center italic font-medium">
-                            *Pesanan berstatus Pending. Pembeli membayar tunai di Kasir Admin (dekat pintu keluar).
-                        </p>
                     </div>
 
                     <!-- TAB 2: QRIS PAYMENT (Twitter Blue CTA) -->
                     <div x-show="$store.app.activePaymentTab === 'qris'" x-cloak class="space-y-3 pt-1">
                         <!-- QRIS Display Box -->
-                        <div class="p-4 bg-white rounded-2xl border border-[#eff3f4] text-center space-y-2">
-                            <span class="text-[11px] font-bold text-[#0f1419] block uppercase">Scan QRIS Panitia EO Resmi</span>
-                            <template x-if="window.__ACTIVE_EVENT__ && window.__ACTIVE_EVENT__.qris_image_url">
-                                <div class="flex flex-col items-center justify-center py-1">
-                                    <img :src="window.__ACTIVE_EVENT__.qris_image_url" alt="QRIS Code" class="w-40 h-40 object-contain rounded-xl border border-[#eff3f4] p-1">
-                                    <p class="text-xs font-black text-[#0f1419] mt-2" x-text="window.__ACTIVE_EVENT__.name"></p>
-                                    <p class="text-[10px] text-[#f4212e] font-bold mt-2 bg-rose-50 px-2 py-1 rounded">Pastikan nominal transfer sesuai: <span x-text="formatRupiah($store.app.cartTotal + uniqueCode)"></span> (termasuk kode unik)</p>
+                        <div class="bg-[#f7f9f9] border border-[#eff3f4] rounded-2xl p-4 text-center">
+                            <template x-if="$store.app.getCurrentStore()?.use_dynamic_qris && window.__ACTIVE_EVENT__?.qris_payload">
+                                <div>
+                                    <span class="text-[11px] font-bold text-[#0f1419] block uppercase">Scan QRIS Pembayaran</span>
+                                    <div x-show="$store.app.dynamicQrisLoading" class="flex flex-col items-center justify-center py-6 h-40">
+                                        <svg class="w-8 h-8 text-[#1d9bf0] animate-spin" fill="none" viewBox="0 0 24 24">
+                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        <p class="text-xs font-bold text-[#536471] mt-2">Menyiapkan QRIS...</p>
+                                    </div>
+                                    <div x-show="!$store.app.dynamicQrisLoading && $store.app.dynamicQrisDataUrl" class="flex flex-col items-center justify-center py-1">
+                                        <img :src="$store.app.dynamicQrisDataUrl" alt="QRIS Code" class="w-40 h-40 object-contain rounded-xl border border-[#eff3f4] p-1 bg-white">
+                                        <p class="text-[11px] font-bold text-[#1d9bf0] mt-2 tracking-wide uppercase">NMID: {{ \App\Models\Event::getActive() ? \App\Models\Event::getActive()->name : '-' }}</p>
+                                        <p class="text-xs font-black text-[#0f1419] mt-1" x-text="window.__ACTIVE_EVENT__.name"></p>
+                                        <p class="text-[10px] text-[#00ba7c] font-bold mt-2 bg-emerald-50 border border-emerald-200/60 px-2.5 py-1.5 rounded-lg">Nominal otomatis terisi: <span x-text="formatRupiah($store.app.cartTotal + uniqueCode)"></span></p>
+                                    </div>
                                 </div>
                             </template>
-                            <template x-if="!window.__ACTIVE_EVENT__ || !window.__ACTIVE_EVENT__.qris_image_url">
-                                <div class="py-6 flex flex-col items-center justify-center border-2 border-dashed border-[#eff3f4] rounded-xl">
-                                    <svg class="w-8 h-8 text-[#536471] mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                                    <p class="text-xs font-bold text-[#536471]">QRIS Belum Tersedia</p>
-                                    <p class="text-[10px] text-[#536471] mt-1">Harap hubungi Admin EO untuk menambahkan QRIS Event.</p>
+                            <template x-if="!$store.app.getCurrentStore()?.use_dynamic_qris || !window.__ACTIVE_EVENT__?.qris_payload">
+                                <div>
+                                    <span class="text-[11px] font-bold text-[#0f1419] block uppercase">Scan QRIS Pembayaran</span>
+                                    <template x-if="window.__ACTIVE_EVENT__ && window.__ACTIVE_EVENT__.qris_image_url">
+                                        <div class="flex flex-col items-center justify-center py-1">
+                                            <img :src="window.__ACTIVE_EVENT__.qris_image_url" alt="QRIS Code" class="w-40 h-40 object-contain rounded-xl border border-[#eff3f4] p-1 bg-white">
+                                            <p class="text-xs font-black text-[#0f1419] mt-2" x-text="window.__ACTIVE_EVENT__.name"></p>
+                                            
+                                            <!-- Alert Input Manual untuk QRIS Statis -->
+                                            <div class="mt-2.5 p-3 bg-amber-50 border border-amber-200 rounded-xl text-left flex items-start gap-2.5 text-amber-900 w-full">
+                                                <svg class="w-4 h-4 text-amber-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                                                <div>
+                                                    <p class="text-xs font-bold">Input Nominal Manual</p>
+                                                    <p class="text-[11px] text-amber-800 mt-0.5 leading-snug">Customer wajib memasukkan nominal transfer secara manual sebesar <span class="font-black text-amber-950" x-text="formatRupiah($store.app.cartTotal + uniqueCode)"></span> (termasuk kode unik).</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                    <template x-if="!window.__ACTIVE_EVENT__ || (!window.__ACTIVE_EVENT__.qris_image_url && !window.__ACTIVE_EVENT__.qris_payload)">
+                                        <div class="py-6 flex flex-col items-center justify-center border-2 border-dashed border-[#eff3f4] rounded-xl">
+                                            <svg class="w-8 h-8 text-[#536471] mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                                            <p class="text-xs font-bold text-[#536471]">QRIS Belum Tersedia</p>
+                                            <p class="text-[10px] text-[#536471] mt-1">Harap hubungi Admin EO untuk menambahkan QRIS Event.</p>
+                                        </div>
+                                    </template>
                                 </div>
                             </template>
                         </div>

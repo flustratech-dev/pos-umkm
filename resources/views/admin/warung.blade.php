@@ -261,6 +261,39 @@
                         </div>
                     </template>
                 </div>
+                
+                <!-- QRIS Toggle -->
+                <div class="p-3 bg-[#f7f9f9] rounded-2xl border border-[#eff3f4]">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-black text-[#0f1419]">Gunakan QRIS Dinamis</p>
+                            <p class="text-[10px] text-[#536471] font-medium leading-tight mt-0.5 max-w-[200px] sm:max-w-xs">Pelanggan bisa langsung menscan nominal yang tepat. Cocok untuk warung dengan fitur harga tawar.</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" class="sr-only peer" :checked="selectedStoreDetail?.use_dynamic_qris" @change="async (e) => {
+                                try {
+                                    const res = await apiFetch(`/admin/warung/${selectedStoreDetail.id}`, {
+                                        method: 'PUT',
+                                        body: JSON.stringify({ use_dynamic_qris: e.target.checked })
+                                    });
+                                    if(res.success) {
+                                        // Update state
+                                        const storeIndex = $store.app.stores.findIndex(s => s.id === selectedStoreDetail.id);
+                                        if(storeIndex !== -1) {
+                                            $store.app.stores[storeIndex].use_dynamic_qris = e.target.checked;
+                                        }
+                                        selectedStoreDetail.use_dynamic_qris = e.target.checked;
+                                        Toastify({ text: 'Pengaturan QRIS diperbarui!', duration: 3000, style: { background: '#00ba7c' } }).showToast();
+                                    }
+                                } catch(err) {
+                                    e.target.checked = !e.target.checked;
+                                    Toastify({ text: 'Gagal memperbarui pengaturan QRIS', duration: 3000, style: { background: '#f4212e' } }).showToast();
+                                }
+                            }">
+                            <div class="w-11 h-6 bg-[#eff3f4] rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-[#eff3f4] after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#1d9bf0]"></div>
+                        </label>
+                    </div>
+                </div>
 
                 <div class="pt-3 border-t border-[#eff3f4] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
                     <form :action="selectedStoreDetail ? `{{ (auth()->user() && auth()->user()->isSuperAdmin()) ? '/superadmin/impersonate/' : '/admin/impersonate/' }}${selectedStoreDetail.id}` : '#'" method="POST">

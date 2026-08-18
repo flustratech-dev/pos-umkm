@@ -58,8 +58,12 @@ Route::prefix('user')->name('user.')->middleware(['auth', 'role:user'])->group(f
     Route::get('/kasir', [UserKasirController::class, 'index'])->name('kasir');
     Route::post('/kasir/checkout-cash', [UserKasirController::class, 'checkoutCash'])->name('kasir.checkout-cash');
     Route::post('/kasir/checkout-qris', [UserKasirController::class, 'checkoutQris'])->name('kasir.checkout-qris');
+    Route::post('/kasir/generate-qris', [UserKasirController::class, 'generateQris'])->name('kasir.generate-qris');
 
-
+    Route::get('/produk', [UserProductController::class, 'index'])->name('produk');
+    Route::post('/produk', [UserProductController::class, 'store'])->name('produk.store');
+    Route::match(['put', 'post'], '/produk/{product}', [UserProductController::class, 'update'])->name('produk.update');
+    Route::delete('/produk/{product}', [UserProductController::class, 'destroy'])->name('produk.destroy');
 
     Route::get('/laporan', [UserReportController::class, 'index'])->name('laporan');
     Route::get('/laporan/pdf', [UserReportController::class, 'downloadPdf'])->name('laporan.pdf');
@@ -101,6 +105,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::delete('/produk/{product}', [AdminProductController::class, 'destroy'])->name('produk.destroy');
     Route::get('/warung', [AdminStoreController::class, 'index'])->name('warung');
     Route::get('/warung/{store}', [AdminStoreController::class, 'show'])->name('warung.show');
+    Route::put('/warung/{store}', [AdminStoreController::class, 'update'])->name('warung.update');
 
     Route::get('/laporan', [AdminReportController::class, 'index'])->name('laporan');
     Route::get('/laporan/pdf', [AdminReportController::class, 'downloadPdf'])->name('laporan.pdf');
