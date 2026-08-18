@@ -929,49 +929,40 @@ Alpine.store('app', {
             this.eventModalOpen = true;
         },
 
-        saveNewEvent() {
-            if (!this.eventFormData.name.trim()) {
-                this.notify('error', 'Nama Event Wajib', 'Harap isi nama event.');
-                return;
-            }
-
-            const slug = this.eventFormData.slug || this.eventFormData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-
-            const newEvent = {
-                id: Date.now(),
-                name: this.eventFormData.name.trim(),
-                slug,
-                start_date: this.eventFormData.start_date || new Date().toISOString().substring(0, 10),
-                end_date: this.eventFormData.end_date || new Date().toISOString().substring(0, 10),
-                location: this.eventFormData.location || '-',
-                is_active: false,
-                created_by: 1,
-                created_at: new Date().toISOString().replace('T', ' ').substring(0, 19)
-            };
-
-            this.events.unshift(newEvent);
-            setStoredData('events', this.events);
-            this.eventModalOpen = false;
-            this.notify('success', 'Event Dibuat', `Event "${newEvent.name}" berhasil dibuat sebagai arsip.`);
-        },
-
         openActivateEventModal(ev) {
             this.eventToActivate = ev;
             this.activateEventConfirmOpen = true;
         },
 
-        confirmActivateEvent() {
+        async confirmActivateEvent() {
             if (!this.eventToActivate) return;
-            
-            // Set all others to false, activate chosen event
-            this.events.forEach(e => {
-                e.is_active = (e.id === this.eventToActivate.id);
-            });
 
-            setStoredData('events', this.events);
+            const target = this.eventToActivate;
+            const rolePrefix = this.currentRole === 'superadmin' ? 'superadmin' : 'admin';
             this.activateEventConfirmOpen = false;
-            this.notify('success', 'Event Diaktifkan', `Event "${this.eventToActivate.name}" kini aktif.`);
-            this.eventToActivate = null;
+
+            try {
+                const res = await apiFetch(`/${rolePrefix}/events/${target.id}/activate`, {
+                    method: 'POST',
+                    loadingText: 'Mengaktifkan event...'
+                });
+
+                if (res.success) {
+                    this.events.forEach(e => {
+                        e.is_active = (e.id === target.id);
+                    });
+                    if (res.event) {
+                        this.activeEvent = res.event;
+                    }
+                    this.notify('success', 'Event Diaktifkan', res.message);
+                } else {
+                    this.notify('error', 'Gagal', res.message || 'Gagal mengaktifkan event.');
+                }
+            } catch (err) {
+                this.notify('error', 'Gagal', err.message || 'Gagal mengaktifkan event.');
+            } finally {
+                this.eventToActivate = null;
+            }
         },
 
         // HELPDESK

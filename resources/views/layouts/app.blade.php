@@ -50,6 +50,8 @@
             'location' => $activeEv->location,
             'is_active' => $activeEv->is_active,
             'is_testing_mode' => (bool)$activeEv->is_testing_mode,
+            'start_date' => $activeEv->start_date?->toDateString(),
+            'end_date' => $activeEv->end_date?->toDateString(),
             'qris_image_url' => $activeEv->qris_image_url,
             'qris_payload' => $activeEv->qris_payload,
         ] : null;
@@ -62,6 +64,11 @@
                 'location' => $ev->location,
                 'is_active' => (bool)$ev->is_active,
                 'is_testing_mode' => (bool)$ev->is_testing_mode,
+                'start_date' => $ev->start_date?->toDateString(),
+                'end_date' => $ev->end_date?->toDateString(),
+                'qris_image_url' => $ev->qris_image_url,
+                'qris_payload' => $ev->qris_payload,
+                'created_at' => $ev->created_at?->toIso8601String(),
             ];
         });
         $activeEventId = $activeEv ? $activeEv->id : null;
