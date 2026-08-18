@@ -86,7 +86,8 @@ class KasirController extends Controller
             $transaction = $this->checkoutService->processQrisCheckout(
                 $store,
                 $user,
-                $request->input('items', [])
+                $request->input('items', []),
+                $request->file('proof_image')
             );
 
             return response()->json([
@@ -114,5 +115,29 @@ class KasirController extends Controller
         $user->update(['store_id' => $targetStore->id]);
         
         return redirect()->back()->with('success', 'Berhasil beralih ke warung: ' . $targetStore->event->name);
+    }
+
+    public function generateQris(Request $request): JsonResponse
+    {
+        $request->validate(['amount' => 'required|numeric|min:1']);
+        $user = Auth::user();
+        $store = $user->store ?: Store::where('owner_id', $user->id)->firstOrFail();
+        $event = $store->event;
+
+        if (!$store->use_dynamic_qris || !$event->qris_payload) {
+            return response()->json(['success' => false, 'message' => 'QRIS Dinamis tidak aktif atau payload tidak tersedia.']);
+        }
+
+        $amount = (float) $request->amount;
+        // Adding unique code if applicable
+        $amount += (int) $store->id;
+
+        $qrisService = new \App\Services\Payment\QrisService();
+        $dynamicPayload = $qrisService->convertToDynamic($event->qris_payload, $amount);
+
+        return response()->json([
+            'success' => true,
+            'qris_payload' => $dynamicPayload,
+        ]);
     }
 }

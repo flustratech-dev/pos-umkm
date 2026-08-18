@@ -49,10 +49,21 @@
             'slug' => $activeEv->slug,
             'location' => $activeEv->location,
             'is_active' => $activeEv->is_active,
+            'is_testing_mode' => (bool)$activeEv->is_testing_mode,
             'qris_image_url' => $activeEv->qris_image_url,
+            'qris_payload' => $activeEv->qris_payload,
         ] : null;
 
-        $dbEvents = \App\Models\Event::all();
+        $dbEvents = \App\Models\Event::all()->map(function($ev) {
+            return [
+                'id' => $ev->id,
+                'name' => $ev->name,
+                'slug' => $ev->slug,
+                'location' => $ev->location,
+                'is_active' => (bool)$ev->is_active,
+                'is_testing_mode' => (bool)$ev->is_testing_mode,
+            ];
+        });
         $activeEventId = $activeEv ? $activeEv->id : null;
         
         // Stores Mapping (Only if passed from controller)
@@ -67,6 +78,7 @@
                 'booth_number' => $s->booth_number,
                 'category' => $s->category,
                 'is_active' => $s->is_active,
+                'use_dynamic_qris' => $s->use_dynamic_qris,
             ];
         }) : collect();
 
@@ -86,8 +98,20 @@
             ];
         }) : collect();
 
-        // Transactions Mapping (Only if passed from controller, handling various names)
-        $rawTransactions = $transactions ?? $recentTransactions ?? $pendingTransactions ?? $historyTransactions ?? collect();
+        // Transactions Mapping (Handling various controller variable names or fallback query)
+        $rawTransactions = $transactions ?? $recentTransactions ?? $pendingTransactions ?? $historyTransactions ?? $paidTransactions ?? null;
+        if (!$rawTransactions && $authUser) {
+            $txQuery = \App\Models\Transaction::with(['store', 'cashier', 'items', 'revenueSplit', 'paymentProof'])->latest();
+            if ($authUser->isUser() && $userStoreId) {
+                $txQuery->where('store_id', $userStoreId);
+            } elseif ($activeEv && ($authUser->isAdmin() || $authUser->isSuperAdmin())) {
+                $txQuery->whereHas('store', function($q) use ($activeEv) {
+                    $q->where('event_id', $activeEv->id);
+                });
+            }
+            $rawTransactions = $txQuery->get();
+        }
+        $rawTransactions = $rawTransactions ?: collect();
         $dbTransactions = $rawTransactions->map(function($t) {
             return [
                 'id' => $t->id,
@@ -150,7 +174,7 @@
 
         // User's owned stores (for switching events)
         $dbUserStores = collect();
-        if ($authUser && $authUser->isUser()) {
+        if ($authUser) {
             $dbUserStores = \App\Models\Store::with('event')
                 ->where('owner_id', $authUser->id)
                 ->orWhere('id', $userStoreId ?: 0)
@@ -164,8 +188,14 @@
                         'name' => $s->name,
                         'event_name' => $s->event ? $s->event->name : 'Unknown Event',
                         'event_is_active' => $s->event ? (bool)$s->event->is_active : false,
+                        'use_dynamic_qris' => $s->use_dynamic_qris,
                     ];
                 });
+        }
+
+        $dbPendingCashCount = 0;
+        if ($authUser && ($authUser->isAdmin() || $authUser->isSuperAdmin())) {
+            $dbPendingCashCount = \App\Models\Transaction::where('payment_method', 'cash')->where('status', 'pending')->count();
         }
     @endphp
 
@@ -178,6 +208,7 @@
         window.__INITIAL_PRODUCTS__ = @json($dbProducts);
         window.__INITIAL_TRANSACTIONS__ = @json($dbTransactions);
         window.__INITIAL_HELPDESK__ = @json($dbTickets);
+        window.__PENDING_CASH_COUNT__ = {{ (int)$dbPendingCashCount }};
         window.__LOGO_URL__ = @json(asset('images/logo_jadisatu.png'));
         @php
             $logoPath = public_path('images/logo_jadisatu.png');
@@ -226,6 +257,58 @@
 
     <!-- Global Thermal Receipt Modal -->
     @include('components.receipt-modal')
+
+    <!-- Universal Reset Testing Transactions Modal -->
+    <div 
+        x-show="$store.app.resetTestingModalOpen" 
+        x-cloak 
+        class="fixed inset-0 z-50 overflow-y-auto"
+        aria-labelledby="modal-title"
+        role="dialog"
+        aria-modal="true"
+    >
+        <div class="fixed inset-0 bg-[#0f1419]/60 backdrop-blur-sm transition-opacity" @click="$store.app.resetTestingModalOpen = false"></div>
+        <div class="flex min-h-full items-center justify-center p-4">
+            <div class="relative max-w-md w-full bg-white rounded-3xl p-6 shadow-2xl border border-[#eff3f4] text-center space-y-4">
+                <div class="w-14 h-14 rounded-full bg-red-50 text-[#f4212e] flex items-center justify-center mx-auto border border-red-100 shadow-xs">
+                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                </div>
+                <div>
+                    <h3 class="text-lg font-black text-[#0f1419]">Reset Transaksi Uji Coba?</h3>
+                    <p class="text-xs text-[#536471] font-semibold mt-1 leading-relaxed">
+                        Tindakan ini akan <strong>menghapus seluruh riwayat transaksi & bagi hasil uji coba</strong> pada event ini.
+                    </p>
+                </div>
+                <div class="p-3.5 bg-emerald-50 rounded-2xl border border-emerald-100 text-left">
+                    <div class="flex items-center gap-2 text-emerald-800 text-xs font-black">
+                        <svg class="w-4 h-4 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        <span>Data Aman & Tidak Terhapus:</span>
+                    </div>
+                    <ul class="text-[11px] text-emerald-700 font-semibold mt-1.5 ml-6 list-disc space-y-0.5">
+                        <li>Daftar Stand / Tenant & Akun Pemilik</li>
+                        <li>Daftar Menu / Produk & Harga</li>
+                        <li>Pengaturan Event & QRIS</li>
+                    </ul>
+                </div>
+                <div class="flex items-center gap-2 pt-2">
+                    <button 
+                        @click="$store.app.resetTestingModalOpen = false" 
+                        type="button" 
+                        class="w-1/2 py-2.5 rounded-full bg-[#eff3f4] hover:bg-[#cfd9de] text-[#0f1419] text-xs font-black transition-colors cursor-pointer"
+                    >
+                        Batal
+                    </button>
+                    <button 
+                        @click="$store.app.confirmResetTesting()" 
+                        type="button" 
+                        class="w-1/2 py-2.5 rounded-full bg-[#f4212e] hover:bg-[#dc1e29] text-white text-xs font-black shadow-md shadow-[#f4212e]/25 transition-all cursor-pointer"
+                    >
+                        Ya, Bersihkan Sekarang
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Global Circular Logo Loading Spinner Overlay -->
     @include('components.loading-overlay')

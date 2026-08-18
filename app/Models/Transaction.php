@@ -29,6 +29,7 @@ class Transaction extends Model
         'cancelled_at',
         'cancellation_reason',
         'refund_ack_confirmed',
+        'is_testing',
     ];
 
     protected function casts(): array
@@ -41,6 +42,7 @@ class Transaction extends Model
             'verified_at' => 'datetime',
             'cancelled_at' => 'datetime',
             'refund_ack_confirmed' => 'boolean',
+            'is_testing' => 'boolean',
         ];
     }
 

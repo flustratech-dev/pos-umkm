@@ -19,6 +19,7 @@ class UpdateEventRequest extends FormRequest
             'start_date' => ['nullable', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             'qris_image' => ['nullable', 'image', 'max:2048'],
+            'qris_payload' => ['nullable', 'string'],
         ];
     }
 }

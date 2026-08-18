@@ -79,6 +79,7 @@ class CheckoutService
             }
 
             $changeDue = $amountPaid - $totalAmount;
+            $isTesting = (bool) ($store->event?->is_testing_mode);
 
             // Cash transactions are now 'pending' until admin confirms at exit cashier
             $transaction = Transaction::create([
@@ -90,6 +91,7 @@ class CheckoutService
                 'amount_paid' => $amountPaid,
                 'change_due' => $changeDue,
                 'status' => 'pending',
+                'is_testing' => $isTesting,
                 'paid_at' => null,
             ]);
 
@@ -106,14 +108,15 @@ class CheckoutService
     }
 
     /**
-     * Process QRIS checkout.
+     * Process a QRIS transaction (Auto-success with optional proof archive for reporting).
      *
      * @param Store $store
      * @param User $cashier
      * @param array $items Array of ['product_id' => int, 'qty' => int]
+     * @param UploadedFile|null $proofFile Optional proof file for archive/reporting
      * @return Transaction
      */
-    public function processQrisCheckout(Store $store, User $cashier, array $items): Transaction
+    public function processQrisCheckout(Store $store, User $cashier, array $items, ?UploadedFile $proofFile = null): Transaction
     {
         if (empty($items)) {
             throw new InvalidArgumentException('Keranjang belanja tidak boleh kosong.');
@@ -143,6 +146,7 @@ class CheckoutService
 
             $uniqueCode = (int) $store->id;
             $totalAmount += $uniqueCode;
+            $isTesting = (bool) ($store->event?->is_testing_mode);
 
             $transaction = Transaction::create([
                 'invoice_code' => $this->generateInvoiceCode(),
@@ -152,7 +156,8 @@ class CheckoutService
                 'payment_method' => 'qris',
                 'amount_paid' => $totalAmount,
                 'change_due' => 0,
-                'status' => 'success',
+                'status' => 'paid',
+                'is_testing' => $isTesting,
                 'paid_at' => now(),
             ]);
 
@@ -161,10 +166,18 @@ class CheckoutService
                 TransactionItem::create($item);
             }
 
-            // Generate revenue split immediately since it's auto-success
-            $this->revenueSplitService->calculateSplit($transaction);
+            if ($proofFile) {
+                $path = $proofFile->store('payment_proofs', 'public');
+                PaymentProof::create([
+                    'transaction_id' => $transaction->id,
+                    'proof_path' => $path,
+                ]);
+            }
 
-            return $transaction->load(['items', 'store', 'cashier']);
+            // Generate revenue split immediately since it's auto-success
+            $this->revenueSplitService->calculate($transaction);
+
+            return $transaction->load(['items', 'store', 'cashier', 'paymentProof']);
         });
     }
 }

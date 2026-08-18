@@ -19,12 +19,14 @@ class Store extends Model
         'access_uuid',
         'category',
         'is_active',
+        'use_dynamic_qris',
     ];
 
     protected function casts(): array
     {
         return [
             'is_active' => 'boolean',
+            'use_dynamic_qris' => 'boolean',
         ];
     }
 

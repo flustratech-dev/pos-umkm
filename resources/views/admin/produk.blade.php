@@ -9,9 +9,10 @@
     selectedCategory: 'all',
     
     get filteredProducts() {
-        const storeId = $store.app.getCurrentStore()?.id;
+        const isAdmin = $store.app.user?.role !== 'user';
+        const storeId = isAdmin ? null : $store.app.getCurrentStore()?.id;
         return $store.app.products.filter(p => {
-            const matchesStore = storeId ? p.store_id === storeId : true;
+            const matchesStore = storeId ? p.store_id == storeId : true;
             const matchSearch = p.title.toLowerCase().includes(this.search.toLowerCase());
             const matchCategory = this.selectedCategory === 'all' || p.category === this.selectedCategory;
             return matchesStore && matchSearch && matchCategory;
