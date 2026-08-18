@@ -112,57 +112,57 @@
         </div>
     </div>
 
-    <!-- Stores Grid (Twitter UI) -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <!-- Stores Grid (Twitter UI - 2 Cards Mobile, 4 Cards Desktop) -->
+    <div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-2.5 sm:gap-3.5">
         <template x-for="store in filteredStores" :key="store.id">
-            <div class="bg-white rounded-3xl border border-[#eff3f4] p-5 shadow-xs hover:border-[#1d9bf0]/40 transition-all flex flex-col justify-between space-y-4">
+            <div class="bg-white rounded-2xl border border-[#eff3f4] p-2.5 sm:p-4 shadow-2xs hover:border-[#1d9bf0]/50 hover:shadow-xs transition-all flex flex-col justify-between space-y-2 sm:space-y-3 group">
                 <div>
                     <!-- Top Info -->
-                    <div class="flex items-center justify-between">
-                        <span class="px-2.5 py-0.5 rounded-full bg-[#f7f9f9] font-mono text-[10px] font-bold text-[#0f1419] border border-[#eff3f4]" x-text="store.booth_number || 'Stand 01'"></span>
-                        <span class="px-3 py-0.5 rounded-full text-[10px] font-black bg-[#e8f5fd] text-[#1d9bf0] border border-[#bde2f9]">
-                            Aktif Jualan
+                    <div class="flex items-center justify-between gap-1 mb-1">
+                        <span class="px-1.5 sm:px-2 py-0.5 rounded-full bg-[#f7f9f9] font-mono text-[8px] sm:text-[9px] font-bold text-[#0f1419] border border-[#eff3f4]" x-text="store.booth_number || 'Stand 01'"></span>
+                        <span class="px-1.5 sm:px-2 py-0.5 rounded-full text-[8px] sm:text-[9px] font-black bg-[#e8f5fd] text-[#1d9bf0] border border-[#bde2f9]">
+                            Aktif
                         </span>
                     </div>
 
-                    <h3 class="font-black text-base text-[#0f1419] mt-2" x-text="store.name"></h3>
-                    <p class="text-xs text-[#536471] font-semibold" x-text="`Pemilik: ${store.owner_name}`"></p>
-                    <span class="inline-block mt-1 text-[11px] px-2.5 py-0.5 rounded-full bg-[#f7f9f9] text-[#0f1419] font-bold border border-[#eff3f4]" x-text="store.category || 'Makanan & Minuman'"></span>
+                    <h3 class="font-black text-xs sm:text-base text-[#0f1419] truncate leading-tight group-hover:text-[#1d9bf0] transition-colors" x-text="store.name"></h3>
+                    <p class="text-[10px] sm:text-xs text-[#536471] font-semibold truncate mt-0.5" x-text="`Pemilik: ${store.owner_name}`"></p>
+                    <span class="inline-block mt-0.5 text-[9px] sm:text-[11px] px-2 py-0.5 rounded-full bg-[#f7f9f9] text-[#1d9bf0] font-bold border border-[#eff3f4] truncate max-w-full" x-text="store.category || 'Makanan'"></span>
                 </div>
 
-                <!-- Stats Grid -->
-                <div class="grid grid-cols-2 gap-2 text-xs p-3.5 bg-[#f7f9f9] rounded-2xl border border-[#eff3f4]">
+                <!-- Compact Stats Grid -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-1 sm:gap-2 text-xs p-2 sm:p-2.5 bg-[#f7f9f9] rounded-xl border border-[#eff3f4]">
                     <div>
-                        <span class="text-[10px] text-[#536471] block font-semibold">Total Menu</span>
-                        <span class="font-black text-[#0f1419]" x-text="getStoreProducts(store.id).length + ' Menu'"></span>
+                        <span class="text-[8px] sm:text-[9px] text-[#536471] block font-semibold">Total Menu</span>
+                        <span class="font-black text-[10px] sm:text-xs text-[#0f1419]" x-text="getStoreProducts(store.id).length + ' Menu'"></span>
                     </div>
                     <div>
-                        <span class="text-[10px] text-[#536471] block font-semibold">Omzet Terkumpul</span>
-                        <span class="font-black text-[#1d9bf0]" x-text="formatRupiah(getStoreRevenue(store.id))"></span>
+                        <span class="text-[8px] sm:text-[9px] text-[#536471] block font-semibold">Omzet</span>
+                        <span class="font-black text-[10px] sm:text-xs text-[#1d9bf0] truncate block" x-text="formatRupiah(getStoreRevenue(store.id))"></span>
                     </div>
                 </div>
 
                 <!-- Action Links (Twitter Style Pills) -->
-                <div class="pt-2 border-t border-[#eff3f4] flex flex-wrap items-center justify-between gap-2">
-                    <div class="flex items-center gap-1.5 flex-wrap">
+                <div class="pt-1.5 sm:pt-2 border-t border-[#eff3f4] flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                    <div class="flex items-center gap-1">
                         <!-- WhatsApp Link -->
                         <a 
                             :href="`https://wa.me/${store.phone ? store.phone.replace(/^0/, '62') : '6281234567890'}`" 
                             target="_blank"
-                            class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#e8f5fd] hover:bg-[#1d9bf0] text-[#1d9bf0] hover:text-white text-xs font-black transition-colors border border-[#bde2f9] cursor-pointer"
+                            class="p-1 sm:p-1.5 rounded-full bg-[#e8f5fd] hover:bg-[#1d9bf0] text-[#1d9bf0] hover:text-white transition-colors border border-[#bde2f9] cursor-pointer"
+                            title="Chat WhatsApp Pemilik"
                         >
-                            <span>💬 Chat WA</span>
+                            <span class="text-[11px] sm:text-xs">💬</span>
                         </a>
 
                         <!-- PDF Laporan Button -->
                         <button 
                             @click="$store.app.printTenantReport(store.id)" 
                             type="button"
-                            class="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#0f1419] hover:bg-[#272c30] text-white text-xs font-black transition-colors shadow-2xs cursor-pointer"
+                            class="p-1 sm:p-1.5 rounded-full bg-[#0f1419] hover:bg-[#272c30] text-white transition-colors cursor-pointer shadow-2xs"
                             title="Cetak PDF / Dokumen Stand Ini"
                         >
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
-                            <span>PDF</span>
+                            <svg class="w-3 sm:w-3.5 h-3 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
                         </button>
 
                         <!-- Impersonate Button (Masuk sebagai Stand) -->
@@ -170,22 +170,22 @@
                             @csrf
                             <button 
                                 type="submit" 
-                                class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#0f1419] hover:bg-[#272c30] text-white text-xs font-black transition-all cursor-pointer shadow-xs active:scale-95"
+                                class="px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-full bg-[#0f1419] hover:bg-[#272c30] text-white text-[9px] sm:text-[10px] font-black transition-all cursor-pointer shadow-xs active:scale-95 flex items-center gap-0.5"
                                 title="Buka terminal kasir dan kelola menu langsung sebagai warung ini"
                             >
-                                <svg class="w-3.5 h-3.5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                                <span>Inspeksi Kasir</span>
+                                <svg class="w-2.5 sm:w-3 h-2.5 sm:h-3 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                <span>Inspeksi</span>
                             </button>
                         </form>
                     </div>
 
-                    <!-- Detail Menu Modal Trigger (Twitter Blue Pill) -->
+                    <!-- Detail Menu Modal Trigger -->
                     <button 
                         @click="openDetail(store)" 
                         type="button" 
-                        class="px-4 py-1.5 rounded-full bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white text-xs font-black shadow-xs transition-colors cursor-pointer"
+                        class="w-full sm:w-auto px-2 sm:px-3 py-1 rounded-full bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white text-[10px] sm:text-[11px] font-black shadow-xs transition-colors cursor-pointer text-center"
                     >
-                        Lihat Menu Stand &rarr;
+                        Menu Stand &rarr;
                     </button>
                 </div>
             </div>

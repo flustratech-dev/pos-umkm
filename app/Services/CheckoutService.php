@@ -106,20 +106,21 @@ class CheckoutService
     }
 
     /**
-     * Process QRIS checkout.
+     * Process a QRIS transaction (Auto-success with optional proof archive for reporting).
      *
      * @param Store $store
      * @param User $cashier
      * @param array $items Array of ['product_id' => int, 'qty' => int]
+     * @param UploadedFile|null $proofFile Optional proof file for archive/reporting
      * @return Transaction
      */
-    public function processQrisCheckout(Store $store, User $cashier, array $items): Transaction
+    public function processQrisCheckout(Store $store, User $cashier, array $items, ?UploadedFile $proofFile = null): Transaction
     {
         if (empty($items)) {
             throw new InvalidArgumentException('Keranjang belanja tidak boleh kosong.');
         }
 
-        return DB::transaction(function () use ($store, $cashier, $items) {
+        return DB::transaction(function () use ($store, $cashier, $items, $proofFile) {
             $totalAmount = 0;
             $preparedItems = [];
 
@@ -152,7 +153,7 @@ class CheckoutService
                 'payment_method' => 'qris',
                 'amount_paid' => $totalAmount,
                 'change_due' => 0,
-                'status' => 'success',
+                'status' => 'paid',
                 'paid_at' => now(),
             ]);
 
@@ -161,10 +162,18 @@ class CheckoutService
                 TransactionItem::create($item);
             }
 
-            // Generate revenue split immediately since it's auto-success
-            $this->revenueSplitService->calculateSplit($transaction);
+            if ($proofFile) {
+                $path = $proofFile->store('payment_proofs', 'public');
+                PaymentProof::create([
+                    'transaction_id' => $transaction->id,
+                    'proof_path' => $path,
+                ]);
+            }
 
-            return $transaction->load(['items', 'store', 'cashier']);
+            // Generate revenue split immediately since it's auto-success
+            $this->revenueSplitService->calculate($transaction);
+
+            return $transaction->load(['items', 'store', 'cashier', 'paymentProof']);
         });
     }
 }

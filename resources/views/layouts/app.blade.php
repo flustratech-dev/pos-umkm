@@ -88,8 +88,20 @@
             ];
         }) : collect();
 
-        // Transactions Mapping (Only if passed from controller, handling various names)
-        $rawTransactions = $transactions ?? $recentTransactions ?? $pendingTransactions ?? $historyTransactions ?? collect();
+        // Transactions Mapping (Handling various controller variable names or fallback query)
+        $rawTransactions = $transactions ?? $recentTransactions ?? $pendingTransactions ?? $historyTransactions ?? $paidTransactions ?? null;
+        if (!$rawTransactions && $authUser) {
+            $txQuery = \App\Models\Transaction::with(['store', 'cashier', 'items', 'revenueSplit', 'paymentProof'])->latest();
+            if ($authUser->isUser() && $userStoreId) {
+                $txQuery->where('store_id', $userStoreId);
+            } elseif ($activeEv && ($authUser->isAdmin() || $authUser->isSuperAdmin())) {
+                $txQuery->whereHas('store', function($q) use ($activeEv) {
+                    $q->where('event_id', $activeEv->id);
+                });
+            }
+            $rawTransactions = $txQuery->get();
+        }
+        $rawTransactions = $rawTransactions ?: collect();
         $dbTransactions = $rawTransactions->map(function($t) {
             return [
                 'id' => $t->id,

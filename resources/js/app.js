@@ -594,18 +594,50 @@ Alpine.store('app', {
             }
         },
 
+        handleQrisProofUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                this.qrisProofFile = file;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    this.qrisProofPreview = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        },
+
+        removeQrisProof() {
+            this.qrisProofFile = null;
+            this.qrisProofPreview = null;
+            const camInput = document.getElementById('qris_proof_camera');
+            if (camInput) camInput.value = '';
+            const galInput = document.getElementById('qris_proof_gallery');
+            if (galInput) galInput.value = '';
+        },
+
         async processQrisCheckout() {
             try {
-                const payload = {
-                    items: this.cart.map(c => ({
-                        product_id: c.product.id,
-                        qty: c.qty
-                    }))
-                };
+                let body;
+                if (this.qrisProofFile) {
+                    const formData = new FormData();
+                    this.cart.forEach((c, idx) => {
+                        formData.append(`items[${idx}][product_id]`, c.product.id);
+                        formData.append(`items[${idx}][qty]`, c.qty);
+                    });
+                    formData.append('proof_image', this.qrisProofFile);
+                    body = formData;
+                } else {
+                    body = {
+                        items: this.cart.map(c => ({
+                            product_id: c.product.id,
+                            qty: c.qty
+                        }))
+                    };
+                }
 
                 const data = await apiFetch('/user/kasir/checkout-qris', {
                     method: 'POST',
-                    body: payload
+                    body: body
                 });
 
                 if (data.success && data.transaction) {

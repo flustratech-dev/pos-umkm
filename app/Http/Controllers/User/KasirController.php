@@ -86,7 +86,8 @@ class KasirController extends Controller
             $transaction = $this->checkoutService->processQrisCheckout(
                 $store,
                 $user,
-                $request->input('items', [])
+                $request->input('items', []),
+                $request->file('proof_image')
             );
 
             return response()->json([
