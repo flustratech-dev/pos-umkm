@@ -544,30 +544,26 @@ Alpine.store('app', {
         },
 
         async processQrisCheckout() {
-            if (!this.qrisProofFile) {
-                this.notify('error', 'Bukti Diperlukan', 'Harap unggah screenshot bukti transfer QRIS terlebih dahulu.');
-                return;
-            }
-
             try {
-                const formData = new FormData();
-                formData.append('proof_image', this.qrisProofFile);
-                
-                this.cart.forEach((c, index) => {
-                    formData.append(`items[${index}][product_id]`, c.product.id);
-                    formData.append(`items[${index}][qty]`, c.qty);
-                });
+                const payload = {
+                    items: this.cart.map(c => ({
+                        product_id: c.product.id,
+                        qty: c.qty
+                    }))
+                };
 
                 const data = await apiFetch('/user/kasir/checkout-qris', {
                     method: 'POST',
-                    body: formData
+                    body: payload
                 });
 
                 if (data.success && data.transaction) {
                     this.transactions.unshift(data.transaction);
+                    this.activeReceiptTransaction = data.transaction;
+                    this.receiptModalOpen = true;
                     this.isCheckoutOpen = false;
                     this.clearCart();
-                    this.notify('warning', 'Bukti Terkirim', 'Menunggu verifikasi admin EO — transaksi belum berhasil.');
+                    this.notify('success', 'Berhasil', data.message);
                 }
             } catch (error) {
                 this.notify('error', 'Gagal', error.message);
@@ -690,7 +686,8 @@ Alpine.store('app', {
                 photo: '',
                 photoFile: null,
                 photoPreview: '',
-                stock_badge: 'Tersedia'
+                stock_badge: 'Tersedia',
+                store_id: ''
             };
             this.productModalOpen = true;
         },
@@ -707,7 +704,8 @@ Alpine.store('app', {
                 photo: product.photo || '',
                 photoFile: null,
                 photoPreview: product.photo_url || product.photo || '',
-                stock_badge: product.stock_badge || 'Tersedia'
+                stock_badge: product.stock_badge || 'Tersedia',
+                store_id: product.store_id || ''
             };
             this.productModalOpen = true;
         },
@@ -733,7 +731,8 @@ Alpine.store('app', {
             }
 
             try {
-                const url = this.isEditingProduct ? `/user/produk/${this.productFormData.id}` : '/user/produk';
+                const basePath = window.location.pathname.startsWith('/admin') ? '/admin' : '/user';
+                const url = this.isEditingProduct ? `${basePath}/produk/${this.productFormData.id}` : `${basePath}/produk`;
                 
                 let payload;
                 if (this.productFormData.photoFile) {
@@ -743,6 +742,7 @@ Alpine.store('app', {
                     payload.append('category', this.productFormData.category);
                     payload.append('description', this.productFormData.description || '');
                     payload.append('stock_badge', this.productFormData.stock_badge);
+                    payload.append('store_id', this.productFormData.store_id);
                     payload.append('photo', this.productFormData.photoFile);
                     if (this.isEditingProduct) {
                         payload.append('_method', 'PUT'); // Laravel form spoofing
@@ -753,7 +753,8 @@ Alpine.store('app', {
                         price: parseFloat(this.productFormData.price),
                         category: this.productFormData.category,
                         description: this.productFormData.description,
-                        stock_badge: this.productFormData.stock_badge
+                        stock_badge: this.productFormData.stock_badge,
+                        store_id: this.productFormData.store_id
                     };
                 }
 
@@ -793,7 +794,8 @@ Alpine.store('app', {
             if (!this.productToDelete) return;
             
             try {
-                const data = await apiFetch(`/user/produk/${this.productToDelete.id}`, {
+                const basePath = window.location.pathname.startsWith('/admin') ? '/admin' : '/user';
+                const data = await apiFetch(`${basePath}/produk/${this.productToDelete.id}`, {
                     method: 'DELETE'
                 });
                 
@@ -1075,6 +1077,17 @@ Alpine.store('app', {
                     .invoice-info {
                         text-align: right;
                     }
+                    .transaction-code {
+                        font-size: 24px;
+                        font-weight: 900;
+                        color: #1d4ed8;
+                        text-align: center;
+                        margin: 16px 0;
+                        padding: 8px;
+                        border: 2px dashed #1d4ed8;
+                        border-radius: 8px;
+                        letter-spacing: 4px;
+                    }
                     .badge-paid {
                         display: inline-block;
                         background: #ecfdf5;
@@ -1162,17 +1175,34 @@ Alpine.store('app', {
                     .footer {
                         border-top: 1px dashed #cbd5e1;
                         padding-top: 14px;
+                        margin-top: 32px;
                         text-align: center;
                         font-size: 11px;
-                        color: #64748b;
+                        color: #94a3b8;
+                        border-top: 1px solid #e2e8f0;
+                        padding-top: 16px;
                     }
                     .footer p {
                         margin-bottom: 2px;
                     }
+                    @media print {
+                        body {
+                            background: none;
+                            padding: 0;
+                        }
+                        .container {
+                            border: none;
+                            padding: 0;
+                            max-width: 100%;
+                        }
+                    }
                 </style>
             </head>
-            <body>
+            <body onload="window.print(); window.onafterprint = function(){ window.close(); }">
                 <div class="container">
+                    <div class="transaction-code">
+                        ${String(tx.id || 0).padStart(4, '0')}
+                    </div>
                     <!-- Header -->
                     <div class="header">
                         <div>
