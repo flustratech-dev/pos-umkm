@@ -61,13 +61,15 @@ class EventService
     public function updateEvent(Event $event, array $data): Event
     {
         return DB::transaction(function () use ($event, $data) {
+            // Field yang dikirim form dipakai apa adanya (termasuk saat dikosongkan),
+            // field yang tidak dikirim sama sekali tetap memakai nilai lama.
             $updateData = [
                 'name' => $data['name'] ?? $event->name,
-                'start_date' => $data['start_date'] ?? $event->start_date,
-                'end_date' => $data['end_date'] ?? $event->end_date,
-                'location' => $data['location'] ?? $event->location,
-                'qris_payload' => array_key_exists('qris_payload', $data) ? $data['qris_payload'] : $event->qris_payload,
             ];
+
+            foreach (['start_date', 'end_date', 'location', 'qris_payload'] as $field) {
+                $updateData[$field] = array_key_exists($field, $data) ? $data[$field] : $event->{$field};
+            }
 
             if (isset($data['qris_image']) && $data['qris_image'] instanceof \Illuminate\Http\UploadedFile) {
                 if ($event->qris_image && Storage::disk('public')->exists($event->qris_image)) {
