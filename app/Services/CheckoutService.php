@@ -111,10 +111,9 @@ class CheckoutService
      * @param Store $store
      * @param User $cashier
      * @param array $items Array of ['product_id' => int, 'qty' => int]
-     * @param UploadedFile|string $proofFile
      * @return Transaction
      */
-    public function processQrisCheckout(Store $store, User $cashier, array $items, UploadedFile|string $proofFile): Transaction
+    public function processQrisCheckout(Store $store, User $cashier, array $items): Transaction
     {
         if (empty($items)) {
             throw new InvalidArgumentException('Keranjang belanja tidak boleh kosong.');
@@ -142,12 +141,8 @@ class CheckoutService
                 ];
             }
 
-            $proofPath = '';
-            if ($proofFile instanceof UploadedFile) {
-                $proofPath = $proofFile->store('payment_proofs', 'public');
-            } else {
-                $proofPath = (string) $proofFile;
-            }
+            $uniqueCode = (int) $store->id;
+            $totalAmount += $uniqueCode;
 
             $transaction = Transaction::create([
                 'invoice_code' => $this->generateInvoiceCode(),
@@ -157,7 +152,8 @@ class CheckoutService
                 'payment_method' => 'qris',
                 'amount_paid' => $totalAmount,
                 'change_due' => 0,
-                'status' => 'pending_verification',
+                'status' => 'success',
+                'paid_at' => now(),
             ]);
 
             foreach ($preparedItems as $item) {
@@ -165,13 +161,10 @@ class CheckoutService
                 TransactionItem::create($item);
             }
 
-            PaymentProof::create([
-                'transaction_id' => $transaction->id,
-                'proof_path' => $proofPath,
-                'uploaded_at' => now(),
-            ]);
+            // Generate revenue split immediately since it's auto-success
+            $this->revenueSplitService->calculateSplit($transaction);
 
-            return $transaction->load(['items', 'store', 'cashier', 'paymentProof']);
+            return $transaction->load(['items', 'store', 'cashier']);
         });
     }
 }

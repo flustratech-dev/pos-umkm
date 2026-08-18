@@ -17,16 +17,8 @@
         });
     },
 
-    handleProofUpload(event) {
-        const file = event.target.files[0];
-        if (file) {
-            $store.app.qrisProofFile = file;
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                $store.app.qrisProofPreview = e.target.result;
-            };
-            reader.readAsDataURL(file);
-        }
+    get uniqueCode() {
+        return $store.app.getCurrentStore()?.id || 0;
     }
 }" class="space-y-4">
 
@@ -320,7 +312,7 @@
                     <!-- Total Bill -->
                     <div class="flex items-center justify-between pb-3 border-b border-[#eff3f4]">
                         <span class="text-xs font-bold text-[#0f1419] uppercase tracking-wider">Total Tagihan</span>
-                        <span class="text-2xl font-black text-[#0f1419]" x-text="formatRupiah($store.app.cartTotal)"></span>
+                        <span class="text-2xl font-black text-[#0f1419]" x-text="formatRupiah($store.app.cartTotal + ($store.app.activePaymentTab === 'qris' ? uniqueCode : 0))"></span>
                     </div>
 
                     <!-- Payment Method Tabs: CASH vs QRIS (Twitter Blue Pills) -->
@@ -432,6 +424,7 @@
                                 <div class="flex flex-col items-center justify-center py-1">
                                     <img :src="window.__ACTIVE_EVENT__.qris_image_url" alt="QRIS Code" class="w-40 h-40 object-contain rounded-xl border border-[#eff3f4] p-1">
                                     <p class="text-xs font-black text-[#0f1419] mt-2" x-text="window.__ACTIVE_EVENT__.name"></p>
+                                    <p class="text-[10px] text-[#f4212e] font-bold mt-2 bg-rose-50 px-2 py-1 rounded">Pastikan nominal transfer sesuai: <span x-text="formatRupiah($store.app.cartTotal + uniqueCode)"></span> (termasuk kode unik)</p>
                                 </div>
                             </template>
                             <template x-if="!window.__ACTIVE_EVENT__ || !window.__ACTIVE_EVENT__.qris_image_url">
@@ -443,36 +436,16 @@
                             </template>
                         </div>
 
-                        <!-- Proof of Payment Upload Input -->
-                        <div>
-                            <label class="block text-xs font-bold text-[#0f1419] mb-1">Unggah Bukti Transfer QRIS (Wajib)</label>
-                            <input 
-                                type="file" 
-                                accept="image/*"
-                                @change="handleProofUpload($event)"
-                                class="w-full text-xs text-[#0f1419] file:mr-3 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-black file:bg-[#1d9bf0] file:text-white hover:file:bg-[#1a8cd8] cursor-pointer"
-                            >
-                            
-                            <!-- Proof Image Preview -->
-                            <template x-if="$store.app.qrisProofPreview">
-                                <div class="mt-2 p-2 bg-white rounded-xl border border-[#bde2f9] flex items-center gap-3">
-                                    <img :src="$store.app.qrisProofPreview" class="w-12 h-12 rounded-lg object-cover border">
-                                    <span class="text-xs text-[#1d9bf0] font-black">✓ Bukti siap dikirim ke antrean EO</span>
-                                </div>
-                            </template>
-                        </div>
-
                         <!-- Confirm QRIS Button (Twitter Blue Pill) -->
                         <button 
                             @click="$store.app.processQrisCheckout()"
                             type="button" 
-                            :disabled="!$store.app.qrisProofPreview"
-                            class="w-full py-3.5 px-4 rounded-full bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white font-black text-sm shadow-md shadow-[#1d9bf0]/25 transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98] cursor-pointer"
+                            class="w-full py-3.5 px-4 rounded-full bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white font-black text-sm shadow-md shadow-[#1d9bf0]/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
                         >
-                            <span>Kirim Bukti untuk Verifikasi</span>
+                            <span>Bayar & Cetak Nota Otomatis</span>
                         </button>
-                        <p class="text-[10px] text-[#536471] text-center italic font-medium">
-                            *Status transaksi akan menjadi Pending sampai disetujui oleh panitia EO.
+                        <p class="text-[10px] text-[#00ba7c] text-center italic font-medium">
+                            *Pembayaran QRIS otomatis sukses tanpa perlu upload bukti (terverifikasi via mutasi bank).
                         </p>
                     </div>
                 </div>

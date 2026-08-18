@@ -82,6 +82,7 @@
                 'photo' => $p->photo_url,
                 'stock_badge' => $p->stock_badge,
                 'is_active' => $p->is_active,
+                'store' => $p->relationLoaded('store') ? $p->store : null,
             ];
         }) : collect();
 

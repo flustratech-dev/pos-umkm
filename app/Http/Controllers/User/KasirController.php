@@ -86,13 +86,12 @@ class KasirController extends Controller
             $transaction = $this->checkoutService->processQrisCheckout(
                 $store,
                 $user,
-                $request->input('items', []),
-                $request->file('proof_image')
+                $request->input('items', [])
             );
 
             return response()->json([
                 'success' => true,
-                'message' => 'Bukti QRIS berhasil diunggah! Menunggu verifikasi panitia EO.',
+                'message' => 'Pembayaran QRIS berhasil! Struk siap dicetak.',
                 'transaction' => $transaction,
             ]);
         } catch (Exception $e) {

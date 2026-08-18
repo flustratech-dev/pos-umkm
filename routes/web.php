@@ -59,10 +59,7 @@ Route::prefix('user')->name('user.')->middleware(['auth', 'role:user'])->group(f
     Route::post('/kasir/checkout-cash', [UserKasirController::class, 'checkoutCash'])->name('kasir.checkout-cash');
     Route::post('/kasir/checkout-qris', [UserKasirController::class, 'checkoutQris'])->name('kasir.checkout-qris');
 
-    Route::get('/produk', [UserProductController::class, 'index'])->name('produk');
-    Route::post('/produk', [UserProductController::class, 'store'])->name('produk.store');
-    Route::match(['put', 'post'], '/produk/{product}', [UserProductController::class, 'update'])->name('produk.update');
-    Route::delete('/produk/{product}', [UserProductController::class, 'destroy'])->name('produk.destroy');
+
 
     Route::get('/laporan', [UserReportController::class, 'index'])->name('laporan');
     Route::get('/laporan/pdf', [UserReportController::class, 'downloadPdf'])->name('laporan.pdf');
@@ -90,10 +87,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::delete('/events/{event}/tenants/{store}', [AdminEventDetailController::class, 'removeTenant'])->name('events.remove-tenant');
     Route::post('/events/{event}/tenants/{store}/regenerate-link', [AdminEventDetailController::class, 'regenerateLink'])->name('events.regenerate-link');
 
-    // Verifikasi QRIS
-    Route::get('/verifikasi-qris', [AdminQrisVerificationController::class, 'index'])->name('verifikasi-qris.index');
-    Route::post('/verifikasi-qris/{transaction}/approve', [AdminQrisVerificationController::class, 'approve'])->name('verifikasi-qris.approve');
-    Route::post('/verifikasi-qris/{transaction}/reject', [AdminQrisVerificationController::class, 'reject'])->name('verifikasi-qris.reject');
+
 
     // Verifikasi Cash
     Route::get('/verifikasi-cash', [AdminCashVerificationController::class, 'index'])->name('verifikasi-cash.index');
@@ -102,6 +96,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::post('/transaksi/{transaction}/cancel', [AdminTransactionController::class, 'cancel'])->name('transaksi.cancel');
 
     Route::get('/produk', [AdminProductController::class, 'index'])->name('produk');
+    Route::post('/produk', [AdminProductController::class, 'store'])->name('produk.store');
+    Route::match(['put', 'post'], '/produk/{product}', [AdminProductController::class, 'update'])->name('produk.update');
+    Route::delete('/produk/{product}', [AdminProductController::class, 'destroy'])->name('produk.destroy');
     Route::get('/warung', [AdminStoreController::class, 'index'])->name('warung');
     Route::get('/warung/{store}', [AdminStoreController::class, 'show'])->name('warung.show');
 
@@ -129,7 +126,7 @@ Route::prefix('superadmin')->name('superadmin.')->middleware(['auth', 'role:supe
     Route::get('/laporan', [SuperAdminPlatformReportController::class, 'index'])->name('laporan');
     Route::get('/laporan/pdf', [SuperAdminPlatformReportController::class, 'downloadPdf'])->name('laporan.pdf');
 
-    Route::get('/verifikasi-qris', [AdminQrisVerificationController::class, 'index'])->name('verifikasi-qris');
+
     Route::get('/verifikasi-cash', [AdminCashVerificationController::class, 'index'])->name('verifikasi-cash');
     Route::get('/produk', [AdminProductController::class, 'index'])->name('produk');
     Route::get('/warung', [AdminStoreController::class, 'index'])->name('warung');
