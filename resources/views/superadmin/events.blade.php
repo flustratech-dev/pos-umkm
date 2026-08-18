@@ -81,6 +81,25 @@
 
                     <div class="flex items-center gap-2">
                         <button 
+                            @click="$store.app.toggleEventTesting(event.id)"
+                            type="button"
+                            class="px-2.5 py-1 rounded-full text-[10px] font-black transition-colors border cursor-pointer"
+                            :class="event.is_testing_mode ? 'bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100' : 'bg-[#f7f9f9] text-[#536471] border-[#eff3f4] hover:bg-gray-100'"
+                            :title="event.is_testing_mode ? 'Masa Testing Aktif - Klik untuk nonaktifkan' : 'Masa Testing Nonaktif - Klik untuk aktifkan'"
+                        >
+                            <span x-text="event.is_testing_mode ? '🧪 Testing Aktif' : '🧪 Mode Riil'"></span>
+                        </button>
+
+                        <button 
+                            @click="$store.app.openResetTestingModal(event)"
+                            type="button"
+                            class="p-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-full transition-colors cursor-pointer border border-red-200"
+                            title="Reset / Bersihkan Transaksi Testing Event Ini"
+                        >
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        </button>
+
+                        <button 
                             @click="$store.app.openEditEventModal(event)"
                             type="button" 
                             class="p-2 bg-[#f7f9f9] hover:bg-[#eff3f4] text-[#0f1419] rounded-full transition-colors cursor-pointer"

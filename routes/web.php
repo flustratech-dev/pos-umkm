@@ -84,6 +84,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::match(['put', 'post'], '/events/{event}', [AdminEventController::class, 'update'])->name('events.update');
     Route::delete('/events/{event}', [AdminEventController::class, 'destroy'])->name('events.destroy');
     Route::post('/events/{event}/activate', [AdminEventController::class, 'activate'])->name('events.activate');
+    Route::post('/events/{event}/toggle-testing', [AdminEventController::class, 'toggleTesting'])->name('events.toggle-testing');
+    Route::post('/events/{event}/reset-testing', [AdminEventController::class, 'resetTesting'])->name('events.reset-testing');
 
     // Event Detail + Tenant Registration
     Route::get('/events/{event}/detail', [AdminEventDetailController::class, 'show'])->name('events.detail');
@@ -127,6 +129,8 @@ Route::prefix('superadmin')->name('superadmin.')->middleware(['auth', 'role:supe
     Route::match(['put', 'post'], '/events/{event}', [SuperAdminEventController::class, 'update'])->name('events.update');
     Route::delete('/events/{event}', [SuperAdminEventController::class, 'destroy'])->name('events.destroy');
     Route::post('/events/{event}/activate', [SuperAdminEventController::class, 'activate'])->name('events.activate');
+    Route::post('/events/{event}/toggle-testing', [SuperAdminEventController::class, 'toggleTesting'])->name('events.toggle-testing');
+    Route::post('/events/{event}/reset-testing', [SuperAdminEventController::class, 'resetTesting'])->name('events.reset-testing');
 
     Route::get('/laporan', [SuperAdminPlatformReportController::class, 'index'])->name('laporan');
     Route::get('/laporan/pdf', [SuperAdminPlatformReportController::class, 'downloadPdf'])->name('laporan.pdf');

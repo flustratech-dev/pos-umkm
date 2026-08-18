@@ -3401,6 +3401,76 @@ Alpine.store('app', {
                 paidCount: paidTx.length,
                 activeEventName: activeEvent ? activeEvent.name : '-'
             };
+        },
+
+        // Testing Mode State & Actions
+        resetTestingModalOpen: false,
+        resetTestingEventTarget: null,
+
+        openResetTestingModal(event = null) {
+            this.resetTestingEventTarget = event || this.getActiveEvent();
+            this.resetTestingModalOpen = true;
+        },
+
+        async toggleEventTesting(eventId = null) {
+            const targetEvent = eventId ? (this.events.find(e => e.id == eventId) || this.getActiveEvent()) : this.getActiveEvent();
+            if (!targetEvent) {
+                showSwal('warn', 'Event Tidak Ditemukan', 'Harap pilih event terlebih dahulu.');
+                return;
+            }
+
+            const rolePrefix = this.currentRole === 'superadmin' ? 'superadmin' : 'admin';
+            try {
+                this.showLoading('Mengubah status Masa Testing...');
+                const res = await apiFetch(`/${rolePrefix}/events/${targetEvent.id}/toggle-testing`, {
+                    method: 'POST',
+                    body: { is_testing_mode: !targetEvent.is_testing_mode }
+                });
+
+                if (res.success) {
+                    targetEvent.is_testing_mode = res.is_testing_mode;
+                    if (this.activeEvent && this.activeEvent.id == targetEvent.id) {
+                        this.activeEvent.is_testing_mode = res.is_testing_mode;
+                    }
+                    showSwal('success', 'Status Berubah', res.message);
+                } else {
+                    showSwal('danger', 'Gagal', res.message || 'Gagal mengubah mode testing.');
+                }
+            } catch (err) {
+                showSwal('danger', 'Kesalahan', err.message || 'Terjadi kesalahan saat memproses permintaan.');
+            } finally {
+                this.hideLoading();
+            }
+        },
+
+        async confirmResetTesting() {
+            const targetEvent = this.resetTestingEventTarget || this.getActiveEvent();
+            if (!targetEvent) return;
+
+            const rolePrefix = this.currentRole === 'superadmin' ? 'superadmin' : 'admin';
+            this.resetTestingModalOpen = false;
+
+            try {
+                this.showLoading('Membersihkan seluruh data transaksi testing...');
+                const res = await apiFetch(`/${rolePrefix}/events/${targetEvent.id}/reset-testing`, {
+                    method: 'POST'
+                });
+
+                if (res.success) {
+                    // Filter out testing transactions from frontend store state
+                    this.transactions = this.transactions.filter(t => !t.is_testing);
+                    showSwal('success', 'Berhasil Direset', res.message);
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1200);
+                } else {
+                    showSwal('danger', 'Gagal Reset', res.message || 'Terjadi kesalahan saat reset transaksi.');
+                }
+            } catch (err) {
+                showSwal('danger', 'Kesalahan', err.message || 'Terjadi kesalahan pada server.');
+            } finally {
+                this.hideLoading();
+            }
         }
     });
 

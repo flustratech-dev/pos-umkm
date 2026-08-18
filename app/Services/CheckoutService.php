@@ -79,6 +79,7 @@ class CheckoutService
             }
 
             $changeDue = $amountPaid - $totalAmount;
+            $isTesting = (bool) ($store->event?->is_testing_mode);
 
             // Cash transactions are now 'pending' until admin confirms at exit cashier
             $transaction = Transaction::create([
@@ -90,6 +91,7 @@ class CheckoutService
                 'amount_paid' => $amountPaid,
                 'change_due' => $changeDue,
                 'status' => 'pending',
+                'is_testing' => $isTesting,
                 'paid_at' => null,
             ]);
 
@@ -144,6 +146,7 @@ class CheckoutService
 
             $uniqueCode = (int) $store->id;
             $totalAmount += $uniqueCode;
+            $isTesting = (bool) ($store->event?->is_testing_mode);
 
             $transaction = Transaction::create([
                 'invoice_code' => $this->generateInvoiceCode(),
@@ -154,6 +157,7 @@ class CheckoutService
                 'amount_paid' => $totalAmount,
                 'change_due' => 0,
                 'status' => 'paid',
+                'is_testing' => $isTesting,
                 'paid_at' => now(),
             ]);
 

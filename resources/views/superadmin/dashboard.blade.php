@@ -28,6 +28,60 @@
         </a>
     </div>
 
+    <!-- KENDALI MASA TESTING / SIMULASI (SuperAdmin Exclusive) -->
+    <template x-if="$store.app.getActiveEvent()">
+        <div class="bg-white rounded-3xl p-4 sm:p-5 border border-[#eff3f4] shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div class="flex items-start sm:items-center gap-3.5">
+                <div class="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 transition-colors"
+                     :class="$store.app.getActiveEvent()?.is_testing_mode ? 'bg-amber-50 text-amber-600 border border-amber-200' : 'bg-[#f7f9f9] text-[#536471] border border-[#eff3f4]'">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h4 class="text-sm font-black text-[#0f1419]">Masa Testing / Uji Coba Transaksi: <span class="text-[#1d9bf0]" x-text="$store.app.getActiveEvent()?.name"></span></h4>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-black"
+                              :class="$store.app.getActiveEvent()?.is_testing_mode ? 'bg-amber-100 text-amber-700 border border-amber-300' : 'bg-[#f7f9f9] text-[#536471] border border-[#eff3f4]'"
+                              x-text="$store.app.getActiveEvent()?.is_testing_mode ? 'AKTIF (Uji Coba)' : 'NONAKTIF (Riil)'">
+                        </span>
+                    </div>
+                    <p class="text-xs text-[#536471] font-semibold mt-0.5">
+                        Kontrol simulasi kasir & sosialisasi tenant. Saat selesai, data transaksi testing dapat dibersihkan sekali klik tanpa menghapus tenant/produk.
+                    </p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2.5 shrink-0 self-end sm:self-center">
+                <!-- Toggle Switch -->
+                <button 
+                    @click="$store.app.toggleEventTesting($store.app.getActiveEvent()?.id)"
+                    type="button"
+                    class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
+                    :class="$store.app.getActiveEvent()?.is_testing_mode ? 'bg-amber-500' : 'bg-gray-200'"
+                    role="switch"
+                    :aria-checked="$store.app.getActiveEvent()?.is_testing_mode"
+                    title="Aktifkan/Nonaktifkan Masa Testing"
+                >
+                    <span 
+                        aria-hidden="true" 
+                        class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out"
+                        :class="$store.app.getActiveEvent()?.is_testing_mode ? 'translate-x-5' : 'translate-x-0'"
+                    ></span>
+                </button>
+
+                <!-- Tombol Hapus Transaksi Testing (Reset) -->
+                <button 
+                    @click="$store.app.openResetTestingModal($store.app.getActiveEvent())"
+                    type="button"
+                    class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#f4212e]/10 hover:bg-[#f4212e] text-[#f4212e] hover:text-white text-xs font-black transition-all cursor-pointer border border-[#f4212e]/20 active:scale-95 shadow-2xs"
+                    title="Bersihkan semua transaksi yang dilakukan selama masa testing"
+                >
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    <span>Reset Transaksi Testing</span>
+                </button>
+            </div>
+        </div>
+    </template>
+
     <!-- 1 Card Menu dengan 4 Kotak Icon (Mobile Only - Tepat di bawah Header) -->
     <div class="lg:hidden bg-white rounded-3xl p-4 sm:p-5 border border-[#eff3f4] shadow-xs">
         <div class="grid grid-cols-4 gap-2 sm:gap-4 text-center">
