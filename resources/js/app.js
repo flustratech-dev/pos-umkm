@@ -1354,12 +1354,8 @@ Alpine.store('app', {
                                 </tr>
                                 ${tx.status === 'paid' ? `
                                 <tr>
-                                    <td style="padding: 4px 0; color: #ef4444; font-size: 11px;">Potongan EO (22.5%):</td>
-                                    <td style="padding: 4px 0; text-align: right; color: #ef4444; font-size: 11px; font-weight: 600;">- ${formatRupiah(tx.revenue_split?.admin_net_share || (tx.total_amount * 0.225))}</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding: 4px 0; color: #ef4444; font-size: 11px;">Fee Platform (2.5%):</td>
-                                    <td style="padding: 4px 0; text-align: right; color: #ef4444; font-size: 11px; font-weight: 600;">- ${formatRupiah(tx.revenue_split?.superadmin_share || (tx.total_amount * 0.025))}</td>
+                                    <td style="padding: 4px 0; color: #ef4444; font-size: 11px;">Potongan EO (25%):</td>
+                                    <td style="padding: 4px 0; text-align: right; color: #ef4444; font-size: 11px; font-weight: 600;">- ${formatRupiah(tx.revenue_split?.admin_gross_share || (tx.total_amount * 0.25))}</td>
                                 </tr>
                                 <tr>
                                     <td style="padding: 4px 0; color: #1d9bf0; font-weight: 700;">Hak Bersih Warung (75%):</td>

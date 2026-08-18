@@ -115,15 +115,11 @@
                         <span class="text-base font-black text-[#0f1419]" x-text="formatRupiah($store.app.activeReceiptTransaction?.total_amount)"></span>
                     </div>
 
-                    <!-- Pembagian Bagi Hasil (Porsi 75/22.5/2.5) -->
+                    <!-- Pembagian Bagi Hasil (Porsi 75/25) -->
                     <div class="bg-white p-3 rounded-2xl border border-[#eff3f4] space-y-1.5 text-xs shadow-2xs">
                         <div class="flex justify-between items-center text-[#536471]">
-                            <span>Porsi EO (22.5%):</span>
-                            <span class="font-bold text-[#f4212e]" x-text="`- ${formatRupiah(($store.app.activeReceiptTransaction?.total_amount || 0) * 0.225)}`"></span>
-                        </div>
-                        <div class="flex justify-between items-center text-[#536471]">
-                            <span>Porsi Platform (2.5%):</span>
-                            <span class="font-bold text-[#f4212e]" x-text="`- ${formatRupiah(($store.app.activeReceiptTransaction?.total_amount || 0) * 0.025)}`"></span>
+                            <span>Porsi EO (25%):</span>
+                            <span class="font-bold text-[#f4212e]" x-text="`- ${formatRupiah(($store.app.activeReceiptTransaction?.total_amount || 0) * 0.25)}`"></span>
                         </div>
                         <div class="flex justify-between items-center text-xs font-black text-[#1d9bf0] pt-1.5 border-t border-[#eff3f4]">
                             <span>Porsi Warung (75%):</span>
