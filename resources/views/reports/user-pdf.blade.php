@@ -112,19 +112,25 @@
 
     <table class="kpi-cards">
         <tr>
-            <td width="33%" style="padding-right: 6px;">
+            <td width="25%" style="padding-right: 4px;">
                 <div class="kpi-card">
-                    <div class="kpi-title">Total Omzet Gross</div>
+                    <div class="kpi-title">Total Omzet Kotor</div>
                     <div class="kpi-value" style="color: #0f1419;">Rp {{ number_format($stats['total_gross'], 0, ',', '.') }}</div>
                 </div>
             </td>
-            <td width="33%" style="padding: 0 3px;">
+            <td width="25%" style="padding: 0 3px;">
                 <div class="kpi-card" style="background-color: #e8f5fd; border-color: #bde2f9;">
-                    <div class="kpi-title" style="color: #1d9bf0;">Hak Warung (75%)</div>
+                    <div class="kpi-title" style="color: #1d9bf0;">Pendapatan Bersih (75%)</div>
                     <div class="kpi-value">Rp {{ number_format($stats['owner_share'], 0, ',', '.') }}</div>
                 </div>
             </td>
-            <td width="33%" style="padding-left: 6px;">
+            <td width="25%" style="padding: 0 3px;">
+                <div class="kpi-card">
+                    <div class="kpi-title">Potongan EO (25%)</div>
+                    <div class="kpi-value" style="color: #0f1419;">Rp {{ number_format($stats['total_gross'] * 0.25, 0, ',', '.') }}</div>
+                </div>
+            </td>
+            <td width="25%" style="padding-left: 4px;">
                 <div class="kpi-card">
                     <div class="kpi-title">Transaksi Paid</div>
                     <div class="kpi-value" style="color: #0f1419;">{{ $stats['paid_count'] }} Tx ({{ $stats['cash_count'] }} Cash / {{ $stats['qris_count'] }} QRIS)</div>
@@ -136,12 +142,13 @@
     <table class="data-table">
         <thead>
             <tr>
-                <th width="18%">Invoice</th>
-                <th width="18%">Waktu</th>
-                <th width="10%">Metode</th>
-                <th width="20%" class="text-right">Total Belanja</th>
-                <th width="20%" class="text-right">Porsi 75% Bersih</th>
-                <th width="14%" class="text-center">Status</th>
+                <th width="16%">Invoice</th>
+                <th width="14%">Waktu</th>
+                <th width="8%">Metode</th>
+                <th width="18%" class="text-right">Total Belanja</th>
+                <th width="16%" class="text-right">Bersih (75%)</th>
+                <th width="16%" class="text-right">Potongan EO (25%)</th>
+                <th width="12%" class="text-center">Status</th>
             </tr>
         </thead>
         <tbody>
@@ -158,6 +165,13 @@
                             -
                         @endif
                     </td>
+                    <td class="text-right bold">
+                        @if($tx->status === 'paid')
+                            Rp {{ number_format($tx->revenueSplit?->admin_gross_share ?: ($tx->total_amount * 0.25), 0, ',', '.') }}
+                        @else
+                            -
+                        @endif
+                    </td>
                     <td class="text-center">
                         <span style="font-weight: bold; font-size: 9px; text-transform: uppercase;">
                             {{ $tx->status }}
@@ -166,7 +180,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="6" class="text-center" style="padding: 20px; color: #536471;">Belum ada riwayat transaksi</td>
+                    <td colspan="7" class="text-center" style="padding: 20px; color: #536471;">Belum ada riwayat transaksi</td>
                 </tr>
             @endforelse
         </tbody>

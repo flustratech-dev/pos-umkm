@@ -13,7 +13,7 @@
     },
 
     get totalSuperAdminFee() {
-        return this.reportTransactions.length * 1000;
+        return this.reportTransactions.reduce((sum, t) => sum + (t.revenue_split?.superadmin_share || (t.total_amount * 0.025)), 0);
     },
 
     get totalPlatformGross() {
@@ -26,10 +26,10 @@
         <div>
             <div class="flex items-center gap-2">
                 <span class="px-3.5 py-0.5 rounded-full bg-[#e8f5fd] text-[#1d9bf0] text-[10px] font-black uppercase border border-[#bde2f9]">Audit Finansial Platform</span>
-                <span class="text-xs text-[#0f1419] font-semibold">Fee Platform 2.5% dari Omzet</span>
+                <span class="text-xs text-[#0f1419] font-semibold">Pembagian: 75% Warung • 25% EO • Fee Dev 10% dari 25%</span>
             </div>
             <h2 class="text-xl sm:text-2xl font-black text-[#0f1419] tracking-tight mt-1">Laporan Fee Developer</h2>
-            <p class="text-xs sm:text-sm text-[#0f1419] font-medium mt-0.5">Rekapitulasi pendapatan lisensi sistem JADISATU berbasis persentase 2.5% dari omzet</p>
+            <p class="text-xs sm:text-sm text-[#0f1419] font-medium mt-0.5">Rekapitulasi pembagian hasil: 75% Warung, 25% EO (termasuk fee developer 10% dari potongan 25%)</p>
         </div>
 
         <!-- Export Action Buttons (PDF, Word, Excel) -->
@@ -70,16 +70,16 @@
     </div>
 
     <!-- KPI Metric Cards (Twitter Blue Accents & Crisp Black Font) -->
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         <div class="bg-gradient-to-br from-[#1d9bf0] to-[#1271b3] rounded-3xl p-6 text-white shadow-lg shadow-[#1d9bf0]/25">
-            <span class="text-xs font-bold text-white/90 uppercase tracking-wider block">Akumulasi Fee Developer</span>
+            <span class="text-xs font-bold text-white/90 uppercase tracking-wider block">Fee Developer (10% dari 25%)</span>
             <h3 class="text-2xl sm:text-3xl font-black mt-2 tracking-tight text-white" x-text="formatRupiah(totalSuperAdminFee)"></h3>
             <p class="text-xs text-white/90 mt-2 font-medium">2.5% dari total omzet paid</p>
         </div>
 
         <div class="bg-white rounded-3xl p-6 border border-[#eff3f4] shadow-xs flex flex-col justify-between">
             <div>
-                <span class="text-xs font-bold text-[#0f1419] uppercase tracking-wider block">Total Volume Transaksi Paid</span>
+                <span class="text-xs font-bold text-[#0f1419] uppercase tracking-wider block">Total Volume Paid</span>
                 <h3 class="text-xl font-black text-[#0f1419] mt-2" x-text="formatRupiah(totalPlatformGross)"></h3>
             </div>
             <p class="text-xs text-[#536471] mt-3 font-semibold">Gross volume seluruh tenant</p>
@@ -87,7 +87,23 @@
 
         <div class="bg-white rounded-3xl p-6 border border-[#eff3f4] shadow-xs flex flex-col justify-between">
             <div>
-                <span class="text-xs font-bold text-[#0f1419] uppercase tracking-wider block">Total Event Terintegrasi</span>
+                <span class="text-xs font-bold text-[#1d9bf0] uppercase tracking-wider block">Hak Warung (75%)</span>
+                <h3 class="text-xl font-black text-[#1d9bf0] mt-2" x-text="formatRupiah(totalPlatformGross * 0.75)"></h3>
+            </div>
+            <p class="text-xs text-[#536471] mt-3 font-semibold">Porsi hak pemilik stand</p>
+        </div>
+
+        <div class="bg-white rounded-3xl p-6 border border-[#eff3f4] shadow-xs flex flex-col justify-between">
+            <div>
+                <span class="text-xs font-bold text-[#0f1419] uppercase tracking-wider block">Potongan EO (25%)</span>
+                <h3 class="text-xl font-black text-[#0f1419] mt-2" x-text="formatRupiah(totalPlatformGross * 0.25)"></h3>
+            </div>
+            <p class="text-xs text-[#536471] mt-3 font-semibold">Porsi potongan pihak EO</p>
+        </div>
+
+        <div class="bg-white rounded-3xl p-6 border border-[#eff3f4] shadow-xs flex flex-col justify-between">
+            <div>
+                <span class="text-xs font-bold text-[#0f1419] uppercase tracking-wider block">Total Event</span>
                 <h3 class="text-xl font-black text-[#1d9bf0] mt-2" x-text="$store.app.events.length + ' Event'"></h3>
             </div>
             <p class="text-xs text-[#536471] mt-3 font-semibold">Data tersimpan permanen</p>
@@ -97,7 +113,7 @@
     <!-- Transactions Audit Table (Twitter UI) -->
     <div class="bg-white rounded-3xl border border-[#eff3f4] shadow-xs overflow-hidden">
         <div class="p-5 border-b border-[#eff3f4] flex items-center justify-between">
-            <h3 class="font-black text-base text-[#0f1419]">Rincian Transaksi Paid & Potongan Platform 2.5%</h3>
+            <h3 class="font-black text-base text-[#0f1419]">Rincian Transaksi Paid & Breakdown Pembagian Hasil</h3>
             <span class="text-xs text-[#536471]">Menampilkan seluruh transaksi Paid valid</span>
         </div>
 
@@ -110,9 +126,9 @@
                         <th class="px-4 py-3.5">Stand Tenant</th>
                         <th class="px-4 py-3.5">Metode</th>
                         <th class="px-4 py-3.5">Gross Volume</th>
-                        <th class="px-4 py-3.5 text-[#1d9bf0] font-black">Fee Developer</th>
-                        <th class="px-4 py-3.5 text-[#0f1419] font-black">Net EO</th>
                         <th class="px-4 py-3.5 text-[#1d9bf0] font-black">Hak Warung (75%)</th>
+                        <th class="px-4 py-3.5 text-[#0f1419] font-black">Potongan EO (25%)</th>
+                        <th class="px-4 py-3.5 text-[#1d9bf0] font-black">Fee Developer (10%)</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-[#eff3f4] font-medium">
@@ -123,9 +139,9 @@
                             <td class="px-4 py-3 font-black text-[#0f1419]" x-text="tx.store_name"></td>
                             <td class="px-4 py-3 uppercase font-black text-[10px] text-[#1d9bf0]" x-text="tx.payment_method"></td>
                             <td class="px-4 py-3 font-black text-[#0f1419]" x-text="formatRupiah(tx.total_amount)"></td>
-                            <td class="px-4 py-3 font-black text-[#1d9bf0] bg-[#f7f9f9]" x-text="formatRupiah(tx.revenue_split?.superadmin_share || tx.total_amount * 0.025)"></td>
-                            <td class="px-4 py-3 font-black text-[#0f1419]" x-text="formatRupiah(tx.revenue_split?.admin_net_share || (tx.total_amount * 0.225))"></td>
                             <td class="px-4 py-3 font-black text-[#1d9bf0]" x-text="formatRupiah(tx.revenue_split?.owner_share || tx.total_amount * 0.75)"></td>
+                            <td class="px-4 py-3 font-black text-[#0f1419]" x-text="formatRupiah(tx.revenue_split?.admin_gross_share || tx.total_amount * 0.25)"></td>
+                            <td class="px-4 py-3 font-black text-[#1d9bf0] bg-[#f7f9f9]" x-text="formatRupiah(tx.revenue_split?.superadmin_share || tx.total_amount * 0.025)"></td>
                         </tr>
                     </template>
                 </tbody>
