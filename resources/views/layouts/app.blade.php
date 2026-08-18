@@ -170,6 +170,11 @@
                     ];
                 });
         }
+
+        $dbPendingCashCount = 0;
+        if ($authUser && ($authUser->isAdmin() || $authUser->isSuperAdmin())) {
+            $dbPendingCashCount = \App\Models\Transaction::where('payment_method', 'cash')->where('status', 'pending')->count();
+        }
     @endphp
 
     <script>
@@ -181,6 +186,7 @@
         window.__INITIAL_PRODUCTS__ = @json($dbProducts);
         window.__INITIAL_TRANSACTIONS__ = @json($dbTransactions);
         window.__INITIAL_HELPDESK__ = @json($dbTickets);
+        window.__PENDING_CASH_COUNT__ = {{ (int)$dbPendingCashCount }};
         window.__LOGO_URL__ = @json(asset('images/logo_jadisatu.png'));
         @php
             $logoPath = public_path('images/logo_jadisatu.png');

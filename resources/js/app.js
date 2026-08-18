@@ -276,6 +276,14 @@ Alpine.store('app', {
             return userStore ? Boolean(userStore.event_is_active) : false;
         },
 
+        get stats() {
+            const pendingCashCount = this.transactions.filter(t => t.status === 'pending' && t.payment_method === 'cash').length;
+            return {
+                pendingCashCount,
+                pendingCount: pendingCashCount,
+            };
+        },
+
         // Cart state for User POS
         cart: [],
         
@@ -3267,7 +3275,8 @@ Alpine.store('app', {
             const cashHakAdmin = cashTx.reduce((sum, t) => sum + (t.revenue_split?.admin_gross_share || t.total_amount * 0.25), 0);
             const netSettlement = qrisHakWarung - cashHakAdmin; // Positive = admin bayar warung
 
-            const pendingCount = this.transactions.filter(t => t.status === 'pending_verification').length;
+            const pendingCashCount = this.transactions.filter(t => t.status === 'pending' && t.payment_method === 'cash').length;
+            const pendingCount = pendingCashCount;
             const cancelledCount = this.transactions.filter(t => t.status === 'cancelled').length;
 
             return {
@@ -3285,6 +3294,7 @@ Alpine.store('app', {
                 netSettlement,
                 paidCount: paidTx.length,
                 pendingCount,
+                pendingCashCount,
                 cancelledCount,
                 storesCount: this.stores.length
             };

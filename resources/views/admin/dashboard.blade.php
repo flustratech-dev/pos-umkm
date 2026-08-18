@@ -328,13 +328,15 @@ async function renderAdminMethodChart() {
             </h2>
         </div>
 
-        <!-- Twitter Blue Action Button -->
+        <!-- Twitter Blue Action Button (Only show when there is a pending queue) -->
         <a 
-            href="/admin/verifikasi-qris" 
+            x-show="adminStats.pendingCount > 0"
+            x-cloak
+            href="/admin/verifikasi-cash" 
             class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white text-xs sm:text-sm font-black shadow-md shadow-[#1d9bf0]/25 transition-all active:scale-95"
         >
             <span class="w-2 h-2 rounded-full bg-white animate-ping"></span>
-            <span>Antrean Verifikasi QRIS</span>
+            <span>Antrean Verifikasi Cash</span>
             <span class="px-2.5 py-0.5 rounded-full bg-white text-[#1d9bf0] text-xs font-black shadow-2xs" x-text="adminStats.pendingCount"></span>
         </a>
     </div>
