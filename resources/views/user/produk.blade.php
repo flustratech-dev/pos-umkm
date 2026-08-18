@@ -70,33 +70,21 @@
             >
                 ✨ Semua Produk
             </button>
-            <div class="grid grid-cols-3 gap-2">
+            <div class="grid grid-cols-2 gap-2">
+                @foreach (\App\Models\Product::CATEGORIES as $category => $icon)
                 <button 
-                    @click="selectedCategory = 'Makanan'"
+                    @click="selectedCategory = '{{ $category }}'"
                     class="py-2.5 px-2 rounded-2xl text-xs font-black transition-all text-center cursor-pointer truncate shadow-2xs"
-                    :class="selectedCategory === 'Makanan' ? 'bg-[#1d9bf0] text-white shadow-xs' : 'bg-white hover:bg-[#eff3f4] text-[#0f1419] border border-[#eff3f4]'"
+                    :class="selectedCategory === '{{ $category }}' ? 'bg-[#1d9bf0] text-white shadow-xs' : 'bg-white hover:bg-[#eff3f4] text-[#0f1419] border border-[#eff3f4]'"
                 >
-                    🍱 Makanan
+                    {{ $icon }} {{ $category }}
                 </button>
-                <button 
-                    @click="selectedCategory = 'Minuman'"
-                    class="py-2.5 px-2 rounded-2xl text-xs font-black transition-all text-center cursor-pointer truncate shadow-2xs"
-                    :class="selectedCategory === 'Minuman' ? 'bg-[#1d9bf0] text-white shadow-xs' : 'bg-white hover:bg-[#eff3f4] text-[#0f1419] border border-[#eff3f4]'"
-                >
-                    🧋 Minuman
-                </button>
-                <button 
-                    @click="selectedCategory = 'Snack'"
-                    class="py-2.5 px-2 rounded-2xl text-xs font-black transition-all text-center cursor-pointer truncate shadow-2xs"
-                    :class="selectedCategory === 'Snack' ? 'bg-[#1d9bf0] text-white shadow-xs' : 'bg-white hover:bg-[#eff3f4] text-[#0f1419] border border-[#eff3f4]'"
-                >
-                    🍟 Snack
-                </button>
+                @endforeach
             </div>
         </div>
 
         <!-- Desktop Layout (Baris Sejajar Asli) -->
-        <div class="hidden md:flex items-center gap-1.5 shrink-0">
+        <div class="hidden md:flex flex-wrap items-center justify-end gap-1.5">
             <button 
                 @click="selectedCategory = 'all'"
                 class="px-4 py-2 rounded-full text-xs font-black transition-all shrink-0 cursor-pointer"
@@ -104,27 +92,15 @@
             >
                 Semua Kategori
             </button>
+            @foreach (\App\Models\Product::CATEGORIES as $category => $icon)
             <button 
-                @click="selectedCategory = 'Makanan'"
+                @click="selectedCategory = '{{ $category }}'"
                 class="px-4 py-2 rounded-full text-xs font-black transition-all shrink-0 cursor-pointer"
-                :class="selectedCategory === 'Makanan' ? 'bg-[#1d9bf0] text-white shadow-2xs' : 'bg-white hover:bg-[#eff3f4] text-[#0f1419] border border-[#eff3f4]'"
+                :class="selectedCategory === '{{ $category }}' ? 'bg-[#1d9bf0] text-white shadow-2xs' : 'bg-white hover:bg-[#eff3f4] text-[#0f1419] border border-[#eff3f4]'"
             >
-                🍱 Makanan
+                {{ $icon }} {{ $category }}
             </button>
-            <button 
-                @click="selectedCategory = 'Minuman'"
-                class="px-4 py-2 rounded-full text-xs font-black transition-all shrink-0 cursor-pointer"
-                :class="selectedCategory === 'Minuman' ? 'bg-[#1d9bf0] text-white shadow-2xs' : 'bg-white hover:bg-[#eff3f4] text-[#0f1419] border border-[#eff3f4]'"
-            >
-                🧋 Minuman
-            </button>
-            <button 
-                @click="selectedCategory = 'Snack'"
-                class="px-4 py-2 rounded-full text-xs font-black transition-all shrink-0 cursor-pointer"
-                :class="selectedCategory === 'Snack' ? 'bg-[#1d9bf0] text-white shadow-2xs' : 'bg-white hover:bg-[#eff3f4] text-[#0f1419] border border-[#eff3f4]'"
-            >
-                🍟 Snack
-            </button>
+            @endforeach
         </div>
     </div>
 
@@ -284,9 +260,9 @@
                                 x-model="$store.app.productFormData.category"
                                 class="w-full px-4 py-2.5 bg-[#f7f9f9] border border-[#eff3f4] rounded-xl text-xs sm:text-sm text-[#0f1419] focus:ring-2 focus:ring-[#1d9bf0] focus:outline-none font-semibold"
                             >
-                                <option value="Makanan">Makanan</option>
-                                <option value="Minuman">Minuman</option>
-                                <option value="Snack">Snack</option>
+                                @foreach (\App\Models\Product::CATEGORIES as $category => $icon)
+                                <option value="{{ $category }}">{{ $category }}</option>
+                                @endforeach
                             </select>
                         </div>
                         <div>

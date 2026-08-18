@@ -12,6 +12,19 @@ class Product extends Model
 {
     use HasFactory, SoftDeletes;
 
+    /**
+     * Daftar kategori produk beserta ikonnya.
+     * Tambah kategori baru cukup di sini, seluruh filter & form ikut menyesuaikan.
+     */
+    public const CATEGORIES = [
+        'Makanan' => '🍱',
+        'Minuman' => '🧋',
+        'Snack' => '🍟',
+        'Merchandise' => '🛍️',
+    ];
+
+    public const DEFAULT_CATEGORY = 'Makanan';
+
     protected $fillable = [
         'store_id',
         'title',
