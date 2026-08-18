@@ -82,8 +82,8 @@
         </div>
     </div>
 
-    <!-- 4-Tier Revenue Summary Cards (Twitter Blue Accents & Crisp Black Font) -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+    <!-- 3-Tier Revenue Summary Cards (Twitter Blue Accents & Crisp Black Font) -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         <!-- 1. Gross Volume -->
         <div class="bg-white rounded-3xl p-5 border border-[#eff3f4] shadow-xs">
             <span class="text-xs font-bold text-[#0f1419] uppercase tracking-wider block">Total Omzet Bruto</span>
@@ -93,23 +93,16 @@
 
         <!-- 2. Hak Warung (75%) -->
         <div class="bg-white rounded-3xl p-5 border border-[#eff3f4] shadow-xs">
-            <span class="text-xs font-bold text-[#0f1419] uppercase tracking-wider block">Porsi Warung (75%)</span>
+            <span class="text-xs font-bold text-[#1d9bf0] uppercase tracking-wider block">Porsi Warung (75%)</span>
             <h3 class="text-xl font-black text-[#1d9bf0] mt-1" x-text="formatRupiah(stats.ownerTotal)"></h3>
             <p class="text-[11px] text-[#536471] mt-2 font-medium">Hak seluruh pemilik stand</p>
         </div>
 
-        <!-- 3. Admin Net (Twitter Blue Gradient) -->
+        <!-- 3. Bagian EO (25%) -->
         <div class="bg-gradient-to-br from-[#1d9bf0] to-[#1271b3] rounded-3xl p-5 text-white shadow-lg shadow-[#1d9bf0]/25">
-            <span class="text-xs font-bold text-white/90 uppercase tracking-wider block">Pendapatan Bersih EO</span>
-            <h3 class="text-xl font-black mt-1 text-white" x-text="formatRupiah(stats.adminNet)"></h3>
-            <p class="text-[11px] text-white/90 mt-2 font-medium">Net 22.5% dari Omzet</p>
-        </div>
-
-        <!-- 4. Developer Platform Fee -->
-        <div class="bg-white rounded-3xl p-5 border border-[#eff3f4] shadow-xs">
-            <span class="text-xs font-bold text-[#0f1419] uppercase tracking-wider block">Fee Developer</span>
-            <h3 class="text-xl font-black text-[#0f1419] mt-1" x-text="formatRupiah(stats.superadminTotal)"></h3>
-            <p class="text-[11px] text-[#536471] mt-2 font-medium">2.5% dari Omzet Paid</p>
+            <span class="text-xs font-bold text-white/90 uppercase tracking-wider block">Bagian EO (25%)</span>
+            <h3 class="text-xl font-black mt-1 text-white" x-text="formatRupiah(stats.adminGross)"></h3>
+            <p class="text-[11px] text-white/90 mt-2 font-medium">Total 25% dari Omzet</p>
         </div>
     </div>
 
@@ -141,7 +134,7 @@
                 <div class="bg-[#f7f9f9] rounded-2xl p-3 text-center">
                     <span class="text-[10px] font-bold text-[#536471] uppercase block">Hak Admin di Cash</span>
                     <span class="text-sm font-black text-[#0f1419] mt-0.5 block" x-text="formatRupiah(stats.cashHakAdmin)"></span>
-                    <span class="text-[10px] text-[#536471] font-medium block">22.5% dari cash + platform fee</span>
+                    <span class="text-[10px] text-[#536471] font-medium block">25% dari transaksi cash</span>
                 </div>
                 <div class="rounded-2xl p-3 text-center" :class="stats.netSettlement >= 0 ? 'bg-emerald-50 border border-emerald-200' : 'bg-amber-50 border border-amber-200'">
                     <span class="text-[10px] font-bold uppercase block" :class="stats.netSettlement >= 0 ? 'text-emerald-600' : 'text-amber-600'" x-text="stats.netSettlement >= 0 ? '🔄 Admin → Warung' : '🔄 Warung → Admin'"></span>
@@ -159,7 +152,7 @@
                         <th class="px-4 py-3 text-right">💵 Cash</th>
                         <th class="px-4 py-3 text-right">📱 QRIS</th>
                         <th class="px-4 py-3 text-right">Hak Warung (75%)</th>
-                        <th class="px-4 py-3 text-right">Hak EO (22.5%)</th>
+                        <th class="px-4 py-3 text-right">Hak EO (25%)</th>
                         <th class="px-4 py-3 text-center">Serah Terima</th>
                         <th class="px-4 py-3 text-center">Cetak PDF</th>
                     </tr>
@@ -289,9 +282,7 @@
                         <th class="px-3.5 py-3.5">Metode</th>
                         <th class="px-3.5 py-3.5">Total Belanja</th>
                         <th class="px-3.5 py-3.5 text-[#1d9bf0]">Warung (75%)</th>
-                        <th class="px-3.5 py-3.5 text-[#1d9bf0]">Total Potongan (25%)</th>
-                        <th class="px-3.5 py-3.5">Fee Developer</th>
-                        <th class="px-3.5 py-3.5 text-[#0f1419] font-black">EO Net</th>
+                        <th class="px-3.5 py-3.5 text-[#0f1419] font-black">Bagian EO (25%)</th>
                         <th class="px-3.5 py-3.5">Status</th>
                         <th class="px-3.5 py-3.5 text-center">Aksi / Cancel</th>
                     </tr>
@@ -313,9 +304,7 @@
                             </td>
                             <td class="px-3.5 py-3 font-black text-[#0f1419]" x-text="formatRupiah(tx.total_amount)"></td>
                             <td class="px-3.5 py-3 font-black text-[#1d9bf0]" x-text="tx.status === 'paid' ? formatRupiah(tx.revenue_split?.owner_share || tx.total_amount * 0.75) : '-'"></td>
-                            <td class="px-3.5 py-3 font-black text-[#1d9bf0]" x-text="tx.status === 'paid' ? formatRupiah(tx.revenue_split?.admin_gross_share || tx.total_amount * 0.25) : '-'"></td>
-                            <td class="px-3.5 py-3 font-black text-[#0f1419]" x-text="tx.status === 'paid' ? formatRupiah(tx.revenue_split?.superadmin_share || (tx.total_amount * 0.025)) : '-'"></td>
-                            <td class="px-3.5 py-3 font-black text-[#0f1419] bg-[#f7f9f9]" x-text="tx.status === 'paid' ? formatRupiah(tx.revenue_split?.admin_net_share || (tx.total_amount * 0.225)) : '-'"></td>
+                            <td class="px-3.5 py-3 font-black text-[#0f1419] bg-[#f7f9f9]" x-text="tx.status === 'paid' ? formatRupiah(tx.revenue_split?.admin_gross_share || tx.total_amount * 0.25) : '-'"></td>
                             <td class="px-3.5 py-3">
                                 <span 
                                     class="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[10px] font-bold"
@@ -411,8 +400,8 @@
                             <span class="font-black text-[11px] sm:text-xs text-[#1d9bf0] truncate block" x-text="tx.status === 'paid' ? formatRupiah(tx.revenue_split?.owner_share || tx.total_amount * 0.75) : '-'"></span>
                         </div>
                         <div>
-                            <span class="text-[9px] sm:text-[10px] text-[#536471] block font-semibold">Net EO</span>
-                            <span class="font-black text-[11px] sm:text-xs text-[#0f1419] truncate block" x-text="tx.status === 'paid' ? formatRupiah(tx.revenue_split?.admin_net_share || (tx.total_amount * 0.225)) : '-'"></span>
+                            <span class="text-[9px] sm:text-[10px] text-[#536471] block font-semibold">Bagian EO (25%)</span>
+                            <span class="font-black text-[11px] sm:text-xs text-[#0f1419] truncate block" x-text="tx.status === 'paid' ? formatRupiah(tx.revenue_split?.admin_gross_share || tx.total_amount * 0.25) : '-'"></span>
                         </div>
                     </div>
                 </div>

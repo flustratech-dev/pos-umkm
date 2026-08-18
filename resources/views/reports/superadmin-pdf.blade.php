@@ -94,9 +94,9 @@
                     </td>
                 @endif
                 <td style="border: none; text-align: {{ $logoBase64 ? 'left' : 'center' }}; vertical-align: middle; padding: 0 0 0 10px;">
-                    <div class="title" style="margin: 0; font-size: 15px;">AUDIT PLATFORM & REKAP ROYALTI DEVELOPER</div>
+                    <div class="title" style="margin: 0; font-size: 15px;">AUDIT PLATFORM & BREAKDOWN PEMBAGIAN HASIL</div>
                     <div class="subtitle" style="font-weight: bold; color: #0f1419; font-size: 11px;">Platform Lisensi JADISATU Multi-Event</div>
-                    <div class="subtitle">Skema: Flat Fee Rp1.000 per transaksi status Paid &bull; JADISATU Event System</div>
+                    <div class="subtitle">Pembagian: 75% Warung &bull; 25% EO &bull; Fee Dev 10% dari 25% (= 2.5%) &bull; JADISATU Event System</div>
                 </td>
             </tr>
         </table>
@@ -104,19 +104,31 @@
 
     <table class="kpi-cards">
         <tr>
-            <td width="33%" style="padding-right: 6px;">
+            <td width="20%" style="padding-right: 4px;">
                 <div class="kpi-card" style="background-color: #e8f5fd; border-color: #bde2f9;">
-                    <div class="kpi-title" style="color: #1d9bf0;">Total Fee Developer</div>
+                    <div class="kpi-title" style="color: #1d9bf0;">Fee Developer (10% dari 25%)</div>
                     <div class="kpi-value">Rp {{ number_format($platformStats['total_superadmin_fee'], 0, ',', '.') }}</div>
                 </div>
             </td>
-            <td width="33%" style="padding: 0 3px;">
+            <td width="20%" style="padding: 0 3px;">
                 <div class="kpi-card">
                     <div class="kpi-title">Gross Volume Platform</div>
                     <div class="kpi-value" style="color: #0f1419;">Rp {{ number_format($platformStats['total_platform_gross'], 0, ',', '.') }}</div>
                 </div>
             </td>
-            <td width="33%" style="padding-left: 6px;">
+            <td width="20%" style="padding: 0 3px;">
+                <div class="kpi-card">
+                    <div class="kpi-title">Hak Warung (75%)</div>
+                    <div class="kpi-value" style="color: #1d9bf0;">Rp {{ number_format($platformStats['total_platform_gross'] * 0.75, 0, ',', '.') }}</div>
+                </div>
+            </td>
+            <td width="20%" style="padding: 0 3px;">
+                <div class="kpi-card">
+                    <div class="kpi-title">Potongan EO (25%)</div>
+                    <div class="kpi-value" style="color: #0f1419;">Rp {{ number_format($platformStats['total_platform_gross'] * 0.25, 0, ',', '.') }}</div>
+                </div>
+            </td>
+            <td width="20%" style="padding-left: 4px;">
                 <div class="kpi-card">
                     <div class="kpi-title">Total Transaksi Paid</div>
                     <div class="kpi-value" style="color: #0f1419;">{{ $platformStats['paid_count'] }} Transaksi</div>
@@ -128,12 +140,14 @@
     <table class="data-table">
         <thead>
             <tr>
-                <th width="16%">Invoice</th>
-                <th width="16%">Waktu Paid</th>
-                <th width="18%">Event</th>
-                <th width="18%">Stand Tenant</th>
-                <th width="16%" class="text-right">Gross Transaksi</th>
-                <th width="16%" class="text-right" style="color: #1d9bf0;">Fee Lisensi</th>
+                <th width="13%">Invoice</th>
+                <th width="13%">Waktu Paid</th>
+                <th width="13%">Event</th>
+                <th width="13%">Stand Tenant</th>
+                <th width="12%" class="text-right">Gross Transaksi</th>
+                <th width="12%" class="text-right">Warung (75%)</th>
+                <th width="12%" class="text-right">Potongan EO (25%)</th>
+                <th width="12%" class="text-right" style="color: #1d9bf0;">Fee Dev (10%)</th>
             </tr>
         </thead>
         <tbody>
@@ -144,11 +158,13 @@
                     <td>{{ $tx->store?->event?->name ?: '-' }}</td>
                     <td class="bold">{{ $tx->store?->name ?: '-' }}</td>
                     <td class="text-right bold">Rp {{ number_format($tx->total_amount, 0, ',', '.') }}</td>
-                    <td class="text-right bold" style="color: #1d9bf0;">Rp 1.000</td>
+                    <td class="text-right bold" style="color: #1d9bf0;">Rp {{ number_format($tx->revenueSplit?->owner_share ?: ($tx->total_amount * 0.75), 0, ',', '.') }}</td>
+                    <td class="text-right bold">Rp {{ number_format($tx->revenueSplit?->admin_gross_share ?: ($tx->total_amount * 0.25), 0, ',', '.') }}</td>
+                    <td class="text-right bold" style="color: #1d9bf0;">Rp {{ number_format($tx->revenueSplit?->superadmin_share ?: ($tx->total_amount * 0.025), 0, ',', '.') }}</td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="6" class="text-center" style="padding: 20px; color: #536471;">Belum ada transaksi paid terdaftar</td>
+                    <td colspan="8" class="text-center" style="padding: 20px; color: #536471;">Belum ada transaksi paid terdaftar</td>
                 </tr>
             @endforelse
         </tbody>

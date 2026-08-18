@@ -78,7 +78,7 @@
     </div>
 
     <!-- Revenue Summary Cards (Twitter UI Style) -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+    <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
         <!-- Net Share (Twitter Blue Gradient) -->
         <div class="bg-gradient-to-br from-[#1d9bf0] to-[#1271b3] rounded-3xl p-5 text-white shadow-lg shadow-[#1d9bf0]/25 col-span-2 sm:col-span-1">
             <span class="text-xs font-bold text-white/90 uppercase tracking-wider block">Pendapatan Bersih</span>
@@ -91,6 +91,13 @@
             <span class="text-xs font-bold text-[#0f1419] uppercase tracking-wider block">Total Omzet Bruto</span>
             <h3 class="text-lg sm:text-xl font-black text-[#0f1419] mt-1" x-text="formatRupiah(stats.totalGross)"></h3>
             <p class="text-[11px] text-[#536471] mt-2 font-semibold"><span class="font-black text-[#0f1419]" x-text="stats.totalCount"></span> transaksi sukses</p>
+        </div>
+
+        <!-- Potongan EO (25%) -->
+        <div class="bg-white rounded-3xl p-5 border border-[#eff3f4] shadow-xs">
+            <span class="text-xs font-bold text-[#0f1419] uppercase tracking-wider block">Potongan EO (25%)</span>
+            <h3 class="text-lg sm:text-xl font-black text-[#0f1419] mt-1" x-text="formatRupiah(stats.totalGross * 0.25)"></h3>
+            <p class="text-[11px] text-[#536471] mt-2 font-semibold">Porsi bagian pihak EO</p>
         </div>
 
         <!-- Pending QRIS -->
@@ -156,9 +163,10 @@
                         <th class="px-4 py-3.5">Waktu</th>
                         <th class="px-4 py-3.5">Metode</th>
                         <th class="px-4 py-3.5">Total Belanja</th>
+                        <th class="px-4 py-3.5">Potongan EO (25%)</th>
                         <th class="px-4 py-3.5">Uang Diterima (Cash)</th>
                         <th class="px-4 py-3.5">Kembalian (Cash)</th>
-                        <th class="px-4 py-3.5">Porsi Warung</th>
+                        <th class="px-4 py-3.5 text-[#1d9bf0]">Hak Warung (75%)</th>
                         <th class="px-4 py-3.5">Status</th>
                         <th class="px-4 py-3.5 text-center">Aksi</th>
                     </tr>
@@ -176,6 +184,7 @@
                                 ></span>
                             </td>
                             <td class="px-4 py-3 font-black text-[#0f1419]" x-text="formatRupiah(tx.total_amount)"></td>
+                            <td class="px-4 py-3 font-black text-[#0f1419]" x-text="tx.status === 'paid' ? formatRupiah(tx.revenue_split?.admin_gross_share || tx.total_amount * 0.25) : '-'"></td>
                             <td class="px-4 py-3 text-[#0f1419] font-bold" x-text="tx.payment_method === 'cash' ? formatRupiah(tx.amount_paid) : '-'"></td>
                             <td class="px-4 py-3 text-[#1d9bf0] font-black" x-text="tx.payment_method === 'cash' ? formatRupiah(tx.change_due) : '-'"></td>
                             <td class="px-4 py-3 font-black text-[#1d9bf0]" x-text="tx.status === 'paid' ? formatRupiah(tx.revenue_split?.owner_share || tx.total_amount * 0.75) : '-'"></td>
@@ -244,6 +253,10 @@
                             <span class="font-black text-[11px] sm:text-xs text-[#0f1419] truncate block" x-text="formatRupiah(tx.total_amount)"></span>
                         </div>
                         <div>
+                            <span class="text-[9px] sm:text-[10px] text-[#536471] block font-semibold">Potongan EO (25%)</span>
+                            <span class="font-black text-[11px] sm:text-xs text-[#0f1419] truncate block" x-text="tx.status === 'paid' ? formatRupiah(tx.revenue_split?.admin_gross_share || tx.total_amount * 0.25) : '-'"></span>
+                        </div>
+                        <div>
                             <span class="text-[9px] sm:text-[10px] text-[#536471] block font-semibold">Metode Bayar</span>
                             <span class="font-black uppercase text-[10px] sm:text-[11px] text-[#1d9bf0]" x-text="tx.payment_method"></span>
                         </div>
@@ -265,7 +278,7 @@
 
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 pt-1">
                     <div class="min-w-0">
-                        <span class="text-[9px] sm:text-[10px] text-[#536471] font-semibold block">Bagian Warung:</span>
+                        <span class="text-[9px] sm:text-[10px] text-[#536471] font-semibold block">Hak Warung (75%):</span>
                         <span class="text-[11px] sm:text-xs font-black text-[#1d9bf0] truncate block" x-text="tx.status === 'paid' ? formatRupiah(tx.revenue_split?.owner_share || tx.total_amount * 0.75) : '-'"></span>
                     </div>
 
