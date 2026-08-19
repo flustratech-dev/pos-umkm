@@ -687,26 +687,20 @@ Alpine.store('app', {
         },
 
         async processQrisCheckout() {
+            // Bukti transfer wajib: transaksi QRIS langsung tercatat lunas.
+            if (!this.qrisProofFile) {
+                this.notify('error', 'Bukti Belum Ada', 'Unggah bukti transfer QRIS terlebih dahulu sebelum menyimpan transaksi.');
+                return;
+            }
+
             try {
-                let body;
-                if (this.qrisProofFile) {
-                    const formData = new FormData();
-                    this.cart.forEach((c, idx) => {
-                        formData.append(`items[${idx}][product_id]`, c.product.id);
-                        formData.append(`items[${idx}][qty]`, c.qty);
-                        formData.append(`items[${idx}][price]`, this.cartItemPrice(c));
-                    });
-                    formData.append('proof_image', this.qrisProofFile);
-                    body = formData;
-                } else {
-                    body = {
-                        items: this.cart.map(c => ({
-                            product_id: c.product.id,
-                            qty: c.qty,
-                            price: this.cartItemPrice(c)
-                        }))
-                    };
-                }
+                const body = new FormData();
+                this.cart.forEach((c, idx) => {
+                    body.append(`items[${idx}][product_id]`, c.product.id);
+                    body.append(`items[${idx}][qty]`, c.qty);
+                    body.append(`items[${idx}][price]`, this.cartItemPrice(c));
+                });
+                body.append('proof_image', this.qrisProofFile);
 
                 const data = await apiFetch('/user/kasir/checkout-qris', {
                     method: 'POST',

@@ -9,6 +9,8 @@ use App\Models\User;
 use App\Services\CheckoutService;
 use App\Services\RevenueSplitService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class StoreUniqueCodeTest extends TestCase
@@ -80,10 +82,12 @@ class StoreUniqueCodeTest extends TestCase
             'is_active' => true,
         ]);
 
+        Storage::fake('public');
+
         $service = new CheckoutService(new RevenueSplitService());
         $tx = $service->processQrisCheckout($store, $this->tenantUser, [
             ['product_id' => $product->id, 'qty' => 1],
-        ]);
+        ], UploadedFile::fake()->image('bukti.jpg'));
 
         // Rp10.000 di tenda 019 harus jadi Rp10.019, bukan mengikuti id stand.
         $this->assertEquals(10019, (float) $tx->total_amount);
