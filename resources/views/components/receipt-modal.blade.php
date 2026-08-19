@@ -113,23 +113,11 @@
                     </template>
                 </div>
 
-                <!-- Totals & Revenue Split Breakdown -->
+                <!-- Totals (bagi hasil sengaja tidak ditampilkan: struk ini dilihat pembeli) -->
                 <div class="space-y-2 pt-2 border-t border-[#eff3f4]">
                     <div class="flex justify-between items-center text-sm font-black text-[#0f1419]">
                         <span>Total Tagihan:</span>
                         <span class="text-base font-black text-[#0f1419]" x-text="formatRupiah($store.app.activeReceiptTransaction?.total_amount)"></span>
-                    </div>
-
-                    <!-- Pembagian Bagi Hasil (Porsi 75/25) -->
-                    <div class="bg-white p-3 rounded-2xl border border-[#eff3f4] space-y-1.5 text-xs shadow-2xs">
-                        <div class="flex justify-between items-center text-[#536471]">
-                            <span>Porsi EO (25%):</span>
-                            <span class="font-bold text-[#f4212e]" x-text="`- ${formatRupiah(($store.app.activeReceiptTransaction?.total_amount || 0) * 0.25)}`"></span>
-                        </div>
-                        <div class="flex justify-between items-center text-xs font-black text-[#1d9bf0] pt-1.5 border-t border-[#eff3f4]">
-                            <span>Porsi Warung (75%):</span>
-                            <span class="text-sm font-black text-[#1d9bf0]" x-text="formatRupiah(($store.app.activeReceiptTransaction?.total_amount || 0) * 0.75)"></span>
-                        </div>
                     </div>
 
                     <template x-if="$store.app.activeReceiptTransaction?.payment_method === 'cash'">
