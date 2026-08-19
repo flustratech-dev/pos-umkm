@@ -173,7 +173,7 @@ class CheckoutService
                 ];
             }
 
-            $uniqueCode = (int) $store->id;
+            $uniqueCode = $store->unique_code;
             $totalAmount += $uniqueCode;
             $isTesting = (bool) ($store->event?->is_testing_mode);
 

@@ -129,8 +129,8 @@ class KasirController extends Controller
         }
 
         $amount = (float) $request->amount;
-        // Adding unique code if applicable
-        $amount += (int) $store->id;
+        // Kode unik dari kode tenda, sama dengan yang dipakai saat checkout.
+        $amount += $store->unique_code;
 
         $qrisService = new \App\Services\Payment\QrisService();
         $dynamicPayload = $qrisService->convertToDynamic($event->qris_payload, $amount);
