@@ -8,15 +8,15 @@
         <!-- Floating Curved Dock Container -->
         <div class="fixed bottom-3.5 sm:bottom-5 inset-x-3 sm:inset-x-6 max-w-md sm:max-w-lg mx-auto z-40 bg-white/95 backdrop-blur-xl border border-[#eff3f4] px-2 py-1.5 rounded-[28px] shadow-[0_12px_32px_rgba(15,20,25,0.12),0_2px_6px_rgba(0,0,0,0.04)]">
             @if($user->isUser())
-                <!-- 1. USER (Pemilik Warung) Floating Curved Dock -->
-                <div class="grid grid-cols-5 items-center gap-1">
-                    <!-- 1. Produk -->
+                <!-- 1. USER (Pemilik Warung) 4-Item Floating Curved Dock -->
+                <div class="grid grid-cols-4 items-center gap-1">
+                    <!-- 1. Kasir -->
                     <a 
-                        href="/user/produk" 
-                        class="flex flex-col items-center justify-center py-1.5 px-1 rounded-2xl transition-all duration-200 cursor-pointer active:scale-95 {{ request()->is('user/produk*') ? 'text-[#1d9bf0] font-black bg-[#e8f5fd]' : 'text-[#536471] hover:text-[#0f1419] hover:bg-[#f7f9f9]' }}"
+                        href="/user/kasir" 
+                        class="flex flex-col items-center justify-center py-1.5 px-1 rounded-2xl transition-all duration-200 cursor-pointer active:scale-95 {{ request()->is('user/kasir*') ? 'text-[#1d9bf0] font-black bg-[#e8f5fd]' : 'text-[#536471] hover:text-[#0f1419] hover:bg-[#f7f9f9]' }}"
                     >
-                        <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
-                        <span class="text-[9.5px] tracking-tight font-bold">Produk</span>
+                        <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <span class="text-[9.5px] tracking-tight font-bold">Kasir</span>
                     </a>
 
                     <!-- 2. Laporan -->
@@ -28,18 +28,7 @@
                         <span class="text-[9.5px] tracking-tight font-bold">Laporan</span>
                     </a>
 
-                    <!-- 3. CENTER ELEVATED CURVED FAB: Kasir / Checkout -->
-                    <div class="flex justify-center -mt-7">
-                        <a 
-                            href="/user/kasir" 
-                            class="w-13 h-13 rounded-full bg-gradient-to-tr from-[#1d9bf0] to-[#1a8cd8] hover:from-[#1a8cd8] hover:to-[#1271b3] text-white flex flex-col items-center justify-center shadow-lg shadow-[#1d9bf0]/35 border-4 border-white active:scale-90 transition-all cursor-pointer {{ request()->is('user/kasir*') ? 'ring-2 ring-[#1d9bf0] ring-offset-2 scale-105' : '' }}"
-                            title="Buka Kasir"
-                        >
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        </a>
-                    </div>
-
-                    <!-- 4. Helpdesk -->
+                    <!-- 3. Helpdesk -->
                     <a 
                         href="/user/helpdesk" 
                         class="flex flex-col items-center justify-center py-1.5 px-1 rounded-2xl transition-all duration-200 cursor-pointer active:scale-95 {{ request()->is('user/helpdesk*') ? 'text-[#1d9bf0] font-black bg-[#e8f5fd]' : 'text-[#536471] hover:text-[#0f1419] hover:bg-[#f7f9f9]' }}"
@@ -48,7 +37,7 @@
                         <span class="text-[9.5px] tracking-tight font-bold">Helpdesk</span>
                     </a>
 
-                    <!-- 5. Panduan -->
+                    <!-- 4. Panduan -->
                     <a 
                         href="/user/panduan" 
                         class="flex flex-col items-center justify-center py-1.5 px-1 rounded-2xl transition-all duration-200 cursor-pointer active:scale-95 {{ request()->is('user/panduan*') ? 'text-[#1d9bf0] font-black bg-[#e8f5fd]' : 'text-[#536471] hover:text-[#0f1419] hover:bg-[#f7f9f9]' }}"
