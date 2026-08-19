@@ -151,7 +151,7 @@
 
                 <!-- Price & Quick Add Button -->
                 <div class="flex items-center justify-between pt-2 border-t border-[#eff3f4] mt-2 gap-1.5">
-                    <span class="text-xs sm:text-sm font-black text-[#0f1419]" x-text="formatRupiah(product.price)"></span>
+                    <span class="text-xs sm:text-sm font-black text-[#0f1419]" x-text="product.is_negotiable ? `${formatRupiah($store.app.priceRangeOf(product).min)} - ${formatRupiah($store.app.priceRangeOf(product).max)}` : formatRupiah(product.price)"></span>
                     
                     <button 
                         type="button"
@@ -260,7 +260,33 @@
                             <img :src="$store.app.getProductPhoto(item.product.photo)" class="w-12 h-12 rounded-xl object-cover shrink-0 border border-[#eff3f4]">
                             <div class="flex-1 min-w-0">
                                 <h5 class="font-black text-xs sm:text-sm text-[#0f1419] truncate" x-text="item.product.title"></h5>
-                                <p class="text-xs font-black text-[#1d9bf0]" x-text="formatRupiah(item.product.price)"></p>
+
+                                <!-- Harga pas: tampil apa adanya -->
+                                <template x-if="!item.product.is_negotiable">
+                                    <p class="text-xs font-black text-[#1d9bf0]" x-text="formatRupiah($store.app.cartItemPrice(item))"></p>
+                                </template>
+
+                                <!-- Harga tawar: kasir mengisi harga deal, dibatasi rentang produk -->
+                                <template x-if="item.product.is_negotiable">
+                                    <div class="mt-1 space-y-1">
+                                        <div class="flex items-center gap-1.5">
+                                            <span class="px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[9px] font-black uppercase tracking-wider border border-amber-200 shrink-0">Nego</span>
+                                            <div class="relative flex-1 min-w-0">
+                                                <span class="absolute inset-y-0 left-0 pl-2 flex items-center text-[10px] font-bold text-[#536471]">Rp</span>
+                                                <input
+                                                    type="text"
+                                                    inputmode="numeric"
+                                                    x-effect="if (document.activeElement !== $el) $el.value = formatNumber($store.app.cartItemPrice(item))"
+                                                    @input="item.price = $event.target.value.replace(/\D/g, '')"
+                                                    @change="$store.app.updateCartPrice(item.product.id, $event.target.value)"
+                                                    @blur="$el.value = formatNumber($store.app.cartItemPrice(item))"
+                                                    class="w-full pl-7 pr-2 py-1 bg-white border border-[#cfd9de] rounded-lg text-xs font-black text-[#1d9bf0] focus:ring-2 focus:ring-[#1d9bf0] focus:outline-none"
+                                                >
+                                            </div>
+                                        </div>
+                                        <p class="text-[9px] text-[#536471] font-bold" x-text="`Rentang ${formatRupiah($store.app.priceRangeOf(item.product).min)} - ${formatRupiah($store.app.priceRangeOf(item.product).max)}`"></p>
+                                    </div>
+                                </template>
                             </div>
 
                             <!-- Qty Controls (Twitter Style Pill) -->
@@ -286,6 +312,11 @@
                 <!-- Payment Panel Footer -->
                 <div x-show="$store.app.cart.length > 0" x-cloak class="p-5 border-t border-[#eff3f4] bg-[#f7f9f9] space-y-4">
                     <!-- Total Bill -->
+                    <div x-show="$store.app.cartNegotiatedDiscount > 0" x-cloak class="flex items-center justify-between text-xs">
+                        <span class="font-bold text-[#536471]">Potongan hasil nego</span>
+                        <span class="font-black text-[#00ba7c]" x-text="`- ${formatRupiah($store.app.cartNegotiatedDiscount)}`"></span>
+                    </div>
+
                     <div class="flex items-center justify-between pb-3 border-b border-[#eff3f4]">
                         <span class="text-xs font-bold text-[#0f1419] uppercase tracking-wider">Total Tagihan</span>
                         <span class="text-2xl font-black text-[#0f1419]" x-text="formatRupiah($store.app.cartTotal + ($store.app.activePaymentTab === 'qris' ? uniqueCode : 0))"></span>

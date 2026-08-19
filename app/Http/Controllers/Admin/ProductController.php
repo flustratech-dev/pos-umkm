@@ -47,16 +47,18 @@ class ProductController extends Controller
             $photoPath = $request->file('photo')->store('products', 'public');
         }
 
-        $product = Product::create([
+        $product = Product::create(array_merge($request->priceAttributes(), [
             'store_id' => $store->id,
             'title' => $request->title,
-            'price' => $request->price,
             'category' => $request->category ?: Product::DEFAULT_CATEGORY,
             'description' => $request->description,
             'photo' => $photoPath,
             'stock_badge' => $request->stock_badge ?: 'Tersedia',
             'is_active' => $request->boolean('is_active', true),
-        ]);
+        ]));
+
+        // Kartu produk menampilkan nama warung, jadi relasinya harus ikut terkirim.
+        $product->load('store');
 
         $productData = array_merge($product->toArray(), [
             'photo' => $product->photo_url,
@@ -80,15 +82,14 @@ class ProductController extends Controller
             return response()->json(['success' => false, 'message' => 'Tidak dapat mengubah produk karena event sudah inaktif.'], 403);
         }
 
-        $data = [
+        $data = array_merge($request->priceAttributes(), [
             'title' => $request->title,
-            'price' => $request->price,
             'category' => $request->category ?: $product->category,
             'description' => $request->description,
             'stock_badge' => $request->stock_badge ?: $product->stock_badge,
             'is_active' => $request->boolean('is_active', true),
             'store_id' => $request->store_id ?: $product->store_id, // Allow admin to change tenant
-        ];
+        ]);
 
         if ($request->has('photo') && !is_file($request->photo)) {
             $data['photo'] = $request->input('photo');
@@ -103,9 +104,11 @@ class ProductController extends Controller
 
         $product->update($data);
 
-        $productData = array_merge($product->fresh()->toArray(), [
-            'photo' => $product->fresh()->photo_url,
-            'photo_url' => $product->fresh()->photo_url,
+        $product = $product->fresh()->load('store');
+
+        $productData = array_merge($product->toArray(), [
+            'photo' => $product->photo_url,
+            'photo_url' => $product->photo_url,
         ]);
 
         if ($request->expectsJson() || $request->ajax()) {
