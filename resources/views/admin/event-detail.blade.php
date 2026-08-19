@@ -12,6 +12,88 @@
     isSubmitting: false,
     generatedLink: null,
 
+    editModalOpen: false,
+    isSavingEdit: false,
+    editForm: {
+        id: null,
+        owner_name: '',
+        store_name: '',
+        booth_code: '',
+        phone: ''
+    },
+
+    openEditTenant(tenant) {
+        this.editForm = {
+            id: tenant.id,
+            owner_name: tenant.owner_name || '',
+            store_name: tenant.store_name || '',
+            booth_code: tenant.booth_code || '',
+            phone: tenant.phone || ''
+        };
+        this.editModalOpen = true;
+    },
+
+    async saveEditTenant() {
+        if (!this.editForm.owner_name || !this.editForm.store_name || !this.editForm.booth_code) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Data Tidak Lengkap',
+                text: 'Nama pelaku usaha, nama warung, dan kode tenda wajib diisi.',
+                confirmButtonColor: '#1d9bf0'
+            });
+            return;
+        }
+
+        this.isSavingEdit = true;
+        try {
+            const response = await fetch(`/admin/events/{{ $event->id }}/tenants/${this.editForm.id}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    _method: 'PUT',
+                    owner_name: this.editForm.owner_name,
+                    store_name: this.editForm.store_name,
+                    booth_code: this.editForm.booth_code,
+                    phone: this.editForm.phone
+                })
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                this.editModalOpen = false;
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Tersimpan!',
+                    text: data.message || 'Data tenant berhasil diperbarui.',
+                    confirmButtonColor: '#1d9bf0'
+                }).then(() => window.location.reload());
+            } else {
+                // Pesan validasi Laravel (mis. kode tenda bentrok) ikut ditampilkan.
+                const firstError = data.errors ? Object.values(data.errors)[0][0] : null;
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal Menyimpan',
+                    text: firstError || data.message || 'Terjadi kesalahan sistem.',
+                    confirmButtonColor: '#f4212e'
+                });
+            }
+        } catch (error) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Terjadi Kesalahan',
+                text: 'Gagal terhubung ke server.',
+                confirmButtonColor: '#f4212e'
+            });
+        } finally {
+            this.isSavingEdit = false;
+        }
+    },
+
     async submitTenant() {
         if (!this.tenantForm.owner_name || !this.tenantForm.store_name || !this.tenantForm.booth_code) {
             Swal.fire({
@@ -286,6 +368,19 @@
                                 </td>
                                 <td class="px-5 py-4 align-top text-right">
                                     <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button
+                                            @click="openEditTenant({
+                                                id: {{ $tenant->id }},
+                                                owner_name: @js($tenant->owner->name ?? ''),
+                                                store_name: @js($tenant->name),
+                                                booth_code: @js($tenant->booth_number),
+                                                phone: @js($tenant->owner->phone ?? '')
+                                            })"
+                                            class="p-2 rounded-full hover:bg-[#f7f9f9] text-[#0f1419] transition-colors cursor-pointer"
+                                            title="Edit Tenant"
+                                        >
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                                        </button>
                                         <button @click="regenerateLink({{ $tenant->id }})" class="p-2 rounded-full hover:bg-[#e8f5fd] text-[#1d9bf0] transition-colors cursor-pointer" title="Regenerate Link">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
                                         </button>
@@ -308,5 +403,91 @@
             </div>
         </div>
     </div>
+
+    <!-- EDIT TENANT MODAL -->
+    <div
+        x-show="editModalOpen"
+        x-cloak
+        class="fixed inset-0 z-50 overflow-y-auto"
+        role="dialog"
+        aria-modal="true"
+    >
+        <div
+            x-show="editModalOpen"
+            x-transition:enter="ease-out duration-300"
+            x-transition:enter-start="opacity-0"
+            x-transition:enter-end="opacity-100"
+            x-transition:leave="ease-in duration-200"
+            x-transition:leave-start="opacity-100"
+            x-transition:leave-end="opacity-0"
+            class="fixed inset-0 bg-[#0f1419]/60 backdrop-blur-xs"
+            @click="editModalOpen = false"
+        ></div>
+
+        <div class="flex min-h-full items-end sm:items-center justify-center p-0 sm:p-4 text-left">
+            <div
+                x-show="editModalOpen"
+                x-transition:enter="ease-out duration-300"
+                x-transition:enter-start="opacity-0 translate-y-full sm:translate-y-4 sm:scale-95"
+                x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+                x-transition:leave="ease-in duration-200"
+                x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
+                x-transition:leave-end="opacity-0 translate-y-full sm:translate-y-4 sm:scale-95"
+                class="relative w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl p-6 sm:p-8 shadow-2xl space-y-4 border-t sm:border border-[#eff3f4] max-h-[92vh] overflow-y-auto custom-scrollbar"
+            >
+                <div class="w-12 h-1.5 bg-[#cfd9de] rounded-full mx-auto mb-2 sm:hidden"></div>
+
+                <div class="flex items-center justify-between pb-3 border-b border-[#eff3f4]">
+                    <div>
+                        <h3 class="text-base font-black text-[#0f1419]">Edit Data Tenant</h3>
+                        <p class="text-[11px] text-[#536471] font-semibold mt-0.5">Link akses tenant tidak berubah saat data disimpan.</p>
+                    </div>
+                    <button @click="editModalOpen = false" class="text-[#0f1419] hover:text-[#1d9bf0] p-1.5 rounded-full hover:bg-[#eff3f4] cursor-pointer">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+
+                <form @submit.prevent="saveEditTenant()" class="space-y-3.5">
+                    <div>
+                        <label class="block text-xs font-bold text-[#0f1419] mb-1">Nama Pelaku Usaha</label>
+                        <input type="text" x-model="editForm.owner_name" required class="w-full px-4 py-2.5 bg-[#f7f9f9] border border-[#eff3f4] rounded-xl text-xs sm:text-sm text-[#0f1419] focus:ring-2 focus:ring-[#1d9bf0] focus:outline-none font-semibold">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-[#0f1419] mb-1">Nama Warung / Stand</label>
+                        <input type="text" x-model="editForm.store_name" required class="w-full px-4 py-2.5 bg-[#f7f9f9] border border-[#eff3f4] rounded-xl text-xs sm:text-sm text-[#0f1419] focus:ring-2 focus:ring-[#1d9bf0] focus:outline-none font-semibold">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-bold text-[#0f1419] mb-1">Kode Tenda</label>
+                            <input type="text" x-model="editForm.booth_code" required class="w-full px-4 py-2.5 bg-[#f7f9f9] border border-[#eff3f4] rounded-xl text-xs sm:text-sm text-[#0f1419] focus:ring-2 focus:ring-[#1d9bf0] focus:outline-none font-semibold">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-[#0f1419] mb-1">No. HP (Opsional)</label>
+                            <input type="text" x-model="editForm.phone" class="w-full px-4 py-2.5 bg-[#f7f9f9] border border-[#eff3f4] rounded-xl text-xs sm:text-sm text-[#0f1419] focus:ring-2 focus:ring-[#1d9bf0] focus:outline-none font-semibold">
+                        </div>
+                    </div>
+
+                    <div class="p-3 rounded-xl bg-amber-50 border border-amber-200/70">
+                        <p class="text-[10px] text-amber-800 font-semibold leading-snug">
+                            Mengubah kode tenda ikut mengubah kode unik nominal QRIS stand ini
+                            (mis. tenda 019 membuat transaksi Rp10.000 menjadi Rp10.019).
+                        </p>
+                    </div>
+
+                    <div class="pt-2 flex gap-3">
+                        <button type="button" @click="editModalOpen = false" class="flex-1 py-3 rounded-full bg-[#eff3f4] hover:bg-slate-200 text-[#0f1419] text-xs font-black cursor-pointer">
+                            Batal
+                        </button>
+                        <button type="submit" :disabled="isSavingEdit" class="flex-1 py-3 rounded-full bg-[#1d9bf0] hover:bg-[#1a8cd8] disabled:opacity-60 text-white text-xs font-black shadow-md shadow-[#1d9bf0]/25 cursor-pointer">
+                            <span x-text="isSavingEdit ? 'Menyimpan...' : 'Simpan Perubahan'"></span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
 </div>
 @endsection
