@@ -101,7 +101,12 @@
                         <div class="flex items-center justify-between text-xs">
                             <div class="truncate max-w-[200px]">
                                 <span class="font-bold text-[#0f1419]" x-text="item.title"></span>
-                                <span class="text-[11px] text-[#536471] block font-medium" x-text="`${item.qty} x ${formatRupiah(item.price)}`"></span>
+                                <span class="text-[11px] text-[#536471] block font-medium">
+                                    <template x-if="item.is_negotiated">
+                                        <s class="text-[#536471]/70 mr-1" x-text="formatRupiah(item.original_price)"></s>
+                                    </template>
+                                    <span x-text="`${item.qty} x ${formatRupiah(item.price)}`"></span>
+                                </span>
                             </div>
                             <span class="font-black text-[#0f1419] shrink-0" x-text="formatRupiah(item.subtotal)"></span>
                         </div>

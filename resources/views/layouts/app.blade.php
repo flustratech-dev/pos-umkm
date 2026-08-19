@@ -96,6 +96,9 @@
                 'store_id' => $p->store_id,
                 'title' => $p->title,
                 'price' => (float)$p->price,
+                'is_negotiable' => (bool)$p->is_negotiable,
+                'min_price' => $p->min_price !== null ? (float)$p->min_price : null,
+                'max_price' => $p->max_price !== null ? (float)$p->max_price : null,
                 'category' => $p->category,
                 'description' => $p->description,
                 'photo' => $p->photo_url,
@@ -141,6 +144,8 @@
                         'product_id' => $item->product_id,
                         'title' => $item->title,
                         'price' => (float)$item->price,
+                        'original_price' => $item->original_price !== null ? (float)$item->original_price : null,
+                        'is_negotiated' => $item->is_negotiated,
                         'qty' => $item->qty,
                         'subtotal' => (float)$item->subtotal,
                     ];
