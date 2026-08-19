@@ -90,6 +90,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     // Event Detail + Tenant Registration
     Route::get('/events/{event}/detail', [AdminEventDetailController::class, 'show'])->name('events.detail');
     Route::post('/events/{event}/register-tenant', [AdminEventDetailController::class, 'registerTenant'])->name('events.register-tenant');
+    Route::match(['put', 'post'], '/events/{event}/tenants/{store}', [AdminEventDetailController::class, 'updateTenant'])->name('events.update-tenant');
     Route::delete('/events/{event}/tenants/{store}', [AdminEventDetailController::class, 'removeTenant'])->name('events.remove-tenant');
     Route::post('/events/{event}/tenants/{store}/regenerate-link', [AdminEventDetailController::class, 'regenerateLink'])->name('events.regenerate-link');
 
