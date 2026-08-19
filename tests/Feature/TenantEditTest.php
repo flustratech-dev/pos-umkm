@@ -10,6 +10,8 @@ use App\Models\User;
 use App\Services\CheckoutService;
 use App\Services\RevenueSplitService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class TenantEditTest extends TestCase
@@ -200,10 +202,12 @@ class TenantEditTest extends TestCase
             $this->payload(['booth_code' => '019'])
         )->assertOk();
 
+        Storage::fake('public');
+
         $service = new CheckoutService(new RevenueSplitService());
         $tx = $service->processQrisCheckout($this->store->fresh(), $this->owner, [
             ['product_id' => $product->id, 'qty' => 1],
-        ]);
+        ], UploadedFile::fake()->image('bukti.jpg'));
 
         $this->assertEquals(10019, (float) $tx->total_amount);
     }

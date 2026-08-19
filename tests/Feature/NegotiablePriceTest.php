@@ -9,6 +9,8 @@ use App\Models\User;
 use App\Services\CheckoutService;
 use App\Services\RevenueSplitService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use InvalidArgumentException;
 use Tests\TestCase;
 
@@ -210,9 +212,11 @@ class NegotiablePriceTest extends TestCase
 
     public function test_qris_checkout_keeps_the_negotiated_total(): void
     {
+        Storage::fake('public');
+
         $tx = $this->checkout->processQrisCheckout($this->store, $this->tenantUser, [
             ['product_id' => $this->negotiable->id, 'qty' => 1, 'price' => 80000],
-        ]);
+        ], UploadedFile::fake()->image('bukti.jpg'));
 
         // Harga nego + kode unik yang mengikuti kode tenda (N019 -> 19)
         $this->assertEquals(80019, (float) $tx->total_amount);

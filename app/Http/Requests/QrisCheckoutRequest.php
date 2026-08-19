@@ -19,7 +19,18 @@ class QrisCheckoutRequest extends FormRequest
             'items.*.qty' => ['required', 'integer', 'min:1'],
             // Hanya dipakai untuk produk tawar-menawar; rentangnya diverifikasi ulang di CheckoutService.
             'items.*.price' => ['nullable', 'numeric', 'min:0'],
-            'proof_image' => ['nullable', 'image', 'max:10240'],
+            // Bukti transfer wajib: transaksi QRIS langsung berstatus lunas,
+            // jadi harus ada arsip yang bisa dicek EO saat rekonsiliasi.
+            'proof_image' => ['required', 'image', 'max:10240'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'proof_image.required' => 'Bukti transfer QRIS wajib diunggah sebelum transaksi disimpan.',
+            'proof_image.image' => 'Bukti transfer harus berupa gambar.',
+            'proof_image.max' => 'Ukuran bukti transfer maksimal 10 MB.',
         ];
     }
 }

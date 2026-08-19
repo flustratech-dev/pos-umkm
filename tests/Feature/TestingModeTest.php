@@ -130,10 +130,13 @@ class TestingModeTest extends TestCase
         $this->assertTrue($cashTx->is_testing);
 
         // QRIS checkout during testing
+        Storage::fake('public');
+
         $qrisTx = $checkoutService->processQrisCheckout(
             $this->store,
             $this->tenantUser,
-            [['product_id' => $this->product->id, 'qty' => 1]]
+            [['product_id' => $this->product->id, 'qty' => 1]],
+            UploadedFile::fake()->image('bukti.jpg')
         );
 
         $this->assertTrue($qrisTx->is_testing);

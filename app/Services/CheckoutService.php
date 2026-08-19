@@ -136,15 +136,15 @@ class CheckoutService
     }
 
     /**
-     * Process a QRIS transaction (Auto-success with optional proof archive for reporting).
+     * Process a QRIS transaction (langsung lunas, disertai arsip bukti transfer).
      *
      * @param Store $store
      * @param User $cashier
      * @param array $items Array of ['product_id' => int, 'qty' => int]
-     * @param UploadedFile|null $proofFile Optional proof file for archive/reporting
+     * @param UploadedFile $proofFile Bukti transfer, wajib sebagai arsip verifikasi EO
      * @return Transaction
      */
-    public function processQrisCheckout(Store $store, User $cashier, array $items, ?UploadedFile $proofFile = null): Transaction
+    public function processQrisCheckout(Store $store, User $cashier, array $items, UploadedFile $proofFile): Transaction
     {
         if (empty($items)) {
             throw new InvalidArgumentException('Keranjang belanja tidak boleh kosong.');
@@ -195,13 +195,10 @@ class CheckoutService
                 TransactionItem::create($item);
             }
 
-            if ($proofFile) {
-                $path = $proofFile->store('payment_proofs', 'public');
-                PaymentProof::create([
-                    'transaction_id' => $transaction->id,
-                    'proof_path' => $path,
-                ]);
-            }
+            PaymentProof::create([
+                'transaction_id' => $transaction->id,
+                'proof_path' => $proofFile->store('payment_proofs', 'public'),
+            ]);
 
             // Generate revenue split immediately since it's auto-success
             $this->revenueSplitService->calculate($transaction);

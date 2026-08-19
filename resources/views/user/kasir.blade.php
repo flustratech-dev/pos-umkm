@@ -218,7 +218,7 @@
                 x-transition:leave="transform transition ease-in-out duration-200"
                 x-transition:leave-start="translate-x-0"
                 x-transition:leave-end="translate-x-full"
-                class="w-screen max-w-md bg-white shadow-2xl flex flex-col justify-between"
+                class="w-screen max-w-md bg-white shadow-2xl flex flex-col justify-between overflow-hidden"
             >
                 <!-- Drawer Header -->
                 <div class="p-5 border-b border-[#eff3f4] flex items-center justify-between">
@@ -246,7 +246,7 @@
                 </div>
 
                 <!-- Drawer Content: Cart Items List -->
-                <div class="flex-1 overflow-y-auto p-5 space-y-3 custom-scrollbar">
+                <div class="flex-1 min-h-0 overflow-y-auto p-5 space-y-3 custom-scrollbar">
                     <template x-if="$store.app.cart.length === 0">
                         <div class="py-16 text-center text-[#536471]">
                             <svg class="w-14 h-14 mx-auto mb-3 opacity-30 text-[#1d9bf0]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
@@ -310,7 +310,7 @@
                 </div>
 
                 <!-- Payment Panel Footer -->
-                <div x-show="$store.app.cart.length > 0" x-cloak class="p-5 border-t border-[#eff3f4] bg-[#f7f9f9] space-y-4">
+                <div x-show="$store.app.cart.length > 0" x-cloak class="shrink-0 max-h-[75vh] overflow-y-auto custom-scrollbar p-5 border-t border-[#eff3f4] bg-[#f7f9f9] space-y-4">
                     <!-- Total Bill -->
                     <div x-show="$store.app.cartNegotiatedDiscount > 0" x-cloak class="flex items-center justify-between text-xs">
                         <span class="font-bold text-[#536471]">Potongan hasil nego</span>
@@ -474,7 +474,7 @@
                         <div class="bg-white border border-[#eff3f4] rounded-2xl p-3.5 space-y-2.5">
                             <div class="flex items-center justify-between">
                                 <label class="block text-xs font-bold text-[#0f1419]">
-                                    Upload Bukti Transfer <span class="text-[10px] text-[#536471] font-normal">(Opsional / Arsip Laporan)</span>
+                                    Upload Bukti Transfer <span class="text-[10px] text-[#f4212e] font-black">(Wajib)</span>
                                 </label>
                                 <template x-if="$store.app.qrisProofFile">
                                     <span class="text-[10px] text-[#00ba7c] font-black flex items-center gap-1">
@@ -550,10 +550,15 @@
                         <button 
                             @click="$store.app.processQrisCheckout()"
                             type="button" 
-                            class="w-full py-3.5 px-4 rounded-full bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white font-black text-sm shadow-md shadow-[#1d9bf0]/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                            :disabled="!$store.app.qrisProofFile"
+                            class="w-full py-3.5 px-4 rounded-full bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white font-black text-sm shadow-md shadow-[#1d9bf0]/25 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                         >
                             <span>Bayar & Cetak Nota Otomatis</span>
                         </button>
+
+                        <p x-show="!$store.app.qrisProofFile" x-cloak class="text-[10px] text-[#536471] font-bold text-center leading-snug">
+                            Unggah bukti transfer dulu untuk mengaktifkan tombol bayar.
+                        </p>
                         <p class="text-[10px] text-[#536471] text-center italic font-medium">
                             *Pembayaran QRIS otomatis tersimpan langsung ke sistem & laporan.
                         </p>
