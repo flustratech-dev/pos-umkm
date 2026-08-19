@@ -332,6 +332,9 @@ Alpine.store('app', {
             id: null,
             title: '',
             price: '',
+            is_negotiable: false,
+            min_price: '',
+            max_price: '',
             category: 'Makanan',
             description: '',
             photo: '',
@@ -462,6 +465,22 @@ Alpine.store('app', {
             }
         },
 
+        // Rentang harga yang boleh dipakai kasir. Produk harga pas terkunci di harganya.
+        priceRangeOf(product) {
+            const listPrice = parseFloat(product?.price) || 0;
+            if (!product?.is_negotiable) {
+                return { min: listPrice, max: listPrice };
+            }
+            const min = product.min_price !== null && product.min_price !== undefined ? parseFloat(product.min_price) : 0;
+            const max = product.max_price !== null && product.max_price !== undefined ? parseFloat(product.max_price) : listPrice;
+            return { min: isNaN(min) ? 0 : min, max: isNaN(max) ? listPrice : max };
+        },
+
+        cartItemPrice(item) {
+            const price = parseFloat(item?.price);
+            return isNaN(price) ? (parseFloat(item?.product?.price) || 0) : price;
+        },
+
         addToCart(product) {
             const existing = this.cart.find(item => item.product.id === product.id);
             if (existing) {
@@ -470,10 +489,38 @@ Alpine.store('app', {
                 this.cart.push({
                     product,
                     qty: 1,
+                    // Harga acuan jadi nilai awal; kasir menurunkannya saat deal nego.
+                    price: this.priceRangeOf(product).max,
                     notes: ''
                 });
             }
             this.notify('success', 'Produk Ditambahkan', `${product.title} (x1) masuk keranjang`);
+            this._refreshQrisIfActive();
+        },
+
+        // Harga hasil nego, dikunci ulang ke rentang yang ditetapkan pemilik stand.
+        // Dipanggil saat kasir selesai mengetik, bukan di tiap ketikan, supaya
+        // angka yang sedang dihapus tidak langsung ditimpa.
+        updateCartPrice(productId, value) {
+            const item = this.cart.find(c => c.product.id === productId);
+            if (!item || !item.product.is_negotiable) return;
+
+            const { min, max } = this.priceRangeOf(item.product);
+            const digits = String(value ?? '').replace(/\D/g, '');
+            let price = digits === '' ? NaN : parseFloat(digits);
+
+            if (isNaN(price)) {
+                // Dikosongkan lalu ditinggal: kembali ke harga pasang.
+                price = max;
+            } else if (price < min) {
+                price = min;
+                this.notify('warning', 'Di Bawah Batas', `Harga nego ${item.product.title} minimal ${formatRupiah(min)}.`);
+            } else if (price > max) {
+                price = max;
+                this.notify('warning', 'Di Atas Batas', `Harga nego ${item.product.title} maksimal ${formatRupiah(max)}.`);
+            }
+
+            item.price = price;
             this._refreshQrisIfActive();
         },
 
@@ -501,7 +548,16 @@ Alpine.store('app', {
         },
 
         get cartTotal() {
-            return this.cart.reduce((sum, item) => sum + (item.product.price * item.qty), 0);
+            return this.cart.reduce((sum, item) => sum + (this.cartItemPrice(item) * item.qty), 0);
+        },
+
+        // Selisih dari harga acuan, dipakai sebagai info "hemat" di panel kasir.
+        get cartNegotiatedDiscount() {
+            return this.cart.reduce((sum, item) => {
+                const listPrice = this.priceRangeOf(item.product).max;
+                const diff = listPrice - this.cartItemPrice(item);
+                return sum + (diff > 0 ? diff * item.qty : 0);
+            }, 0);
         },
 
         get cartItemCount() {
@@ -534,7 +590,8 @@ Alpine.store('app', {
                 const payload = {
                     items: this.cart.map(c => ({
                         product_id: c.product.id,
-                        qty: c.qty
+                        qty: c.qty,
+                        price: this.cartItemPrice(c)
                     })),
                     amount_paid: parseFloat(this.cashAmountPaid)
                 };
@@ -623,6 +680,7 @@ Alpine.store('app', {
                     this.cart.forEach((c, idx) => {
                         formData.append(`items[${idx}][product_id]`, c.product.id);
                         formData.append(`items[${idx}][qty]`, c.qty);
+                        formData.append(`items[${idx}][price]`, this.cartItemPrice(c));
                     });
                     formData.append('proof_image', this.qrisProofFile);
                     body = formData;
@@ -630,7 +688,8 @@ Alpine.store('app', {
                     body = {
                         items: this.cart.map(c => ({
                             product_id: c.product.id,
-                            qty: c.qty
+                            qty: c.qty,
+                            price: this.cartItemPrice(c)
                         }))
                     };
                 }
@@ -764,6 +823,9 @@ Alpine.store('app', {
                 id: null,
                 title: '',
                 price: '',
+                is_negotiable: false,
+                min_price: '',
+                max_price: '',
                 category: 'Makanan',
                 description: '',
                 photo: '',
@@ -782,6 +844,9 @@ Alpine.store('app', {
                 id: product.id,
                 title: product.title,
                 price: isNaN(cleanPrice) ? '' : cleanPrice,
+                is_negotiable: !!product.is_negotiable,
+                min_price: product.min_price !== null && product.min_price !== undefined ? Math.round(parseFloat(product.min_price)) : '',
+                max_price: product.max_price !== null && product.max_price !== undefined ? Math.round(parseFloat(product.max_price)) : '',
                 category: product.category || 'Makanan',
                 description: product.description || '',
                 photo: product.photo || '',
@@ -808,8 +873,26 @@ Alpine.store('app', {
         },
 
         async saveProduct() {
-            if (!this.productFormData.title.trim() || !this.productFormData.price) {
-                this.notify('error', 'Validasi Form', 'Judul produk dan harga wajib diisi.');
+            if (!this.productFormData.title.trim()) {
+                this.notify('error', 'Validasi Form', 'Judul produk wajib diisi.');
+                if (typeof window.hideLoading === 'function') window.hideLoading();
+                return;
+            }
+            if (this.productFormData.is_negotiable) {
+                const min = parseFloat(this.productFormData.min_price);
+                const max = parseFloat(this.productFormData.max_price);
+                if (isNaN(min) || isNaN(max)) {
+                    this.notify('error', 'Validasi Form', 'Harga terendah dan tertinggi wajib diisi untuk produk yang bisa ditawar.');
+                    if (typeof window.hideLoading === 'function') window.hideLoading();
+                    return;
+                }
+                if (max < min) {
+                    this.notify('error', 'Validasi Form', 'Harga tertinggi tidak boleh lebih kecil dari harga terendah.');
+                    if (typeof window.hideLoading === 'function') window.hideLoading();
+                    return;
+                }
+            } else if (!this.productFormData.price) {
+                this.notify('error', 'Validasi Form', 'Harga produk wajib diisi.');
                 if (typeof window.hideLoading === 'function') window.hideLoading();
                 return;
             }
@@ -827,7 +910,10 @@ Alpine.store('app', {
                 if (this.productFormData.photoFile) {
                     payload = new FormData();
                     payload.append('title', this.productFormData.title.trim());
-                    payload.append('price', this.productFormData.price);
+                    payload.append('price', this.productFormData.price || '');
+                    payload.append('is_negotiable', this.productFormData.is_negotiable ? '1' : '0');
+                    payload.append('min_price', this.productFormData.is_negotiable ? this.productFormData.min_price : '');
+                    payload.append('max_price', this.productFormData.is_negotiable ? this.productFormData.max_price : '');
                     payload.append('category', this.productFormData.category);
                     payload.append('description', this.productFormData.description || '');
                     payload.append('stock_badge', this.productFormData.stock_badge);
@@ -839,7 +925,10 @@ Alpine.store('app', {
                 } else {
                     payload = {
                         title: this.productFormData.title.trim(),
-                        price: parseFloat(this.productFormData.price),
+                        price: this.productFormData.price !== '' ? parseFloat(this.productFormData.price) : null,
+                        is_negotiable: !!this.productFormData.is_negotiable,
+                        min_price: this.productFormData.is_negotiable ? parseFloat(this.productFormData.min_price) : null,
+                        max_price: this.productFormData.is_negotiable ? parseFloat(this.productFormData.max_price) : null,
                         category: this.productFormData.category,
                         description: this.productFormData.description,
                         stock_badge: this.productFormData.stock_badge,
@@ -1070,7 +1159,7 @@ Alpine.store('app', {
                 <tr>
                     <td style="text-align: center; color: #64748b;">${idx + 1}</td>
                     <td style="font-weight: 600; color: #0f172a;">${item.title}</td>
-                    <td style="text-align: right; color: #475569;">${formatRupiah(item.price)}</td>
+                    <td style="text-align: right; color: #475569;">${item.is_negotiated ? `<s style="color:#94a3b8;">${formatRupiah(item.original_price)}</s> ` : ''}${formatRupiah(item.price)}</td>
                     <td style="text-align: center; font-weight: 700; color: #0f172a;">${item.qty}</td>
                     <td style="text-align: right; font-weight: 700; color: #0f172a;">${formatRupiah(item.subtotal)}</td>
                 </tr>

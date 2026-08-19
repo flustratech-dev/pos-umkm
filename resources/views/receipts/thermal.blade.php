@@ -57,7 +57,12 @@
         <div>
             <div class="bold">{{ $item->title }}</div>
             <div class="flex-between">
-                <span>{{ $item->qty }} x Rp {{ number_format($item->price, 0, ',', '.') }}</span>
+                <span>
+                    @if($item->is_negotiated)
+                        <s>Rp {{ number_format($item->original_price, 0, ',', '.') }}</s>
+                    @endif
+                    {{ $item->qty }} x Rp {{ number_format($item->price, 0, ',', '.') }}
+                </span>
                 <span>Rp {{ number_format($item->subtotal, 0, ',', '.') }}</span>
             </div>
         </div>

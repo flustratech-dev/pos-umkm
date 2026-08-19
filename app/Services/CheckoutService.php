@@ -37,6 +37,33 @@ class CheckoutService
     }
 
     /**
+     * Harga yang dipakai untuk satu baris keranjang.
+     *
+     * Produk harga pas selalu memakai harga dari database, input kasir diabaikan.
+     * Produk tawar-menawar boleh memakai harga hasil nego selama masih berada di
+     * dalam rentang yang ditetapkan pemilik stand.
+     */
+    protected function resolveItemPrice(Product $product, array $itemData): float
+    {
+        if (!$product->is_negotiable || !array_key_exists('price', $itemData) || $itemData['price'] === null || $itemData['price'] === '') {
+            return $product->is_negotiable ? (float) $product->listPrice() : (float) $product->price;
+        }
+
+        $price = (float) $itemData['price'];
+        [$min, $max] = $product->priceRange();
+
+        if (!$product->acceptsPrice($price)) {
+            throw new InvalidArgumentException(
+                "Harga nego untuk '{$product->title}' (Rp " . number_format($price, 0, ',', '.') . ") "
+                . "di luar rentang yang diizinkan: Rp " . number_format($min, 0, ',', '.')
+                . " - Rp " . number_format($max, 0, ',', '.') . "."
+            );
+        }
+
+        return $price;
+    }
+
+    /**
      * Process cash checkout.
      * Cash transactions now go to 'pending' status until admin confirms payment.
      *
@@ -61,7 +88,7 @@ class CheckoutService
                 $qty = (int) $itemData['qty'];
                 if ($qty <= 0) continue;
 
-                $price = (float) $product->price;
+                $price = $this->resolveItemPrice($product, $itemData);
                 $subtotal = $price * $qty;
                 $totalAmount += $subtotal;
 
@@ -69,6 +96,7 @@ class CheckoutService
                     'product_id' => $product->id,
                     'title' => $product->title,
                     'price' => $price,
+                    'original_price' => $product->listPrice(),
                     'qty' => $qty,
                     'subtotal' => $subtotal,
                 ];
@@ -131,7 +159,7 @@ class CheckoutService
                 $qty = (int) $itemData['qty'];
                 if ($qty <= 0) continue;
 
-                $price = (float) $product->price;
+                $price = $this->resolveItemPrice($product, $itemData);
                 $subtotal = $price * $qty;
                 $totalAmount += $subtotal;
 
@@ -139,6 +167,7 @@ class CheckoutService
                     'product_id' => $product->id,
                     'title' => $product->title,
                     'price' => $price,
+                    'original_price' => $product->listPrice(),
                     'qty' => $qty,
                     'subtotal' => $subtotal,
                 ];
