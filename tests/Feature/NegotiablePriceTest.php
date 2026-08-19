@@ -45,7 +45,7 @@ class NegotiablePriceTest extends TestCase
             'event_id' => $event->id,
             'owner_id' => $this->tenantUser->id,
             'name' => 'Stand Nego',
-            'booth_number' => 'N01',
+            'booth_number' => 'N019',
             'is_active' => true,
         ]);
 
@@ -214,8 +214,8 @@ class NegotiablePriceTest extends TestCase
             ['product_id' => $this->negotiable->id, 'qty' => 1, 'price' => 80000],
         ]);
 
-        // Harga nego + kode unik stand
-        $this->assertEquals(80000 + $this->store->id, (float) $tx->total_amount);
+        // Harga nego + kode unik yang mengikuti kode tenda (N019 -> 19)
+        $this->assertEquals(80019, (float) $tx->total_amount);
         $this->assertEquals(80000, (float) $tx->items->first()->price);
     }
 }

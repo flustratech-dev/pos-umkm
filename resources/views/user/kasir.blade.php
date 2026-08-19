@@ -18,7 +18,7 @@
     },
 
     get uniqueCode() {
-        return $store.app.getCurrentStore()?.id || 0;
+        return $store.app.storeUniqueCode($store.app.getCurrentStore());
     }
 }" class="space-y-4">
 

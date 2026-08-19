@@ -83,6 +83,7 @@
                 'owner_name' => $s->owner ? $s->owner->name : '',
                 'phone' => $s->owner ? $s->owner->phone : '',
                 'booth_number' => $s->booth_number,
+                'unique_code' => $s->unique_code,
                 'category' => $s->category,
                 'is_active' => $s->is_active,
                 'use_dynamic_qris' => $s->use_dynamic_qris,
@@ -198,6 +199,8 @@
                     return [
                         'id' => $s->id,
                         'name' => $s->name,
+                        'booth_number' => $s->booth_number,
+                        'unique_code' => $s->unique_code,
                         'event_name' => $s->event ? $s->event->name : 'Unknown Event',
                         'event_is_active' => $s->event ? (bool)$s->event->is_active : false,
                         'use_dynamic_qris' => $s->use_dynamic_qris,
