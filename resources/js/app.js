@@ -225,6 +225,9 @@ export const formatNumber = (number) => {
     return new Intl.NumberFormat('id-ID').format(parsed);
 };
 
+// Seluruh tampilan waktu memakai WIB, tidak ikut zona waktu perangkat kasir.
+export const WIB = 'Asia/Jakarta';
+
 export const formatDateTime = (dateStr) => {
     if (!dateStr) return '-';
     try {
@@ -235,7 +238,8 @@ export const formatDateTime = (dateStr) => {
             month: 'short',
             year: 'numeric',
             hour: '2-digit',
-            minute: '2-digit'
+            minute: '2-digit',
+            timeZone: WIB
         });
     } catch {
         return dateStr;
@@ -1432,18 +1436,9 @@ Alpine.store('app', {
                                     <td>TOTAL TAGIHAN:</td>
                                     <td style="text-align: right; color: #1d9bf0;">${formatRupiah(tx.total_amount)}</td>
                                 </tr>
-                                ${tx.status === 'paid' ? `
+                                ${tx.status === 'paid' ? '' : `
                                 <tr>
-                                    <td style="padding: 4px 0; color: #ef4444; font-size: 11px;">Potongan EO (25%):</td>
-                                    <td style="padding: 4px 0; text-align: right; color: #ef4444; font-size: 11px; font-weight: 600;">- ${formatRupiah(tx.revenue_split?.admin_gross_share || (tx.total_amount * 0.25))}</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding: 4px 0; color: #1d9bf0; font-weight: 700;">Hak Bersih Warung (75%):</td>
-                                    <td style="padding: 4px 0; text-align: right; color: #1d9bf0; font-weight: 800;">${formatRupiah(tx.revenue_split?.owner_share || (tx.total_amount * 0.75))}</td>
-                                </tr>
-                                ` : `
-                                <tr>
-                                    <td colspan="2" style="padding: 4px 0; text-align: center; color: #f59e0b; font-size: 11px; font-weight: bold; font-style: italic;">(Bagi hasil dihitung setelah pembayaran lunas)</td>
+                                    <td colspan="2" style="padding: 4px 0; text-align: center; color: #f59e0b; font-size: 11px; font-weight: bold; font-style: italic;">(Menunggu konfirmasi pembayaran)</td>
                                 </tr>
                                 `}
                                 ${paymentSummary}
@@ -1526,7 +1521,8 @@ Alpine.store('app', {
                 month: 'long',
                 year: 'numeric',
                 hour: '2-digit',
-                minute: '2-digit'
+                minute: '2-digit',
+                timeZone: WIB
             });
 
             // Per-store breakdown calculations
@@ -1826,7 +1822,8 @@ Alpine.store('app', {
                 month: 'long',
                 year: 'numeric',
                 hour: '2-digit',
-                minute: '2-digit'
+                minute: '2-digit',
+                timeZone: WIB
             });
 
             const txRows = txList.map((t, idx) => `
@@ -2070,7 +2067,8 @@ Alpine.store('app', {
                 month: 'long',
                 year: 'numeric',
                 hour: '2-digit',
-                minute: '2-digit'
+                minute: '2-digit',
+                timeZone: WIB
             });
 
             const txRows = txList.map((t, idx) => `
@@ -2271,7 +2269,8 @@ Alpine.store('app', {
                 month: 'long',
                 year: 'numeric',
                 hour: '2-digit',
-                minute: '2-digit'
+                minute: '2-digit',
+                timeZone: WIB
             });
 
             const txRows = txList.map((t, idx) => `
@@ -2509,7 +2508,8 @@ Alpine.store('app', {
                 month: 'long',
                 year: 'numeric',
                 hour: '2-digit',
-                minute: '2-digit'
+                minute: '2-digit',
+                timeZone: WIB
             });
 
             const txRows = txList.map((t, idx) => `
@@ -2670,7 +2670,8 @@ Alpine.store('app', {
                 month: 'long',
                 year: 'numeric',
                 hour: '2-digit',
-                minute: '2-digit'
+                minute: '2-digit',
+                timeZone: WIB
             });
 
             const txRows = txList.map((t, idx) => `
@@ -2773,7 +2774,8 @@ Alpine.store('app', {
                 month: 'long',
                 year: 'numeric',
                 hour: '2-digit',
-                minute: '2-digit'
+                minute: '2-digit',
+                timeZone: WIB
             });
 
             const storeSummaries = this.stores.map(st => {
@@ -3122,7 +3124,8 @@ Alpine.store('app', {
                 month: 'long',
                 year: 'numeric',
                 hour: '2-digit',
-                minute: '2-digit'
+                minute: '2-digit',
+                timeZone: WIB
             });
 
             const txRows = txList.map((t, idx) => `
