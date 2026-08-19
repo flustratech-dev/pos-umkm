@@ -438,6 +438,16 @@ Alpine.store('app', {
             return this.activeEvent || window.__ACTIVE_EVENT__ || { name: 'Event Belum Aktif' };
         },
 
+        // Kode unik nominal QRIS mengikuti kode tenda stand (mis. tenda 019 -> +19).
+        storeUniqueCode(store) {
+            if (!store) return 0;
+            if (store.unique_code !== null && store.unique_code !== undefined) {
+                return parseInt(store.unique_code, 10) || 0;
+            }
+            const digits = String(store.booth_number ?? '').replace(/\D/g, '');
+            return digits ? (parseInt(digits, 10) || 0) : (parseInt(store.id, 10) || 0);
+        },
+
         getCurrentStore() {
             const user = this.getCurrentUser();
             if (user && (user.store_id || user.store_name)) {
