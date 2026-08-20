@@ -656,6 +656,8 @@ Alpine.store('app', {
                 const data = await apiFetch(`/admin/transaksi/${this.transactionToCancel.id}/cancel`, {
                     method: 'POST',
                     body: { 
+                        reason_category: this.cancelReasonCategory || 'Lainnya (isi manual)',
+                        custom_note: this.cancelCustomNote || '',
                         cancellation_reason: fullReason,
                         refund_ack_confirmed: this.cancelRefundConfirmed
                     }
@@ -664,7 +666,7 @@ Alpine.store('app', {
                 if (data.success) {
                     const idx = this.transactions.findIndex(t => t.id === this.transactionToCancel.id);
                     if (idx !== -1) {
-                        this.transactions[idx] = data.transaction;
+                        this.transactions[idx] = this.normalizeTransaction ? this.normalizeTransaction(data.transaction) : data.transaction;
                     }
                     this.cancelModalOpen = false;
                     this.notify('warning', 'Transaksi Dibatalkan', data.message);

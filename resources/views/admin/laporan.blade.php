@@ -452,6 +452,44 @@
 
     <!-- CANCEL TRANSACTION MODAL WITH MANDATORY REASON & CHECKBOX (SLIDE UP BOTTOM SHEET ON MOBILE) -->
     <div 
+        x-data="{
+            noteText: '',
+            reasonChoice: 'Salah input barang/harga',
+            refundConfirmed: false,
+            init() {
+                this.$watch('$store.app.cancelModalOpen', (val) => {
+                    if (val) {
+                        this.reasonChoice = this.$store.app.cancelReasonCategory || 'Salah input barang/harga';
+                        this.noteText = this.$store.app.cancelCustomNote || '';
+                        this.refundConfirmed = this.$store.app.cancelRefundConfirmed || false;
+                    }
+                });
+            },
+            onReasonChange() {
+                this.$store.app.cancelReasonCategory = this.reasonChoice;
+                if (this.reasonChoice === 'Lainnya (isi manual)') {
+                    this.$nextTick(() => {
+                        this.$refs.noteTextarea?.focus();
+                    });
+                }
+            },
+            onNoteInput(e) {
+                this.noteText = e.target.value;
+                this.$store.app.cancelCustomNote = e.target.value;
+            },
+            onConfirmChange() {
+                this.$store.app.cancelRefundConfirmed = this.refundConfirmed;
+            },
+            closeModal() {
+                this.$store.app.cancelModalOpen = false;
+            },
+            submitCancel() {
+                this.$store.app.cancelReasonCategory = this.reasonChoice;
+                this.$store.app.cancelCustomNote = this.noteText;
+                this.$store.app.cancelRefundConfirmed = this.refundConfirmed;
+                this.$store.app.confirmCancelTransaction();
+            }
+        }"
         x-show="$store.app.cancelModalOpen" 
         x-cloak 
         class="fixed inset-0 z-50 overflow-y-auto"
@@ -469,7 +507,7 @@
             x-transition:leave-start="opacity-100"
             x-transition:leave-end="opacity-0"
             class="fixed inset-0 bg-[#0f1419]/60 backdrop-blur-xs transition-opacity" 
-            @click="$store.app.cancelModalOpen = false"
+            @click="closeModal()"
         ></div>
 
         <!-- Position: Bottom on Mobile (`items-end p-0`), Center on Desktop (`sm:items-center sm:p-4`) -->
@@ -493,7 +531,7 @@
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
                         <h3 class="text-base sm:text-lg font-black text-[#0f1419]">Batalkan Transaksi Paid</h3>
                     </div>
-                    <button @click="$store.app.cancelModalOpen = false" class="text-[#0f1419] hover:text-[#1d9bf0] p-1.5 rounded-full hover:bg-[#eff3f4] cursor-pointer">
+                    <button @click="closeModal()" class="text-[#0f1419] hover:text-[#1d9bf0] p-1.5 rounded-full hover:bg-[#eff3f4] cursor-pointer">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                     </button>
                 </div>
@@ -519,7 +557,8 @@
                     <div>
                         <label class="block text-xs font-bold text-[#0f1419] mb-1">Alasan Pembatalan (Pilihan Cepat)</label>
                         <select 
-                            x-model="$store.app.cancelReasonCategory"
+                            x-model="reasonChoice"
+                            @change="onReasonChange()"
                             class="w-full px-4 py-2.5 bg-[#f7f9f9] border border-[#eff3f4] rounded-xl text-xs text-[#0f1419] focus:ring-2 focus:ring-[#f4212e] focus:outline-none font-semibold cursor-pointer"
                         >
                             <option value="Salah input barang/harga">Salah input barang/harga</option>
@@ -532,23 +571,27 @@
                     <div>
                         <label class="block text-xs font-bold text-[#0f1419] mb-1">
                             Catatan Tambahan
-                            <span x-show="$store.app.cancelReasonCategory === 'Lainnya (isi manual)'" x-cloak class="text-[#f4212e] font-bold">*Wajib</span>
+                            <span x-show="reasonChoice === 'Lainnya (isi manual)'" class="text-[#f4212e] font-bold">*Wajib</span>
                         </label>
                         <textarea 
-                            x-model="$store.app.cancelCustomNote"
-                            rows="2"
-                            placeholder="Ketik keterangan detail alasan pembatalan..."
-                            class="w-full px-4 py-2 bg-[#f7f9f9] border border-[#eff3f4] rounded-2xl text-xs text-[#0f1419] focus:ring-2 focus:ring-[#f4212e] focus:outline-none font-medium"
+                            x-ref="noteTextarea"
+                            x-model="noteText"
+                            @input="onNoteInput($event)"
+                            rows="3"
+                            :placeholder="reasonChoice === 'Lainnya (isi manual)' ? 'Ketik alasan pembatalan manual di sini (wajib)...' : 'Ketik keterangan detail alasan pembatalan (opsional)...'"
+                            class="w-full px-4 py-2.5 bg-white border rounded-2xl text-xs text-[#0f1419] focus:ring-2 focus:ring-[#f4212e] focus:outline-none font-medium transition-all"
+                            :class="reasonChoice === 'Lainnya (isi manual)' ? 'border-rose-300 ring-1 ring-rose-200' : 'border-[#eff3f4] bg-[#f7f9f9]'"
                         ></textarea>
                     </div>
 
                     <!-- MANDATORY ACKNOWLEDGEMENT CHECKBOX -->
                     <div class="p-3.5 bg-rose-50/50 rounded-2xl border border-rose-100">
-                        <label class="flex items-start gap-2.5 cursor-pointer">
+                        <label class="flex items-start gap-2.5 cursor-pointer select-none">
                             <input 
                                 type="checkbox" 
-                                x-model="$store.app.cancelRefundConfirmed"
-                                class="w-4 h-4 mt-0.5 rounded border-rose-300 text-[#f4212e] focus:ring-[#f4212e]"
+                                x-model="refundConfirmed"
+                                @change="onConfirmChange()"
+                                class="w-4 h-4 mt-0.5 rounded border-rose-300 text-[#f4212e] focus:ring-[#f4212e] cursor-pointer"
                             >
                             <span class="text-xs text-[#0f1419] font-semibold leading-relaxed">
                                 Saya konfirmasi bahwa pembatalan ini sudah dikoordinasikan dengan pemilik warung dan/atau refund ke customer (jika ada) sudah/akan ditangani secara manual di luar sistem.
@@ -561,15 +604,15 @@
                 <div class="pt-2 flex gap-3">
                     <button 
                         type="button" 
-                        @click="$store.app.cancelModalOpen = false"
+                        @click="closeModal()"
                         class="flex-1 py-3 rounded-full bg-[#eff3f4] hover:bg-slate-200 text-[#0f1419] text-xs font-black transition-colors cursor-pointer"
                     >
                         Batal
                     </button>
                     <button 
                         type="button" 
-                        @click="$store.app.confirmCancelTransaction()"
-                        :disabled="!$store.app.cancelRefundConfirmed"
+                        @click="submitCancel()"
+                        :disabled="!refundConfirmed"
                         class="flex-1 py-3 rounded-full bg-[#f4212e] hover:bg-rose-700 text-white text-xs font-black shadow-md shadow-rose-600/30 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                     >
                         Batalkan Transaksi
