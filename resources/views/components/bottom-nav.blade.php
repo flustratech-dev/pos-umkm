@@ -8,15 +8,15 @@
         <!-- Floating Curved Dock Container -->
         <div class="fixed bottom-3.5 sm:bottom-5 inset-x-3 sm:inset-x-6 max-w-md sm:max-w-lg mx-auto z-40 bg-white/95 backdrop-blur-xl border border-[#eff3f4] px-2 py-1.5 rounded-[28px] shadow-[0_12px_32px_rgba(15,20,25,0.12),0_2px_6px_rgba(0,0,0,0.04)]">
             @if($user->isUser())
-                <!-- 1. USER (Pemilik Warung) Floating Curved Dock -->
-                <div class="grid grid-cols-5 items-center gap-1">
-                    <!-- 1. Produk -->
+                <!-- 1. USER (Pemilik Warung) 4-Item Floating Curved Dock -->
+                <div class="grid grid-cols-4 items-center gap-1">
+                    <!-- 1. Kasir -->
                     <a 
-                        href="/user/produk" 
-                        class="flex flex-col items-center justify-center py-1.5 px-1 rounded-2xl transition-all duration-200 cursor-pointer active:scale-95 {{ request()->is('user/produk*') ? 'text-[#1d9bf0] font-black bg-[#e8f5fd]' : 'text-[#536471] hover:text-[#0f1419] hover:bg-[#f7f9f9]' }}"
+                        href="/user/kasir" 
+                        class="flex flex-col items-center justify-center py-1.5 px-1 rounded-2xl transition-all duration-200 cursor-pointer active:scale-95 {{ request()->is('user/kasir*') ? 'text-[#1d9bf0] font-black bg-[#e8f5fd]' : 'text-[#536471] hover:text-[#0f1419] hover:bg-[#f7f9f9]' }}"
                     >
-                        <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
-                        <span class="text-[9.5px] tracking-tight font-bold">Produk</span>
+                        <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <span class="text-[9.5px] tracking-tight font-bold">Kasir</span>
                     </a>
 
                     <!-- 2. Laporan -->
@@ -28,18 +28,7 @@
                         <span class="text-[9.5px] tracking-tight font-bold">Laporan</span>
                     </a>
 
-                    <!-- 3. CENTER ELEVATED CURVED FAB: Kasir / Checkout -->
-                    <div class="flex justify-center -mt-7">
-                        <a 
-                            href="/user/kasir" 
-                            class="w-13 h-13 rounded-full bg-gradient-to-tr from-[#1d9bf0] to-[#1a8cd8] hover:from-[#1a8cd8] hover:to-[#1271b3] text-white flex flex-col items-center justify-center shadow-lg shadow-[#1d9bf0]/35 border-4 border-white active:scale-90 transition-all cursor-pointer {{ request()->is('user/kasir*') ? 'ring-2 ring-[#1d9bf0] ring-offset-2 scale-105' : '' }}"
-                            title="Buka Kasir"
-                        >
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        </a>
-                    </div>
-
-                    <!-- 4. Helpdesk -->
+                    <!-- 3. Helpdesk -->
                     <a 
                         href="/user/helpdesk" 
                         class="flex flex-col items-center justify-center py-1.5 px-1 rounded-2xl transition-all duration-200 cursor-pointer active:scale-95 {{ request()->is('user/helpdesk*') ? 'text-[#1d9bf0] font-black bg-[#e8f5fd]' : 'text-[#536471] hover:text-[#0f1419] hover:bg-[#f7f9f9]' }}"
@@ -48,7 +37,7 @@
                         <span class="text-[9.5px] tracking-tight font-bold">Helpdesk</span>
                     </a>
 
-                    <!-- 5. Panduan -->
+                    <!-- 4. Panduan -->
                     <a 
                         href="/user/panduan" 
                         class="flex flex-col items-center justify-center py-1.5 px-1 rounded-2xl transition-all duration-200 cursor-pointer active:scale-95 {{ request()->is('user/panduan*') ? 'text-[#1d9bf0] font-black bg-[#e8f5fd]' : 'text-[#536471] hover:text-[#0f1419] hover:bg-[#f7f9f9]' }}"
@@ -70,38 +59,19 @@
                         <span class="text-[9.5px] tracking-tight font-bold">Dashboard</span>
                     </a>
 
-                    <!-- 2. Verifikasi (Combined) -->
-                    <div class="relative flex flex-col items-center justify-center" x-data="{ openVerif: false }">
-                        <a 
-                            @click.prevent="openVerif = !openVerif"
-                            href="#" 
-                            class="flex flex-col items-center justify-center py-1.5 px-1 rounded-2xl relative transition-all duration-200 cursor-pointer active:scale-95 {{ request()->is($rolePrefix.'/verifikasi-*') ? 'text-[#1d9bf0] font-black bg-[#e8f5fd]' : 'text-[#536471] hover:text-[#0f1419] hover:bg-[#f7f9f9]' }}"
-                        >
-                            <div class="relative">
-                                <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
-                                <template x-if="($store.app?.stats?.pendingCount || 0) + ($store.app?.stats?.pendingCashCount || 0) > 0">
-                                    <span class="absolute -top-1 -right-1 w-2 h-2 bg-[#ff7a00] rounded-full ring-2 ring-white"></span>
-                                </template>
-                            </div>
-                            <span class="text-[9.5px] tracking-tight font-bold">Verifikasi</span>
-                        </a>
-                        
-                        <!-- Combined Verif Dropdown Menu -->
-                        <div x-show="openVerif" @click.away="openVerif = false" class="absolute bottom-[110%] left-1/2 -translate-x-1/2 w-36 bg-white rounded-xl shadow-xl border border-[#eff3f4] overflow-hidden" x-cloak>
-                            <a href="/{{ $rolePrefix }}/verifikasi-qris" class="block px-3 py-2.5 text-[11px] font-bold text-[#0f1419] hover:bg-[#f7f9f9] border-b border-[#eff3f4]">
-                                Verif QRIS
-                                <template x-if="$store.app?.stats?.pendingCount > 0">
-                                    <span class="ml-1 px-1.5 py-0.5 rounded-full bg-[#ff7a00] text-white text-[9px]" x-text="$store.app.stats.pendingCount"></span>
-                                </template>
-                            </a>
-                            <a href="/{{ $rolePrefix }}/verifikasi-cash" class="block px-3 py-2.5 text-[11px] font-bold text-[#0f1419] hover:bg-[#f7f9f9]">
-                                Verif Cash
-                                <template x-if="$store.app?.stats?.pendingCashCount > 0">
-                                    <span class="ml-1 px-1.5 py-0.5 rounded-full bg-[#ff7a00] text-white text-[9px]" x-text="$store.app.stats.pendingCashCount"></span>
-                                </template>
-                            </a>
+                    <!-- 2. Verifikasi Cash -->
+                    <a 
+                        href="/{{ $rolePrefix }}/verifikasi-cash" 
+                        class="flex flex-col items-center justify-center py-1.5 px-1 rounded-2xl relative transition-all duration-200 cursor-pointer active:scale-95 {{ request()->is($rolePrefix.'/verifikasi-cash*') ? 'text-[#1d9bf0] font-black bg-[#e8f5fd]' : 'text-[#536471] hover:text-[#0f1419] hover:bg-[#f7f9f9]' }}"
+                    >
+                        <div class="relative">
+                            <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                            <template x-if="($store.app?.stats?.pendingCashCount || 0) > 0">
+                                <span class="absolute -top-1 -right-1 w-2 h-2 bg-[#ff7a00] rounded-full ring-2 ring-white"></span>
+                            </template>
                         </div>
-                    </div>
+                        <span class="text-[9.5px] tracking-tight font-bold">Verif Cash</span>
+                    </a>
 
                     <!-- 3. Produk -->
                     <a 

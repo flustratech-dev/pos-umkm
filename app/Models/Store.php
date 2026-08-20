@@ -19,13 +19,34 @@ class Store extends Model
         'access_uuid',
         'category',
         'is_active',
+        'use_dynamic_qris',
     ];
+
+    protected $appends = ['unique_code'];
 
     protected function casts(): array
     {
         return [
             'is_active' => 'boolean',
+            'use_dynamic_qris' => 'boolean',
         ];
+    }
+
+    /**
+     * Kode unik yang ditambahkan ke nominal QRIS supaya pembayaran tiap stand
+     * bisa dibedakan. Diambil dari angka pada kode tenda (mis. "019" -> 19,
+     * "Stand 01" -> 1) agar nominalnya bisa dicocokkan langsung dengan tenda.
+     * Kalau kode tenda tidak memuat angka, dipakai id stand sebagai cadangan.
+     */
+    public function getUniqueCodeAttribute(): int
+    {
+        $digits = preg_replace('/\D/', '', (string) $this->booth_number);
+
+        if ($digits === '' || (int) $digits === 0) {
+            return (int) $this->id;
+        }
+
+        return (int) $digits;
     }
 
     // Relations

@@ -9,9 +9,10 @@
     selectedCategory: 'all',
     
     get filteredProducts() {
-        const storeId = $store.app.getCurrentStore()?.id;
+        const isAdmin = $store.app.user?.role !== 'user';
+        const storeId = isAdmin ? null : $store.app.getCurrentStore()?.id;
         return $store.app.products.filter(p => {
-            const matchesStore = storeId ? p.store_id === storeId : true;
+            const matchesStore = storeId ? p.store_id == storeId : true;
             const matchSearch = p.title.toLowerCase().includes(this.search.toLowerCase());
             const matchCategory = this.selectedCategory === 'all' || p.category === this.selectedCategory;
             return matchesStore && matchSearch && matchCategory;
@@ -70,33 +71,21 @@
             >
                 ✨ Semua Produk
             </button>
-            <div class="grid grid-cols-3 gap-2">
+            <div class="grid grid-cols-2 gap-2">
+                @foreach (\App\Models\Product::CATEGORIES as $category => $icon)
                 <button 
-                    @click="selectedCategory = 'Makanan'"
+                    @click="selectedCategory = '{{ $category }}'"
                     class="py-2.5 px-2 rounded-2xl text-xs font-black transition-all text-center cursor-pointer truncate shadow-2xs"
-                    :class="selectedCategory === 'Makanan' ? 'bg-[#1d9bf0] text-white shadow-xs' : 'bg-white hover:bg-[#eff3f4] text-[#0f1419] border border-[#eff3f4]'"
+                    :class="selectedCategory === '{{ $category }}' ? 'bg-[#1d9bf0] text-white shadow-xs' : 'bg-white hover:bg-[#eff3f4] text-[#0f1419] border border-[#eff3f4]'"
                 >
-                    🍱 Makanan
+                    {{ $icon }} {{ $category }}
                 </button>
-                <button 
-                    @click="selectedCategory = 'Minuman'"
-                    class="py-2.5 px-2 rounded-2xl text-xs font-black transition-all text-center cursor-pointer truncate shadow-2xs"
-                    :class="selectedCategory === 'Minuman' ? 'bg-[#1d9bf0] text-white shadow-xs' : 'bg-white hover:bg-[#eff3f4] text-[#0f1419] border border-[#eff3f4]'"
-                >
-                    🧋 Minuman
-                </button>
-                <button 
-                    @click="selectedCategory = 'Snack'"
-                    class="py-2.5 px-2 rounded-2xl text-xs font-black transition-all text-center cursor-pointer truncate shadow-2xs"
-                    :class="selectedCategory === 'Snack' ? 'bg-[#1d9bf0] text-white shadow-xs' : 'bg-white hover:bg-[#eff3f4] text-[#0f1419] border border-[#eff3f4]'"
-                >
-                    🍟 Snack
-                </button>
+                @endforeach
             </div>
         </div>
 
         <!-- Desktop Layout (Baris Sejajar Asli) -->
-        <div class="hidden md:flex items-center gap-1.5 shrink-0">
+        <div class="hidden md:flex flex-wrap items-center justify-end gap-1.5">
             <button 
                 @click="selectedCategory = 'all'"
                 class="px-4 py-2 rounded-full text-xs font-black transition-all shrink-0 cursor-pointer"
@@ -104,27 +93,15 @@
             >
                 Semua Kategori
             </button>
+            @foreach (\App\Models\Product::CATEGORIES as $category => $icon)
             <button 
-                @click="selectedCategory = 'Makanan'"
+                @click="selectedCategory = '{{ $category }}'"
                 class="px-4 py-2 rounded-full text-xs font-black transition-all shrink-0 cursor-pointer"
-                :class="selectedCategory === 'Makanan' ? 'bg-[#1d9bf0] text-white shadow-2xs' : 'bg-white hover:bg-[#eff3f4] text-[#0f1419] border border-[#eff3f4]'"
+                :class="selectedCategory === '{{ $category }}' ? 'bg-[#1d9bf0] text-white shadow-2xs' : 'bg-white hover:bg-[#eff3f4] text-[#0f1419] border border-[#eff3f4]'"
             >
-                🍱 Makanan
+                {{ $icon }} {{ $category }}
             </button>
-            <button 
-                @click="selectedCategory = 'Minuman'"
-                class="px-4 py-2 rounded-full text-xs font-black transition-all shrink-0 cursor-pointer"
-                :class="selectedCategory === 'Minuman' ? 'bg-[#1d9bf0] text-white shadow-2xs' : 'bg-white hover:bg-[#eff3f4] text-[#0f1419] border border-[#eff3f4]'"
-            >
-                🧋 Minuman
-            </button>
-            <button 
-                @click="selectedCategory = 'Snack'"
-                class="px-4 py-2 rounded-full text-xs font-black transition-all shrink-0 cursor-pointer"
-                :class="selectedCategory === 'Snack' ? 'bg-[#1d9bf0] text-white shadow-2xs' : 'bg-white hover:bg-[#eff3f4] text-[#0f1419] border border-[#eff3f4]'"
-            >
-                🍟 Snack
-            </button>
+            @endforeach
         </div>
     </div>
 
@@ -162,7 +139,7 @@
 
                 <!-- Price & Action Buttons -->
                 <div class="flex items-center justify-between pt-2 border-t border-[#eff3f4] mt-2">
-                    <span class="text-xs sm:text-sm font-black text-[#0f1419]" x-text="formatRupiah(product.price)"></span>
+                    <span class="text-xs sm:text-sm font-black text-[#0f1419]" x-text="product.is_negotiable ? `${formatRupiah($store.app.priceRangeOf(product).min)} - ${formatRupiah($store.app.priceRangeOf(product).max)}` : formatRupiah(product.price)"></span>
                     
                     <div x-show="$store.app.activeStoreEventActive" x-cloak class="flex items-center gap-0.5">
                         <!-- Edit Button -->
@@ -301,11 +278,12 @@
                             <label class="block text-xs font-bold text-[#0f1419] mb-1">Kategori</label>
                             <select 
                                 x-model="$store.app.productFormData.category"
+                                @change="if ($store.app.productFormData.category === 'Merchandise') $store.app.productFormData.is_negotiable = true"
                                 class="w-full px-4 py-2.5 bg-[#f7f9f9] border border-[#eff3f4] rounded-xl text-xs sm:text-sm text-[#0f1419] focus:ring-2 focus:ring-[#1d9bf0] focus:outline-none font-semibold"
                             >
-                                <option value="Makanan">Makanan</option>
-                                <option value="Minuman">Minuman</option>
-                                <option value="Snack">Snack</option>
+                                @foreach (\App\Models\Product::CATEGORIES as $category => $icon)
+                                <option value="{{ $category }}">{{ $category }}</option>
+                                @endforeach
                             </select>
                         </div>
                         <div>
@@ -323,19 +301,79 @@
                     </div>
 
                     <!-- Harga Jual (Rupiah) -->
-                    <div>
-                        <label class="block text-xs font-bold text-[#0f1419] mb-1">Harga Jual (Rp)</label>
-                        <div class="relative">
-                            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center font-bold text-xs text-[#536471]">Rp</span>
-                            <input 
-                                type="text" 
-                                :value="formatNumber($store.app.productFormData.price)"
-                                @input="$store.app.productFormData.price = $event.target.value.replace(/\D/g, '')"
-                                required
-                                placeholder="18.000"
-                                class="w-full pl-10 pr-4 py-2.5 bg-[#f7f9f9] border border-[#eff3f4] rounded-xl text-xs sm:text-sm text-[#0f1419] font-black focus:ring-2 focus:ring-[#1d9bf0] focus:outline-none"
+                    <div class="space-y-3">
+                        <label class="flex items-start gap-2.5 p-3 rounded-xl bg-[#f7f9f9] border border-[#eff3f4] cursor-pointer">
+                            <input
+                                type="checkbox"
+                                x-model="$store.app.productFormData.is_negotiable"
+                                class="mt-0.5 w-4 h-4 rounded border-[#cfd9de] text-[#1d9bf0] focus:ring-[#1d9bf0] cursor-pointer"
                             >
-                        </div>
+                            <span class="flex-1">
+                                <span class="block text-xs font-black text-[#0f1419]">Harga bisa ditawar</span>
+                                <span class="block text-[10px] text-[#536471] font-semibold mt-0.5 leading-snug">Kasir mengisi harga hasil nego saat checkout, dibatasi rentang di bawah ini.</span>
+                            </span>
+                        </label>
+
+                        <template x-if="!$store.app.productFormData.is_negotiable">
+                            <div>
+                                <label class="block text-xs font-bold text-[#0f1419] mb-1">Harga Jual (Rp)</label>
+                                <div class="relative">
+                                    <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center font-bold text-xs text-[#536471]">Rp</span>
+                                    <input
+                                        type="text"
+                                        x-effect="if (document.activeElement !== $el) $el.value = formatNumber($store.app.productFormData.price)"
+                                        @input="$store.app.productFormData.price = $event.target.value.replace(/\D/g, '')"
+                                        @blur="$el.value = formatNumber($store.app.productFormData.price)"
+                                        required
+                                        placeholder="18.000"
+                                        class="w-full pl-10 pr-4 py-2.5 bg-[#f7f9f9] border border-[#eff3f4] rounded-xl text-xs sm:text-sm text-[#0f1419] font-black focus:ring-2 focus:ring-[#1d9bf0] focus:outline-none"
+                                    >
+                                </div>
+                            </div>
+                        </template>
+
+                        <template x-if="$store.app.productFormData.is_negotiable">
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-bold text-[#0f1419] mb-1">Harga Terendah (Rp)</label>
+                                    <div class="relative">
+                                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center font-bold text-xs text-[#536471]">Rp</span>
+                                        <input
+                                            type="text"
+                                            x-effect="if (document.activeElement !== $el) $el.value = formatNumber($store.app.productFormData.min_price)"
+                                            @input="$store.app.productFormData.min_price = $event.target.value.replace(/\D/g, '')"
+                                            @blur="$el.value = formatNumber($store.app.productFormData.min_price)"
+                                            required
+                                            placeholder="70.000"
+                                            class="w-full pl-9 pr-3 py-2.5 bg-[#f7f9f9] border border-[#eff3f4] rounded-xl text-xs sm:text-sm text-[#0f1419] font-black focus:ring-2 focus:ring-[#1d9bf0] focus:outline-none"
+                                        >
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-[#0f1419] mb-1">Harga Tertinggi (Rp)</label>
+                                    <div class="relative">
+                                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center font-bold text-xs text-[#536471]">Rp</span>
+                                        <input
+                                            type="text"
+                                            x-effect="if (document.activeElement !== $el) $el.value = formatNumber($store.app.productFormData.max_price)"
+                                            @input="$store.app.productFormData.max_price = $event.target.value.replace(/\D/g, '')"
+                                            @blur="$el.value = formatNumber($store.app.productFormData.max_price)"
+                                            required
+                                            placeholder="100.000"
+                                            class="w-full pl-9 pr-3 py-2.5 bg-[#f7f9f9] border border-[#eff3f4] rounded-xl text-xs sm:text-sm text-[#0f1419] font-black focus:ring-2 focus:ring-[#1d9bf0] focus:outline-none"
+                                        >
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+
+                        <p
+                            x-show="$store.app.productFormData.is_negotiable"
+                            x-cloak
+                            class="text-[10px] text-[#536471] font-semibold leading-snug"
+                        >
+                            Harga tertinggi dipakai sebagai harga pasang di katalog dan harga awal di struk.
+                        </p>
                     </div>
 
                     <!-- Deskripsi -->

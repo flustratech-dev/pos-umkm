@@ -19,7 +19,9 @@ class Event extends Model
         'end_date',
         'location',
         'is_active',
+        'is_testing_mode',
         'qris_image',
+        'qris_payload',
         'created_by',
     ];
 
@@ -31,6 +33,7 @@ class Event extends Model
             'start_date' => 'date',
             'end_date' => 'date',
             'is_active' => 'boolean',
+            'is_testing_mode' => 'boolean',
         ];
     }
 

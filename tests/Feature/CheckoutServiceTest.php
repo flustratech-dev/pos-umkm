@@ -125,9 +125,10 @@ class CheckoutServiceTest extends TestCase
 
         $tx = $this->service->processQrisCheckout($this->store, $this->cashier, $items, $file);
 
-        $this->assertEquals('pending_verification', $tx->status);
-        $this->assertEquals(20000.00, (float) $tx->total_amount);
+        $this->assertEquals('paid', $tx->status);
+        // Stand ini tidak punya kode tenda, jadi kode uniknya jatuh ke id stand.
+        $this->assertEquals(20000.00 + $this->store->unique_code, (float) $tx->total_amount);
         $this->assertNotNull($tx->paymentProof);
-        $this->assertNull($tx->revenueSplit); // Revenue split not generated until approved
+        $this->assertNotNull($tx->revenueSplit);
     }
 }

@@ -328,13 +328,15 @@ async function renderAdminMethodChart() {
             </h2>
         </div>
 
-        <!-- Twitter Blue Action Button -->
+        <!-- Twitter Blue Action Button (Only show when there is a pending queue) -->
         <a 
-            href="/admin/verifikasi-qris" 
+            x-show="adminStats.pendingCount > 0"
+            x-cloak
+            href="/admin/verifikasi-cash" 
             class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white text-xs sm:text-sm font-black shadow-md shadow-[#1d9bf0]/25 transition-all active:scale-95"
         >
             <span class="w-2 h-2 rounded-full bg-white animate-ping"></span>
-            <span>Antrean Verifikasi QRIS</span>
+            <span>Antrean Verifikasi Cash</span>
             <span class="px-2.5 py-0.5 rounded-full bg-white text-[#1d9bf0] text-xs font-black shadow-2xs" x-text="adminStats.pendingCount"></span>
         </a>
     </div>
@@ -389,7 +391,7 @@ async function renderAdminMethodChart() {
     </div>
 
     <!-- KPI Metric Cards (Twitter Blue Accent & Crisp Black Fonts) -->
-    <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <!-- Total Gross Revenue -->
         <div class="bg-gradient-to-br from-[#1d9bf0] to-[#1271b3] rounded-3xl p-5 text-white shadow-lg shadow-[#1d9bf0]/25 col-span-2 sm:col-span-1">
             <span class="text-xs font-bold text-white/90 uppercase tracking-wider block">Total Omzet Event</span>
@@ -397,11 +399,11 @@ async function renderAdminMethodChart() {
             <p class="text-[11px] text-white/90 mt-2"><span class="font-black text-white" x-text="adminStats.paidCount"></span> transaksi berhasil</p>
         </div>
 
-        <!-- Net EO Revenue -->
+        <!-- Net EO Revenue (25%) -->
         <div class="bg-white rounded-3xl p-5 border border-[#eff3f4] shadow-xs">
-            <span class="text-xs font-bold text-[#0f1419] uppercase tracking-wider block">Bagian EO (22.5%)</span>
-            <h3 class="text-xl font-black text-[#1d9bf0] mt-1" x-text="formatRupiah(adminStats.adminNet)"></h3>
-            <p class="text-[11px] text-[#536471] mt-2 font-medium">Porsi bersih penyelenggara</p>
+            <span class="text-xs font-bold text-[#0f1419] uppercase tracking-wider block">Bagian EO (25%)</span>
+            <h3 class="text-xl font-black text-[#1d9bf0] mt-1" x-text="formatRupiah(adminStats.adminGross)"></h3>
+            <p class="text-[11px] text-[#536471] mt-2 font-medium">Total 25% dari Omzet</p>
         </div>
 
         <!-- Active Stores Count -->
@@ -409,13 +411,6 @@ async function renderAdminMethodChart() {
             <span class="text-xs font-bold text-[#0f1419] uppercase tracking-wider block">Warung Terdaftar</span>
             <h3 class="text-xl font-black text-[#0f1419] mt-1" x-text="adminStats.storesCount"></h3>
             <p class="text-[11px] text-[#536471] mt-2 font-medium">Semua stand aktif berjualan</p>
-        </div>
-
-        <!-- Developer Flat Fee -->
-        <div class="bg-white rounded-3xl p-5 border border-[#eff3f4] shadow-xs">
-            <span class="text-xs font-bold text-[#0f1419] uppercase tracking-wider block">Fee Platform</span>
-            <h3 class="text-xl font-black text-[#1d9bf0] mt-1" x-text="formatRupiah(adminStats.superadminTotal)"></h3>
-            <p class="text-[11px] text-[#536471] mt-2 font-medium">2.5% dari Omzet</p>
         </div>
 
         <!-- Pending Cash Count -->

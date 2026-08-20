@@ -132,6 +132,77 @@ class EventDetailController extends Controller
     /**
      * Remove a tenant from the event.
      */
+    /**
+     * Update an existing tenant (owner name, store name, booth code, phone).
+     *
+     * Kode tenda ikut menentukan kode unik nominal QRIS, jadi keunikannya
+     * dijaga sama ketatnya seperti saat pendaftaran. Link akses (UUID) dan
+     * username sengaja tidak diubah supaya link yang sudah dibagikan ke
+     * tenant tetap berlaku.
+     */
+    public function updateTenant(Request $request, Event $event, Store $store): JsonResponse|RedirectResponse
+    {
+        if ($store->event_id !== $event->id) {
+            $msg = 'Tenant ini tidak terdaftar di event ini.';
+            if ($request->expectsJson()) {
+                return response()->json(['success' => false, 'message' => $msg], 422);
+            }
+            return redirect()->back()->with('error', $msg);
+        }
+
+        $boothCode = $request->input('booth_code') ?: $request->input('booth_number');
+        $request->merge(['booth_code' => $boothCode, 'booth_number' => $boothCode]);
+
+        $request->validate([
+            'owner_name' => ['required', 'string', 'max:255'],
+            'store_name' => ['required', 'string', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:20'],
+            'booth_code' => [
+                'required',
+                'string',
+                'max:50',
+                \Illuminate\Validation\Rule::unique('stores', 'booth_number')
+                    ->where('event_id', $event->id)
+                    ->ignore($store->id),
+            ],
+        ], [
+            'owner_name.required' => 'Nama pelaku usaha wajib diisi.',
+            'store_name.required' => 'Nama warung wajib diisi.',
+            'booth_code.required' => 'Kode tenda wajib diisi.',
+            'booth_code.unique' => "Kode tenda '{$boothCode}' sudah terpakai pada event ini. Harap gunakan kode tenda lain.",
+        ]);
+
+        DB::transaction(function () use ($request, $store, $boothCode) {
+            $store->update([
+                'name' => $request->store_name,
+                'booth_number' => $boothCode,
+            ]);
+
+            if ($store->owner) {
+                $store->owner->update([
+                    'name' => $request->owner_name,
+                    'phone' => $request->filled('phone') ? $request->phone : $store->owner->phone,
+                ]);
+            }
+        });
+
+        $store = $store->fresh()->load('owner');
+
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => "Data tenant '{$store->name}' berhasil diperbarui.",
+                'store' => array_merge($store->toArray(), [
+                    'owner_name' => $store->owner?->name,
+                    'access_url' => $store->access_uuid ? route('tenant.access', ['uuid' => $store->access_uuid]) : null,
+                ]),
+            ]);
+        }
+
+        return redirect()->route('admin.events.detail', $event)
+            ->with('success', "Data tenant '{$store->name}' berhasil diperbarui.");
+    }
+
     public function removeTenant(Request $request, Event $event, Store $store): JsonResponse|RedirectResponse
     {
         if ($store->event_id !== $event->id) {

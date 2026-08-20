@@ -105,4 +105,49 @@ class AuthTest extends TestCase
         $response->assertRedirect(route('admin.dashboard'));
         $this->assertAuthenticatedAs($admin);
     }
+
+    public function test_admin_and_superadmin_can_login_with_their_username(): void
+    {
+        $admin = User::create([
+            'name' => 'Admin EO',
+            'username' => 'admin',
+            'email' => 'admin@gmail.com',
+            'role' => 'admin',
+            'password' => bcrypt('12345678'),
+        ]);
+
+        $this->post('/login', [
+            'login' => 'admin',
+            'password' => '12345678',
+        ])->assertRedirect(route('admin.dashboard'));
+
+        $this->assertAuthenticatedAs($admin);
+
+        $this->post('/logout');
+
+        $superAdmin = User::create([
+            'name' => 'Super Admin',
+            'username' => 'superadmin',
+            'email' => 'superadmin@gmail.com',
+            'role' => 'superadmin',
+            'password' => bcrypt('12345678'),
+        ]);
+
+        $this->post('/login', [
+            'login' => 'superadmin',
+            'password' => '12345678',
+        ])->assertRedirect(route('superadmin.dashboard'));
+
+        $this->assertAuthenticatedAs($superAdmin);
+    }
+
+    public function test_login_form_accepts_a_username_not_only_an_email(): void
+    {
+        // Kolom bertipe email membuat browser memblokir submit saat diisi username,
+        // padahal backend menerima username maupun email.
+        $html = $this->get(route('login'))->assertOk()->getContent();
+
+        $this->assertStringNotContainsString('type="email"', $html);
+        $this->assertStringContainsString('Email atau Username', $html);
+    }
 }

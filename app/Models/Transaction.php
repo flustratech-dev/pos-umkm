@@ -25,10 +25,12 @@ class Transaction extends Model
         'verified_by',
         'verified_at',
         'rejection_reason',
+        'proof_failure_reason',
         'cancelled_by',
         'cancelled_at',
         'cancellation_reason',
         'refund_ack_confirmed',
+        'is_testing',
     ];
 
     protected function casts(): array
@@ -41,6 +43,7 @@ class Transaction extends Model
             'verified_at' => 'datetime',
             'cancelled_at' => 'datetime',
             'refund_ack_confirmed' => 'boolean',
+            'is_testing' => 'boolean',
         ];
     }
 
@@ -78,6 +81,16 @@ class Transaction extends Model
     }
 
     // Relations
+    /**
+     * Transaksi QRIS yang lunas tanpa bukti transfer, karena unggahan buktinya
+     * gagal dan kasir memakai tombol darurat.
+     */
+    public function getIsProofMissingAttribute(): bool
+    {
+        return $this->payment_method === 'qris'
+            && $this->proof_failure_reason !== null;
+    }
+
     public function store(): BelongsTo
     {
         return $this->belongsTo(Store::class);

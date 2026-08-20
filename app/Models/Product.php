@@ -12,10 +12,26 @@ class Product extends Model
 {
     use HasFactory, SoftDeletes;
 
+    /**
+     * Daftar kategori produk beserta ikonnya.
+     * Tambah kategori baru cukup di sini, seluruh filter & form ikut menyesuaikan.
+     */
+    public const CATEGORIES = [
+        'Makanan' => '🍱',
+        'Minuman' => '🧋',
+        'Snack' => '🍟',
+        'Merchandise' => '🛍️',
+    ];
+
+    public const DEFAULT_CATEGORY = 'Makanan';
+
     protected $fillable = [
         'store_id',
         'title',
         'price',
+        'is_negotiable',
+        'min_price',
+        'max_price',
         'category',
         'description',
         'photo',
@@ -29,8 +45,46 @@ class Product extends Model
     {
         return [
             'price' => 'decimal:2',
+            'min_price' => 'decimal:2',
+            'max_price' => 'decimal:2',
+            'is_negotiable' => 'boolean',
             'is_active' => 'boolean',
         ];
+    }
+
+    /**
+     * Batas harga yang boleh dipakai kasir untuk produk tawar-menawar.
+     * Produk harga pas hanya boleh dijual pada harga acuannya.
+     *
+     * @return array{0: float, 1: float}
+     */
+    public function priceRange(): array
+    {
+        if (!$this->is_negotiable) {
+            return [(float) $this->price, (float) $this->price];
+        }
+
+        $min = $this->min_price !== null ? (float) $this->min_price : 0.0;
+        $max = $this->max_price !== null ? (float) $this->max_price : (float) $this->price;
+
+        return [$min, $max];
+    }
+
+    /**
+     * Harga acuan yang dicoret di struk saat harga deal lebih rendah.
+     */
+    public function listPrice(): float
+    {
+        [, $max] = $this->priceRange();
+
+        return $this->is_negotiable ? $max : (float) $this->price;
+    }
+
+    public function acceptsPrice(float $price): bool
+    {
+        [$min, $max] = $this->priceRange();
+
+        return $price >= $min && $price <= $max;
     }
 
     public function getPhotoUrlAttribute(): string

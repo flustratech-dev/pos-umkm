@@ -125,7 +125,12 @@
                         <div class="space-y-1.5 max-h-[90px] overflow-y-auto custom-scrollbar pr-1 bg-[#f7f9f9] p-2.5 rounded-xl border border-[#eff3f4]">
                             @foreach($trx->items as $item)
                                 <div class="flex items-center justify-between text-xs py-0.5">
-                                    <span class="font-bold text-[#0f1419] truncate pr-2">{{ $item->qty }}x {{ $item->title }}</span>
+                                    <span class="font-bold text-[#0f1419] truncate pr-2">
+                                        {{ $item->qty }}x {{ $item->title }}
+                                        @if($item->is_negotiated)
+                                            <span class="px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[9px] font-black uppercase tracking-wider border border-amber-200" title="Harga hasil nego dari Rp {{ number_format($item->original_price, 0, ',', '.') }}">Nego</span>
+                                        @endif
+                                    </span>
                                     <span class="font-semibold text-[#536471] shrink-0">Rp {{ number_format($item->subtotal, 0, ',', '.') }}</span>
                                 </div>
                             @endforeach

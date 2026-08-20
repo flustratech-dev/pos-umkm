@@ -101,34 +101,23 @@
                         <div class="flex items-center justify-between text-xs">
                             <div class="truncate max-w-[200px]">
                                 <span class="font-bold text-[#0f1419]" x-text="item.title"></span>
-                                <span class="text-[11px] text-[#536471] block font-medium" x-text="`${item.qty} x ${formatRupiah(item.price)}`"></span>
+                                <span class="text-[11px] text-[#536471] block font-medium">
+                                    <template x-if="item.is_negotiated">
+                                        <s class="text-[#536471]/70 mr-1" x-text="formatRupiah(item.original_price)"></s>
+                                    </template>
+                                    <span x-text="`${item.qty} x ${formatRupiah(item.price)}`"></span>
+                                </span>
                             </div>
                             <span class="font-black text-[#0f1419] shrink-0" x-text="formatRupiah(item.subtotal)"></span>
                         </div>
                     </template>
                 </div>
 
-                <!-- Totals & Revenue Split Breakdown -->
+                <!-- Totals (bagi hasil sengaja tidak ditampilkan: struk ini dilihat pembeli) -->
                 <div class="space-y-2 pt-2 border-t border-[#eff3f4]">
                     <div class="flex justify-between items-center text-sm font-black text-[#0f1419]">
                         <span>Total Tagihan:</span>
                         <span class="text-base font-black text-[#0f1419]" x-text="formatRupiah($store.app.activeReceiptTransaction?.total_amount)"></span>
-                    </div>
-
-                    <!-- Pembagian Bagi Hasil (Porsi 75/22.5/2.5) -->
-                    <div class="bg-white p-3 rounded-2xl border border-[#eff3f4] space-y-1.5 text-xs shadow-2xs">
-                        <div class="flex justify-between items-center text-[#536471]">
-                            <span>Porsi EO (22.5%):</span>
-                            <span class="font-bold text-[#f4212e]" x-text="`- ${formatRupiah(($store.app.activeReceiptTransaction?.total_amount || 0) * 0.225)}`"></span>
-                        </div>
-                        <div class="flex justify-between items-center text-[#536471]">
-                            <span>Porsi Platform (2.5%):</span>
-                            <span class="font-bold text-[#f4212e]" x-text="`- ${formatRupiah(($store.app.activeReceiptTransaction?.total_amount || 0) * 0.025)}`"></span>
-                        </div>
-                        <div class="flex justify-between items-center text-xs font-black text-[#1d9bf0] pt-1.5 border-t border-[#eff3f4]">
-                            <span>Porsi Warung (75%):</span>
-                            <span class="text-sm font-black text-[#1d9bf0]" x-text="formatRupiah(($store.app.activeReceiptTransaction?.total_amount || 0) * 0.75)"></span>
-                        </div>
                     </div>
 
                     <template x-if="$store.app.activeReceiptTransaction?.payment_method === 'cash'">

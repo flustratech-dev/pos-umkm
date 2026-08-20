@@ -43,6 +43,23 @@ class StoreController extends Controller
             'store' => $store->load(['owner', 'products', 'transactions.revenueSplit']),
         ]);
     }
+
+    public function update(Request $request, Store $store): JsonResponse
+    {
+        $request->validate([
+            'use_dynamic_qris' => 'required|boolean',
+        ]);
+
+        $store->update([
+            'use_dynamic_qris' => $request->use_dynamic_qris,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Pengaturan QRIS Dinamis berhasil diperbarui.',
+            'store' => $store,
+        ]);
+    }
     public function pull(Request $request)
     {
         $request->validate([

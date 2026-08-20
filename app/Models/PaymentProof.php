@@ -17,6 +17,8 @@ class PaymentProof extends Model
         'uploaded_at',
     ];
 
+    protected $appends = ['proof_url'];
+
     protected function casts(): array
     {
         return [

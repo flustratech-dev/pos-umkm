@@ -37,6 +37,33 @@ class CheckoutService
     }
 
     /**
+     * Harga yang dipakai untuk satu baris keranjang.
+     *
+     * Produk harga pas selalu memakai harga dari database, input kasir diabaikan.
+     * Produk tawar-menawar boleh memakai harga hasil nego selama masih berada di
+     * dalam rentang yang ditetapkan pemilik stand.
+     */
+    protected function resolveItemPrice(Product $product, array $itemData): float
+    {
+        if (!$product->is_negotiable || !array_key_exists('price', $itemData) || $itemData['price'] === null || $itemData['price'] === '') {
+            return $product->is_negotiable ? (float) $product->listPrice() : (float) $product->price;
+        }
+
+        $price = (float) $itemData['price'];
+        [$min, $max] = $product->priceRange();
+
+        if (!$product->acceptsPrice($price)) {
+            throw new InvalidArgumentException(
+                "Harga nego untuk '{$product->title}' (Rp " . number_format($price, 0, ',', '.') . ") "
+                . "di luar rentang yang diizinkan: Rp " . number_format($min, 0, ',', '.')
+                . " - Rp " . number_format($max, 0, ',', '.') . "."
+            );
+        }
+
+        return $price;
+    }
+
+    /**
      * Process cash checkout.
      * Cash transactions now go to 'pending' status until admin confirms payment.
      *
@@ -61,7 +88,7 @@ class CheckoutService
                 $qty = (int) $itemData['qty'];
                 if ($qty <= 0) continue;
 
-                $price = (float) $product->price;
+                $price = $this->resolveItemPrice($product, $itemData);
                 $subtotal = $price * $qty;
                 $totalAmount += $subtotal;
 
@@ -69,6 +96,7 @@ class CheckoutService
                     'product_id' => $product->id,
                     'title' => $product->title,
                     'price' => $price,
+                    'original_price' => $product->listPrice(),
                     'qty' => $qty,
                     'subtotal' => $subtotal,
                 ];
@@ -79,6 +107,7 @@ class CheckoutService
             }
 
             $changeDue = $amountPaid - $totalAmount;
+            $isTesting = (bool) ($store->event?->is_testing_mode);
 
             // Cash transactions are now 'pending' until admin confirms at exit cashier
             $transaction = Transaction::create([
@@ -90,6 +119,7 @@ class CheckoutService
                 'amount_paid' => $amountPaid,
                 'change_due' => $changeDue,
                 'status' => 'pending',
+                'is_testing' => $isTesting,
                 'paid_at' => null,
             ]);
 
@@ -106,20 +136,48 @@ class CheckoutService
     }
 
     /**
-     * Process QRIS checkout.
+     * Process a QRIS transaction (langsung lunas, disertai arsip bukti transfer).
      *
      * @param Store $store
      * @param User $cashier
      * @param array $items Array of ['product_id' => int, 'qty' => int]
+     * @param UploadedFile $proofFile Bukti transfer, wajib sebagai arsip verifikasi EO
      * @return Transaction
      */
-    public function processQrisCheckout(Store $store, User $cashier, array $items): Transaction
+    public function processQrisCheckout(Store $store, User $cashier, array $items, UploadedFile $proofFile): Transaction
     {
+        return $this->recordQrisTransaction($store, $cashier, $items, $proofFile, null);
+    }
+
+    /**
+     * Catat transaksi QRIS yang uangnya sudah masuk ke rekening tapi bukti
+     * transfernya gagal diunggah (mis. file ditolak server).
+     *
+     * Statusnya tetap lunas seperti QRIS biasa — tidak perlu persetujuan admin,
+     * karena pembayarannya memang sudah diterima. Alasannya disimpan supaya EO
+     * tahu kenapa transaksi ini tidak punya arsip bukti.
+     */
+    public function processQrisCheckoutWithoutProof(Store $store, User $cashier, array $items, string $reason): Transaction
+    {
+        if (trim($reason) === '') {
+            throw new InvalidArgumentException('Alasan bukti tidak terunggah wajib diisi.');
+        }
+
+        return $this->recordQrisTransaction($store, $cashier, $items, null, trim($reason));
+    }
+
+    protected function recordQrisTransaction(
+        Store $store,
+        User $cashier,
+        array $items,
+        ?UploadedFile $proofFile,
+        ?string $proofFailureReason
+    ): Transaction {
         if (empty($items)) {
             throw new InvalidArgumentException('Keranjang belanja tidak boleh kosong.');
         }
 
-        return DB::transaction(function () use ($store, $cashier, $items, $proofFile) {
+        return DB::transaction(function () use ($store, $cashier, $items, $proofFile, $proofFailureReason) {
             $totalAmount = 0;
             $preparedItems = [];
 
@@ -128,7 +186,7 @@ class CheckoutService
                 $qty = (int) $itemData['qty'];
                 if ($qty <= 0) continue;
 
-                $price = (float) $product->price;
+                $price = $this->resolveItemPrice($product, $itemData);
                 $subtotal = $price * $qty;
                 $totalAmount += $subtotal;
 
@@ -136,13 +194,15 @@ class CheckoutService
                     'product_id' => $product->id,
                     'title' => $product->title,
                     'price' => $price,
+                    'original_price' => $product->listPrice(),
                     'qty' => $qty,
                     'subtotal' => $subtotal,
                 ];
             }
 
-            $uniqueCode = (int) $store->id;
+            $uniqueCode = $store->unique_code;
             $totalAmount += $uniqueCode;
+            $isTesting = (bool) ($store->event?->is_testing_mode);
 
             $transaction = Transaction::create([
                 'invoice_code' => $this->generateInvoiceCode(),
@@ -152,8 +212,10 @@ class CheckoutService
                 'payment_method' => 'qris',
                 'amount_paid' => $totalAmount,
                 'change_due' => 0,
-                'status' => 'success',
+                'status' => 'paid',
+                'is_testing' => $isTesting,
                 'paid_at' => now(),
+                'proof_failure_reason' => $proofFailureReason,
             ]);
 
             foreach ($preparedItems as $item) {
@@ -161,10 +223,17 @@ class CheckoutService
                 TransactionItem::create($item);
             }
 
-            // Generate revenue split immediately since it's auto-success
-            $this->revenueSplitService->calculateSplit($transaction);
+            if ($proofFile) {
+                PaymentProof::create([
+                    'transaction_id' => $transaction->id,
+                    'proof_path' => $proofFile->store('payment_proofs', 'public'),
+                ]);
+            }
 
-            return $transaction->load(['items', 'store', 'cashier']);
+            // Generate revenue split immediately since it's auto-success
+            $this->revenueSplitService->calculate($transaction);
+
+            return $transaction->load(['items', 'store', 'cashier', 'paymentProof', 'revenueSplit']);
         });
     }
 }

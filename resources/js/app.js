@@ -3,6 +3,8 @@ import Alpine from 'alpinejs';
 import Swal from 'sweetalert2';
 import 'sweetalert2/dist/sweetalert2.min.css';
 import { evaluatePasswordStrength } from './password-meter';
+import QRCode from 'qrcode';
+window.QRCode = QRCode;
 
 // Lazy loader for Chart.js (drastically cuts initial bundle size)
 window.loadChartJs = async function() {
@@ -16,12 +18,36 @@ window.loadChartJs = async function() {
 };
 
 // Helper for making API calls with CSRF
+const httpErrorMessage = (status) => {
+    switch (status) {
+        case 413:
+            return 'File yang dikirim terlalu besar untuk server. Ulangi dengan foto yang lebih kecil.';
+        case 419:
+            return 'Sesi kedaluwarsa atau file terlalu besar sehingga data tidak terkirim utuh. Muat ulang halaman lalu coba lagi.';
+        case 401:
+            return 'Sesi Anda sudah berakhir. Silakan masuk kembali.';
+        case 403:
+            return 'Akses ditolak untuk tindakan ini.';
+        case 404:
+            return 'Alamat tujuan tidak ditemukan di server.';
+        case 500:
+        case 502:
+        case 503:
+            return 'Server sedang bermasalah (kode ' + status + '). Coba lagi sebentar lagi.';
+        default:
+            return 'Terjadi kesalahan pada server (kode ' + status + ').';
+    }
+};
+
 const apiFetch = async (url, options = {}) => {
     const skipLoading = options.skipLoading || false;
     const loadingText = options.loadingText || 'Memproses...';
 
-    if (!skipLoading && window.Alpine && window.Alpine.store('app')) {
-        window.Alpine.store('app').showLoading(loadingText);
+
+    const timeoutMs = options.timeout || 30000; // 30 detik default timeout
+
+    if (!skipLoading && typeof window.showLoading === 'function') {
+        window.showLoading(loadingText);
     }
 
     const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
@@ -42,18 +68,41 @@ const apiFetch = async (url, options = {}) => {
         }
     }
 
+    // Timeout controller agar request tidak hang selamanya di koneksi lambat
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
     try {
-        const res = await fetch(url, { ...options, headers });
-        const data = await res.json().catch(() => ({ success: false, message: 'Terjadi kesalahan pada server.' }));
+        const res = await fetch(url, { ...options, headers, signal: controller.signal });
+        clearTimeout(timeoutId);
+
+        // Handle HTTP 413: file terlalu besar (Nginx/PHP limit)
+        if (res.status === 413) {
+            throw new Error('Ukuran file terlalu besar. Coba foto dengan resolusi lebih rendah atau gunakan screenshot.');
+        }
+
+        // Respons non-JSON (halaman error 419/500 dari server web) tidak boleh
+        // berakhir jadi pesan generik tanpa petunjuk buat kasir.
+        const data = await res.json().catch(() => ({ success: false, message: null }));
         
         if (!res.ok) {
-            throw new Error(data.message || 'Terjadi kesalahan pada server.');
+            throw new Error(data.message || httpErrorMessage(res.status));
         }
         
         return data;
+    } catch (err) {
+        clearTimeout(timeoutId);
+        // Network error atau timeout
+        if (err.name === 'AbortError') {
+            throw new Error('Koneksi timeout. Periksa jaringan internet Anda dan coba lagi.');
+        }
+        if (err instanceof TypeError && err.message === 'Failed to fetch') {
+            throw new Error('Koneksi terputus. Pastikan Anda terhubung ke internet dan coba lagi.');
+        }
+        throw err;
     } finally {
-        if (!skipLoading && window.Alpine && window.Alpine.store('app')) {
-            window.Alpine.store('app').hideLoading();
+        if (!skipLoading && typeof window.hideLoading === 'function') {
+            window.hideLoading();
         }
     }
 };
@@ -108,6 +157,7 @@ export const showConfirm = async (title = 'Konfirmasi', text = '', confirmText =
 
 window.showSwal = showSwal;
 window.showConfirm = showConfirm;
+window.apiFetch = apiFetch;
 
 // Utility formatters
 export const formatRupiah = (number) => {
@@ -222,6 +272,9 @@ export const formatNumber = (number) => {
     return new Intl.NumberFormat('id-ID').format(parsed);
 };
 
+// Seluruh tampilan waktu memakai WIB, tidak ikut zona waktu perangkat kasir.
+export const WIB = 'Asia/Jakarta';
+
 export const formatDateTime = (dateStr) => {
     if (!dateStr) return '-';
     try {
@@ -232,7 +285,8 @@ export const formatDateTime = (dateStr) => {
             month: 'short',
             year: 'numeric',
             hour: '2-digit',
-            minute: '2-digit'
+            minute: '2-digit',
+            timeZone: WIB
         });
     } catch {
         return dateStr;
@@ -243,17 +297,6 @@ window.formatRupiah = formatRupiah;
 window.formatNumber = formatNumber;
 window.formatDateTime = formatDateTime;
 
-window.showLoading = (text = 'Memproses...') => {
-    if (window.Alpine && window.Alpine.store('app')) {
-        window.Alpine.store('app').showLoading(text);
-    }
-};
-
-window.hideLoading = () => {
-    if (window.Alpine && window.Alpine.store('app')) {
-        window.Alpine.store('app').hideLoading();
-    }
-};
 
 // Purge stale demo data from localStorage on load
 try {
@@ -284,6 +327,14 @@ Alpine.store('app', {
             return userStore ? Boolean(userStore.event_is_active) : false;
         },
 
+        get stats() {
+            const pendingCashCount = this.transactions.filter(t => t.status === 'pending' && t.payment_method === 'cash').length;
+            return {
+                pendingCashCount,
+                pendingCount: pendingCashCount,
+            };
+        },
+
         // Cart state for User POS
         cart: [],
         
@@ -294,6 +345,11 @@ Alpine.store('app', {
         cashAmountPaid: '',
         qrisProofPreview: null,
         qrisProofFile: null,
+        // Terisi saat pengiriman QRIS gagal, memunculkan tombol darurat.
+        qrisUploadFailed: false,
+        qrisFailureReason: '',
+        dynamicQrisLoading: false,
+        dynamicQrisDataUrl: null,
         
         // Global Branded Circular Logo Loading State
         globalLoading: false,
@@ -330,6 +386,9 @@ Alpine.store('app', {
             id: null,
             title: '',
             price: '',
+            is_negotiable: false,
+            min_price: '',
+            max_price: '',
             category: 'Makanan',
             description: '',
             photo: '',
@@ -421,6 +480,85 @@ Alpine.store('app', {
             return role;
         },
 
+        /**
+         * Normalisasi format transaksi dari API response (Eloquent) ke format flat
+         * yang sama dengan layout blade mapping, agar tampilan laporan konsisten.
+         *
+         * API response mengembalikan nested relations (store, cashier, payment_proof, revenue_split)
+         * dan string decimal values, sedangkan views mengharapkan flat fields seperti
+         * store_name, cashier_name, proof_image (URL), dan numeric total_amount.
+         */
+        normalizeTransaction(tx) {
+            if (!tx) return tx;
+
+            // Kalau sudah punya store_name (format layout), kembalikan apa adanya
+            if (tx.store_name !== undefined && tx.cashier_name !== undefined) {
+                return tx;
+            }
+
+            const normalized = { ...tx };
+
+            // Flatten store → store_name
+            if (tx.store && typeof tx.store === 'object') {
+                normalized.store_name = tx.store.name || '';
+                normalized.store_id = tx.store_id || tx.store.id;
+            }
+            if (!normalized.store_name) {
+                normalized.store_name = tx.store_name || '';
+            }
+
+            // Flatten cashier → cashier_name
+            if (tx.cashier && typeof tx.cashier === 'object') {
+                normalized.cashier_name = tx.cashier.name || '';
+                normalized.cashier_id = tx.cashier_id || tx.cashier.id;
+            }
+            if (!normalized.cashier_name) {
+                normalized.cashier_name = tx.cashier_name || '';
+            }
+
+            // Flatten payment_proof relation → proof_image & payment_proof (URL string)
+            if (tx.payment_proof && typeof tx.payment_proof === 'object') {
+                const proofUrl = tx.payment_proof.proof_url
+                    || (tx.payment_proof.proof_path ? '/storage/' + tx.payment_proof.proof_path : null);
+                normalized.payment_proof = proofUrl;
+                normalized.proof_image = proofUrl;
+            } else if (typeof tx.payment_proof === 'string') {
+                normalized.proof_image = normalized.proof_image || tx.payment_proof;
+            }
+
+            // Normalize revenue_split (Eloquent uses snake_case keys in JSON)
+            if (tx.revenue_split && typeof tx.revenue_split === 'object') {
+                normalized.revenue_split = {
+                    owner_share: parseFloat(tx.revenue_split.owner_share) || 0,
+                    admin_gross_share: parseFloat(tx.revenue_split.admin_gross_share) || 0,
+                    superadmin_share: parseFloat(tx.revenue_split.superadmin_share) || 0,
+                    admin_net_share: parseFloat(tx.revenue_split.admin_net_share) || 0,
+                };
+            }
+
+            // Convert string decimals to numbers
+            normalized.total_amount = parseFloat(tx.total_amount) || 0;
+            normalized.amount_paid = tx.amount_paid != null ? parseFloat(tx.amount_paid) : null;
+            normalized.change_due = tx.change_due != null ? parseFloat(tx.change_due) : null;
+
+            // Normalize items prices
+            if (Array.isArray(tx.items)) {
+                normalized.items = tx.items.map(item => ({
+                    ...item,
+                    price: parseFloat(item.price) || 0,
+                    original_price: item.original_price != null ? parseFloat(item.original_price) : null,
+                    qty: parseInt(item.qty) || 0,
+                    subtotal: parseFloat(item.subtotal) || 0,
+                }));
+            }
+
+            // Preserve date formats
+            normalized.paid_at = tx.paid_at || null;
+            normalized.created_at = tx.created_at || null;
+
+            return normalized;
+        },
+
         getCurrentUser() {
             return this.currentUser || window.__AUTH_USER__ || { name: 'User', email: '', role: this.currentRole };
         },
@@ -429,9 +567,22 @@ Alpine.store('app', {
             return this.activeEvent || window.__ACTIVE_EVENT__ || { name: 'Event Belum Aktif' };
         },
 
+        // Kode unik nominal QRIS mengikuti kode tenda stand (mis. tenda 019 -> +19).
+        storeUniqueCode(store) {
+            if (!store) return 0;
+            if (store.unique_code !== null && store.unique_code !== undefined) {
+                return parseInt(store.unique_code, 10) || 0;
+            }
+            const digits = String(store.booth_number ?? '').replace(/\D/g, '');
+            return digits ? (parseInt(digits, 10) || 0) : (parseInt(store.id, 10) || 0);
+        },
+
         getCurrentStore() {
             const user = this.getCurrentUser();
             if (user && (user.store_id || user.store_name)) {
+                const foundStore = this.stores.find(s => s.id == user.store_id) || this.userStores.find(s => s.id == user.store_id);
+                if (foundStore) return foundStore;
+                
                 return {
                     id: user.store_id,
                     name: user.store_name || 'Stand Saya',
@@ -451,6 +602,28 @@ Alpine.store('app', {
         },
 
         // CART MANAGEMENT (for User POS)
+        _refreshQrisIfActive() {
+            if (this.activePaymentTab === 'qris') {
+                this.generateDynamicQris();
+            }
+        },
+
+        // Rentang harga yang boleh dipakai kasir. Produk harga pas terkunci di harganya.
+        priceRangeOf(product) {
+            const listPrice = parseFloat(product?.price) || 0;
+            if (!product?.is_negotiable) {
+                return { min: listPrice, max: listPrice };
+            }
+            const min = product.min_price !== null && product.min_price !== undefined ? parseFloat(product.min_price) : 0;
+            const max = product.max_price !== null && product.max_price !== undefined ? parseFloat(product.max_price) : listPrice;
+            return { min: isNaN(min) ? 0 : min, max: isNaN(max) ? listPrice : max };
+        },
+
+        cartItemPrice(item) {
+            const price = parseFloat(item?.price);
+            return isNaN(price) ? (parseFloat(item?.product?.price) || 0) : price;
+        },
+
         addToCart(product) {
             const existing = this.cart.find(item => item.product.id === product.id);
             if (existing) {
@@ -459,10 +632,39 @@ Alpine.store('app', {
                 this.cart.push({
                     product,
                     qty: 1,
+                    // Harga acuan jadi nilai awal; kasir menurunkannya saat deal nego.
+                    price: this.priceRangeOf(product).max,
                     notes: ''
                 });
             }
             this.notify('success', 'Produk Ditambahkan', `${product.title} (x1) masuk keranjang`);
+            this._refreshQrisIfActive();
+        },
+
+        // Harga hasil nego, dikunci ulang ke rentang yang ditetapkan pemilik stand.
+        // Dipanggil saat kasir selesai mengetik, bukan di tiap ketikan, supaya
+        // angka yang sedang dihapus tidak langsung ditimpa.
+        updateCartPrice(productId, value) {
+            const item = this.cart.find(c => c.product.id === productId);
+            if (!item || !item.product.is_negotiable) return;
+
+            const { min, max } = this.priceRangeOf(item.product);
+            const digits = String(value ?? '').replace(/\D/g, '');
+            let price = digits === '' ? NaN : parseFloat(digits);
+
+            if (isNaN(price)) {
+                // Dikosongkan lalu ditinggal: kembali ke harga pasang.
+                price = max;
+            } else if (price < min) {
+                price = min;
+                this.notify('warning', 'Di Bawah Batas', `Harga nego ${item.product.title} minimal ${formatRupiah(min)}.`);
+            } else if (price > max) {
+                price = max;
+                this.notify('warning', 'Di Atas Batas', `Harga nego ${item.product.title} maksimal ${formatRupiah(max)}.`);
+            }
+
+            item.price = price;
+            this._refreshQrisIfActive();
         },
 
         updateCartQty(productId, delta) {
@@ -472,11 +674,13 @@ Alpine.store('app', {
                 if (this.cart[index].qty <= 0) {
                     this.cart.splice(index, 1);
                 }
+                this._refreshQrisIfActive();
             }
         },
 
         removeFromCart(productId) {
             this.cart = this.cart.filter(item => item.product.id !== productId);
+            this._refreshQrisIfActive();
         },
 
         clearCart() {
@@ -484,10 +688,21 @@ Alpine.store('app', {
             this.cashAmountPaid = '';
             this.qrisProofPreview = null;
             this.qrisProofFile = null;
+            this.qrisUploadFailed = false;
+            this.qrisFailureReason = '';
         },
 
         get cartTotal() {
-            return this.cart.reduce((sum, item) => sum + (item.product.price * item.qty), 0);
+            return this.cart.reduce((sum, item) => sum + (this.cartItemPrice(item) * item.qty), 0);
+        },
+
+        // Selisih dari harga acuan, dipakai sebagai info "hemat" di panel kasir.
+        get cartNegotiatedDiscount() {
+            return this.cart.reduce((sum, item) => {
+                const listPrice = this.priceRangeOf(item.product).max;
+                const diff = listPrice - this.cartItemPrice(item);
+                return sum + (diff > 0 ? diff * item.qty : 0);
+            }, 0);
         },
 
         get cartItemCount() {
@@ -520,7 +735,8 @@ Alpine.store('app', {
                 const payload = {
                     items: this.cart.map(c => ({
                         product_id: c.product.id,
-                        qty: c.qty
+                        qty: c.qty,
+                        price: this.cartItemPrice(c)
                     })),
                     amount_paid: parseFloat(this.cashAmountPaid)
                 };
@@ -531,8 +747,9 @@ Alpine.store('app', {
                 });
 
                 if (data.success && data.transaction) {
-                    this.transactions.unshift(data.transaction);
-                    this.activeReceiptTransaction = data.transaction;
+                    const normTx = this.normalizeTransaction(data.transaction);
+                    this.transactions.unshift(normTx);
+                    this.activeReceiptTransaction = normTx;
                     this.receiptModalOpen = true;
                     this.isCheckoutOpen = false;
                     this.clearCart();
@@ -543,27 +760,260 @@ Alpine.store('app', {
             }
         },
 
-        async processQrisCheckout() {
+        async generateDynamicQris() {
+            const currentStore = this.getCurrentStore();
+            if (!currentStore || !currentStore.use_dynamic_qris || !window.__ACTIVE_EVENT__ || !window.__ACTIVE_EVENT__.qris_payload) {
+                return;
+            }
+
+            if (this.cartTotal <= 0) {
+                this.dynamicQrisDataUrl = null;
+                return;
+            }
+            
+            this.dynamicQrisLoading = true;
             try {
-                const payload = {
-                    items: this.cart.map(c => ({
-                        product_id: c.product.id,
-                        qty: c.qty
-                    }))
+                const response = await apiFetch('/user/kasir/generate-qris', {
+                    method: 'POST',
+                    body: { amount: this.cartTotal }
+                });
+                const payload = response.qris_payload || response.payload;
+                if (response.success && payload) {
+                    this.dynamicQrisDataUrl = await window.QRCode.toDataURL(payload, {
+                        width: 400,
+                        margin: 2,
+                        color: {
+                            dark: '#0f1419',
+                            light: '#ffffff'
+                        }
+                    });
+                } else {
+                    console.error('Failed to generate dynamic QRIS:', response.message);
+                }
+            } catch (err) {
+                console.error('Error generating dynamic QRIS', err);
+            } finally {
+                this.dynamicQrisLoading = false;
+            }
+        },
+
+        /**
+         * Kompresi gambar menggunakan HTML5 Canvas.
+         * Mengurangi ukuran file foto HP dari 5-15 MB → ~100-300 KB.
+         * @param {File} file - File gambar asli dari input
+         * @param {Object} opts - Opsi kompresi
+         * @param {number} opts.maxWidth - Lebar maksimal (default: 1200px)
+         * @param {number} opts.maxHeight - Tinggi maksimal (default: 1200px)
+         * @param {number} opts.quality - Kualitas JPEG 0-1 (default: 0.7)
+         * @returns {Promise<File>} File hasil kompresi
+         */
+        compressImage(file, opts = {}) {
+            const maxWidth = opts.maxWidth || 1200;
+            const maxHeight = opts.maxHeight || 1200;
+            const quality = opts.quality || 0.7;
+
+            return new Promise((resolve, reject) => {
+                // Kalau bukan image, langsung kembalikan file asli
+                if (!file.type.startsWith('image/')) {
+                    resolve(file);
+                    return;
+                }
+
+                // Server hanya menerima jpg/png/gif/bmp/webp. Format lain
+                // (HEIC/HEIF bawaan iPhone) HARUS lewat canvas dulu untuk
+                // dikonversi, sekecil apa pun ukurannya.
+                const formatAman = /^image\/(jpeg|jpg|png|gif|bmp|webp)$/i.test(file.type);
+
+                // Sudah kecil (< 500 KB) dan formatnya diterima server: lewati.
+                if (formatAman && file.size <= 500 * 1024) {
+                    resolve(file);
+                    return;
+                }
+
+                const img = new Image();
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+
+                img.onload = () => {
+                    let { width, height } = img;
+
+                    // Hitung rasio resize
+                    if (width > maxWidth || height > maxHeight) {
+                        const ratio = Math.min(maxWidth / width, maxHeight / height);
+                        width = Math.round(width * ratio);
+                        height = Math.round(height * ratio);
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    canvas.toBlob(
+                        (blob) => {
+                            if (!blob) {
+                                resolve(file); // Fallback ke file asli jika gagal
+                                return;
+                            }
+                            const compressedFile = new File(
+                                [blob],
+                                file.name.replace(/\.[^.]+$/, '.jpg'),
+                                { type: 'image/jpeg', lastModified: Date.now() }
+                            );
+                            console.log(`[Compress] ${(file.size / 1024 / 1024).toFixed(2)} MB → ${(compressedFile.size / 1024).toFixed(0)} KB`);
+                            resolve(compressedFile);
+                        },
+                        'image/jpeg',
+                        quality
+                    );
                 };
+
+                img.onerror = () => {
+                    console.warn('[Compress] Gagal load image, gunakan file asli');
+                    resolve(file); // Fallback ke file asli
+                };
+
+                img.src = URL.createObjectURL(file);
+            });
+        },
+
+        async handleQrisProofUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            try {
+                // Tampilkan preview segera dari file asli agar UX tetap responsif
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    this.qrisProofPreview = e.target.result;
+                };
+                reader.readAsDataURL(file);
+
+                // Kompresi di background — file yang di-upload ke server adalah hasil compress
+                this.qrisProofFile = await this.compressImage(file);
+
+                // Masih di atas 2 MB (batas upload_max_filesize paling umum di
+                // server): tekan sekali lagi supaya tidak ditolak 413/419.
+                if (this.qrisProofFile.size > 2 * 1024 * 1024) {
+                    this.qrisProofFile = await this.compressImage(file, { maxWidth: 900, maxHeight: 900, quality: 0.6 });
+                }
+
+                // Beri tahu kasir sedini mungkin kalau ukurannya masih rawan
+                // ditolak server, jangan tunggu sampai gagal saat menyimpan.
+                if (this.qrisProofFile.size > 2 * 1024 * 1024) {
+                    const ukuranMB = (this.qrisProofFile.size / 1024 / 1024).toFixed(1);
+                    this.notify('warning', 'Gambar Melebihi Kapasitas', `Setelah dikompres ukurannya masih ${ukuranMB} MB. Coba pakai screenshot bukti transfer, bukan foto layar.`, 6000);
+                }
+            } catch (err) {
+                console.error('[Upload] Error processing image:', err);
+                // Fallback: pakai file asli tanpa kompresi
+                this.qrisProofFile = file;
+                const ukuranMB = (file.size / 1024 / 1024).toFixed(1);
+                this.notify('warning', 'Foto Tidak Bisa Dikompres', `Format foto ini tidak dikenali browser, jadi dikirim apa adanya (${ukuranMB} MB) dan bisa ditolak server. Screenshot bukti transfer lebih aman.`, 6000);
+            }
+        },
+
+        removeQrisProof() {
+            this.qrisProofFile = null;
+            this.qrisProofPreview = null;
+            this.qrisUploadFailed = false;
+            this.qrisFailureReason = '';
+            const camInput = document.getElementById('qris_proof_camera');
+            if (camInput) camInput.value = '';
+            const galInput = document.getElementById('qris_proof_gallery');
+            if (galInput) galInput.value = '';
+        },
+
+        async processQrisCheckout() {
+            // Bukti transfer wajib: transaksi QRIS langsung tercatat lunas.
+            if (!this.qrisProofFile) {
+                this.notify('error', 'Bukti Belum Ada', 'Unggah bukti transfer QRIS terlebih dahulu sebelum menyimpan transaksi.');
+                return;
+            }
+
+            try {
+                const body = new FormData();
+                this.cart.forEach((c, idx) => {
+                    body.append(`items[${idx}][product_id]`, c.product.id);
+                    body.append(`items[${idx}][qty]`, c.qty);
+                    body.append(`items[${idx}][price]`, this.cartItemPrice(c));
+                });
+                body.append('proof_image', this.qrisProofFile);
 
                 const data = await apiFetch('/user/kasir/checkout-qris', {
                     method: 'POST',
-                    body: payload
+                    body: body,
+                    // Unggahan foto di jaringan event sering lambat; 30 detik
+                    // bawaan terlalu pendek dan bikin gagal padahal masih jalan.
+                    timeout: 90000
                 });
 
                 if (data.success && data.transaction) {
-                    this.transactions.unshift(data.transaction);
-                    this.activeReceiptTransaction = data.transaction;
+                    const normTx = this.normalizeTransaction(data.transaction);
+                    this.transactions.unshift(normTx);
+                    this.activeReceiptTransaction = normTx;
                     this.receiptModalOpen = true;
                     this.isCheckoutOpen = false;
                     this.clearCart();
                     this.notify('success', 'Berhasil', data.message);
+                }
+            } catch (error) {
+                // Pembayaran mungkin sudah masuk rekening walau buktinya gagal
+                // terkirim, jadi tawarkan pencatatan darurat.
+                this.qrisUploadFailed = true;
+                const berkas = this.qrisProofFile;
+                const detailBerkas = berkas
+                    ? ` (${berkas.type || 'tipe tidak dikenal'}, ${(berkas.size / 1024 / 1024).toFixed(1)} MB)`
+                    : '';
+                this.qrisFailureReason = (error.message || 'Bukti transfer gagal diunggah.') + detailBerkas;
+                this.notify('error', 'Gagal Mengirim Bukti', error.message);
+            }
+        },
+
+        /**
+         * Tombol darurat: uang QRIS sudah masuk rekening tapi buktinya gagal
+         * diunggah. Transaksi tetap dicatat lunas supaya masuk laporan, tanpa
+         * bukti dan tanpa perlu persetujuan admin.
+         */
+        async saveQrisWithoutProof() {
+            const alasan = this.qrisFailureReason || 'Bukti transfer gagal diunggah.';
+
+            const konfirmasi = await Swal.fire({
+                icon: 'warning',
+                title: 'Simpan Tanpa Bukti Transfer?',
+                html: `Pastikan pembayaran <b>benar-benar sudah masuk</b> ke rekening QRIS.<br><br>
+                       Transaksi akan dicatat <b>lunas</b> sebesar <b>${formatRupiah(this.cartTotal + (this.getCurrentStore() ? this.storeUniqueCode(this.getCurrentStore()) : 0))}</b>
+                       dan langsung masuk laporan, tanpa arsip bukti transfer.`,
+                showCancelButton: true,
+                confirmButtonColor: '#f4212e',
+                cancelButtonColor: '#eff3f4',
+                confirmButtonText: 'Ya, Sudah Dibayar',
+                cancelButtonText: '<span class=\'text-[#0f1419]\'>Batal</span>'
+            });
+
+            if (!konfirmasi.isConfirmed) return;
+
+            try {
+                const data = await apiFetch('/user/kasir/checkout-qris-tanpa-bukti', {
+                    method: 'POST',
+                    loadingText: 'Mencatat transaksi tanpa bukti...',
+                    body: {
+                        items: this.cart.map(c => ({
+                            product_id: c.product.id,
+                            qty: c.qty,
+                            price: this.cartItemPrice(c)
+                        })),
+                        reason: alasan
+                    }
+                });
+
+                if (data.success && data.transaction) {
+                    const normTx = this.normalizeTransaction(data.transaction);
+                    this.transactions.unshift(normTx);
+                    this.activeReceiptTransaction = normTx;
+                    this.receiptModalOpen = true;
+                    this.isCheckoutOpen = false;
+                    this.clearCart();
+                    this.notify('success', 'Tercatat di Laporan', data.message);
                 }
             } catch (error) {
                 this.notify('error', 'Gagal', error.message);
@@ -585,7 +1035,7 @@ Alpine.store('app', {
                 if (data.success) {
                     const idx = this.transactions.findIndex(t => t.id === txId);
                     if (idx !== -1) {
-                        this.transactions[idx] = data.transaction;
+                        this.transactions[idx] = this.normalizeTransaction(data.transaction);
                     }
                     this.qrisModalOpen = false;
                     this.notify('success', 'Berhasil', data.message);
@@ -616,7 +1066,7 @@ Alpine.store('app', {
                     if (data.success) {
                         const idx = this.transactions.findIndex(t => t.id === this.selectedQrisTransaction.id);
                         if (idx !== -1) {
-                            this.transactions[idx] = data.transaction;
+                            this.transactions[idx] = this.normalizeTransaction(data.transaction);
                         }
                         this.rejectModalOpen = false;
                         this.qrisModalOpen = false;
@@ -683,6 +1133,9 @@ Alpine.store('app', {
                 id: null,
                 title: '',
                 price: '',
+                is_negotiable: false,
+                min_price: '',
+                max_price: '',
                 category: 'Makanan',
                 description: '',
                 photo: '',
@@ -701,6 +1154,9 @@ Alpine.store('app', {
                 id: product.id,
                 title: product.title,
                 price: isNaN(cleanPrice) ? '' : cleanPrice,
+                is_negotiable: !!product.is_negotiable,
+                min_price: product.min_price !== null && product.min_price !== undefined ? Math.round(parseFloat(product.min_price)) : '',
+                max_price: product.max_price !== null && product.max_price !== undefined ? Math.round(parseFloat(product.max_price)) : '',
                 category: product.category || 'Makanan',
                 description: product.description || '',
                 photo: product.photo || '',
@@ -727,8 +1183,32 @@ Alpine.store('app', {
         },
 
         async saveProduct() {
-            if (!this.productFormData.title.trim() || !this.productFormData.price) {
-                this.notify('error', 'Validasi Form', 'Judul produk dan harga wajib diisi.');
+            if (!this.productFormData.title.trim()) {
+                this.notify('error', 'Validasi Form', 'Judul produk wajib diisi.');
+                if (typeof window.hideLoading === 'function') window.hideLoading();
+                return;
+            }
+            if (this.productFormData.is_negotiable) {
+                const min = parseFloat(this.productFormData.min_price);
+                const max = parseFloat(this.productFormData.max_price);
+                if (isNaN(min) || isNaN(max)) {
+                    this.notify('error', 'Validasi Form', 'Harga terendah dan tertinggi wajib diisi untuk produk yang bisa ditawar.');
+                    if (typeof window.hideLoading === 'function') window.hideLoading();
+                    return;
+                }
+                if (max < min) {
+                    this.notify('error', 'Validasi Form', 'Harga tertinggi tidak boleh lebih kecil dari harga terendah.');
+                    if (typeof window.hideLoading === 'function') window.hideLoading();
+                    return;
+                }
+            } else if (!this.productFormData.price) {
+                this.notify('error', 'Validasi Form', 'Harga produk wajib diisi.');
+                if (typeof window.hideLoading === 'function') window.hideLoading();
+                return;
+            }
+            if (!this.productFormData.store_id) {
+                this.notify('error', 'Validasi Form', 'Pilih warung/tenant terlebih dahulu.');
+                if (typeof window.hideLoading === 'function') window.hideLoading();
                 return;
             }
 
@@ -740,7 +1220,10 @@ Alpine.store('app', {
                 if (this.productFormData.photoFile) {
                     payload = new FormData();
                     payload.append('title', this.productFormData.title.trim());
-                    payload.append('price', this.productFormData.price);
+                    payload.append('price', this.productFormData.price || '');
+                    payload.append('is_negotiable', this.productFormData.is_negotiable ? '1' : '0');
+                    payload.append('min_price', this.productFormData.is_negotiable ? this.productFormData.min_price : '');
+                    payload.append('max_price', this.productFormData.is_negotiable ? this.productFormData.max_price : '');
                     payload.append('category', this.productFormData.category);
                     payload.append('description', this.productFormData.description || '');
                     payload.append('stock_badge', this.productFormData.stock_badge);
@@ -752,7 +1235,10 @@ Alpine.store('app', {
                 } else {
                     payload = {
                         title: this.productFormData.title.trim(),
-                        price: parseFloat(this.productFormData.price),
+                        price: this.productFormData.price !== '' ? parseFloat(this.productFormData.price) : null,
+                        is_negotiable: !!this.productFormData.is_negotiable,
+                        min_price: this.productFormData.is_negotiable ? parseFloat(this.productFormData.min_price) : null,
+                        max_price: this.productFormData.is_negotiable ? parseFloat(this.productFormData.max_price) : null,
                         category: this.productFormData.category,
                         description: this.productFormData.description,
                         stock_badge: this.productFormData.stock_badge,
@@ -821,7 +1307,8 @@ Alpine.store('app', {
                 slug: '',
                 start_date: '',
                 end_date: '',
-                location: ''
+                location: '',
+                qris_payload: ''
             };
             this.eventModalOpen = true;
         },
@@ -832,38 +1319,13 @@ Alpine.store('app', {
                 id: ev.id,
                 name: ev.name,
                 slug: ev.slug,
-                start_date: ev.start_date || '',
-                end_date: ev.end_date || '',
+                start_date: ev.start_date ? String(ev.start_date).substring(0, 10) : '',
+                end_date: ev.end_date ? String(ev.end_date).substring(0, 10) : '',
                 location: ev.location || '',
-                qris_image_url: ev.qris_image_url || null
+                qris_image_url: ev.qris_image_url || null,
+                qris_payload: ev.qris_payload || ''
             };
             this.eventModalOpen = true;
-        },
-
-        saveNewEvent() {
-            if (!this.eventFormData.name.trim()) {
-                this.notify('error', 'Nama Event Wajib', 'Harap isi nama event.');
-                return;
-            }
-
-            const slug = this.eventFormData.slug || this.eventFormData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-
-            const newEvent = {
-                id: Date.now(),
-                name: this.eventFormData.name.trim(),
-                slug,
-                start_date: this.eventFormData.start_date || new Date().toISOString().substring(0, 10),
-                end_date: this.eventFormData.end_date || new Date().toISOString().substring(0, 10),
-                location: this.eventFormData.location || '-',
-                is_active: false,
-                created_by: 1,
-                created_at: new Date().toISOString().replace('T', ' ').substring(0, 19)
-            };
-
-            this.events.unshift(newEvent);
-            setStoredData('events', this.events);
-            this.eventModalOpen = false;
-            this.notify('success', 'Event Dibuat', `Event "${newEvent.name}" berhasil dibuat sebagai arsip.`);
         },
 
         openActivateEventModal(ev) {
@@ -871,18 +1333,35 @@ Alpine.store('app', {
             this.activateEventConfirmOpen = true;
         },
 
-        confirmActivateEvent() {
+        async confirmActivateEvent() {
             if (!this.eventToActivate) return;
-            
-            // Set all others to false, activate chosen event
-            this.events.forEach(e => {
-                e.is_active = (e.id === this.eventToActivate.id);
-            });
 
-            setStoredData('events', this.events);
+            const target = this.eventToActivate;
+            const rolePrefix = this.currentRole === 'superadmin' ? 'superadmin' : 'admin';
             this.activateEventConfirmOpen = false;
-            this.notify('success', 'Event Diaktifkan', `Event "${this.eventToActivate.name}" kini aktif.`);
-            this.eventToActivate = null;
+
+            try {
+                const res = await apiFetch(`/${rolePrefix}/events/${target.id}/activate`, {
+                    method: 'POST',
+                    loadingText: 'Mengaktifkan event...'
+                });
+
+                if (res.success) {
+                    this.events.forEach(e => {
+                        e.is_active = (e.id === target.id);
+                    });
+                    if (res.event) {
+                        this.activeEvent = res.event;
+                    }
+                    this.notify('success', 'Event Diaktifkan', res.message);
+                } else {
+                    this.notify('error', 'Gagal', res.message || 'Gagal mengaktifkan event.');
+                }
+            } catch (err) {
+                this.notify('error', 'Gagal', err.message || 'Gagal mengaktifkan event.');
+            } finally {
+                this.eventToActivate = null;
+            }
         },
 
         // HELPDESK
@@ -990,7 +1469,7 @@ Alpine.store('app', {
                 <tr>
                     <td style="text-align: center; color: #64748b;">${idx + 1}</td>
                     <td style="font-weight: 600; color: #0f172a;">${item.title}</td>
-                    <td style="text-align: right; color: #475569;">${formatRupiah(item.price)}</td>
+                    <td style="text-align: right; color: #475569;">${item.is_negotiated ? `<s style="color:#94a3b8;">${formatRupiah(item.original_price)}</s> ` : ''}${formatRupiah(item.price)}</td>
                     <td style="text-align: center; font-weight: 700; color: #0f172a;">${item.qty}</td>
                     <td style="text-align: right; font-weight: 700; color: #0f172a;">${formatRupiah(item.subtotal)}</td>
                 </tr>
@@ -1263,22 +1742,9 @@ Alpine.store('app', {
                                     <td>TOTAL TAGIHAN:</td>
                                     <td style="text-align: right; color: #1d9bf0;">${formatRupiah(tx.total_amount)}</td>
                                 </tr>
-                                ${tx.status === 'paid' ? `
+                                ${tx.status === 'paid' ? '' : `
                                 <tr>
-                                    <td style="padding: 4px 0; color: #ef4444; font-size: 11px;">Potongan EO (22.5%):</td>
-                                    <td style="padding: 4px 0; text-align: right; color: #ef4444; font-size: 11px; font-weight: 600;">- ${formatRupiah(tx.revenue_split?.admin_net_share || (tx.total_amount * 0.225))}</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding: 4px 0; color: #ef4444; font-size: 11px;">Fee Platform (2.5%):</td>
-                                    <td style="padding: 4px 0; text-align: right; color: #ef4444; font-size: 11px; font-weight: 600;">- ${formatRupiah(tx.revenue_split?.superadmin_share || (tx.total_amount * 0.025))}</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding: 4px 0; color: #1d9bf0; font-weight: 700;">Hak Bersih Warung (75%):</td>
-                                    <td style="padding: 4px 0; text-align: right; color: #1d9bf0; font-weight: 800;">${formatRupiah(tx.revenue_split?.owner_share || (tx.total_amount * 0.75))}</td>
-                                </tr>
-                                ` : `
-                                <tr>
-                                    <td colspan="2" style="padding: 4px 0; text-align: center; color: #f59e0b; font-size: 11px; font-weight: bold; font-style: italic;">(Bagi hasil dihitung setelah pembayaran lunas)</td>
+                                    <td colspan="2" style="padding: 4px 0; text-align: center; color: #f59e0b; font-size: 11px; font-weight: bold; font-style: italic;">(Menunggu konfirmasi pembayaran)</td>
                                 </tr>
                                 `}
                                 ${paymentSummary}
@@ -1361,7 +1827,8 @@ Alpine.store('app', {
                 month: 'long',
                 year: 'numeric',
                 hour: '2-digit',
-                minute: '2-digit'
+                minute: '2-digit',
+                timeZone: WIB
             });
 
             // Per-store breakdown calculations
@@ -1642,7 +2109,7 @@ Alpine.store('app', {
 
         // PROPER FORMAL MONOCHROME (B&W) SINGLE TENANT / STAND REPORT EXPORT (SAME DESIGN AS ALL EO REPORT)
         printTenantReport(storeId) {
-            const store = this.stores.find(s => s.id == storeId) || { id: storeId, name: 'Stand Warung', booth_number: '-' };
+            const store = this.stores.find(s => s.id == storeId) || this.userStores.find(s => s.id == storeId) || { id: storeId, name: 'Stand Warung', booth_number: '-' };
             const event = this.getActiveEvent() || { name: 'Event Bazaar UMKM', location: '-' };
             const txList = this.transactions.filter(t => t.store_id == storeId);
             
@@ -1661,7 +2128,8 @@ Alpine.store('app', {
                 month: 'long',
                 year: 'numeric',
                 hour: '2-digit',
-                minute: '2-digit'
+                minute: '2-digit',
+                timeZone: WIB
             });
 
             const txRows = txList.map((t, idx) => `
@@ -1905,7 +2373,8 @@ Alpine.store('app', {
                 month: 'long',
                 year: 'numeric',
                 hour: '2-digit',
-                minute: '2-digit'
+                minute: '2-digit',
+                timeZone: WIB
             });
 
             const txRows = txList.map((t, idx) => `
@@ -2106,7 +2575,8 @@ Alpine.store('app', {
                 month: 'long',
                 year: 'numeric',
                 hour: '2-digit',
-                minute: '2-digit'
+                minute: '2-digit',
+                timeZone: WIB
             });
 
             const txRows = txList.map((t, idx) => `
@@ -2344,7 +2814,8 @@ Alpine.store('app', {
                 month: 'long',
                 year: 'numeric',
                 hour: '2-digit',
-                minute: '2-digit'
+                minute: '2-digit',
+                timeZone: WIB
             });
 
             const txRows = txList.map((t, idx) => `
@@ -2505,7 +2976,8 @@ Alpine.store('app', {
                 month: 'long',
                 year: 'numeric',
                 hour: '2-digit',
-                minute: '2-digit'
+                minute: '2-digit',
+                timeZone: WIB
             });
 
             const txRows = txList.map((t, idx) => `
@@ -2608,7 +3080,8 @@ Alpine.store('app', {
                 month: 'long',
                 year: 'numeric',
                 hour: '2-digit',
-                minute: '2-digit'
+                minute: '2-digit',
+                timeZone: WIB
             });
 
             const storeSummaries = this.stores.map(st => {
@@ -2957,7 +3430,8 @@ Alpine.store('app', {
                 month: 'long',
                 year: 'numeric',
                 hour: '2-digit',
-                minute: '2-digit'
+                minute: '2-digit',
+                timeZone: WIB
             });
 
             const txRows = txList.map((t, idx) => `
@@ -3184,7 +3658,7 @@ Alpine.store('app', {
             const netIncome = totalGross * 0.75;
             const totalCount = validTx.length;
             const cancelledCount = txs.filter(t => (storeId ? t.store_id == storeId : true) && ['cancelled', 'rejected'].includes(t.status)).length;
-            const pendingCount = txs.filter(t => (storeId ? t.store_id == storeId : true) && t.status === 'pending_verification').length;
+            const pendingCount = txs.filter(t => (storeId ? t.store_id == storeId : true) && ['pending', 'pending_verification'].includes(t.status)).length;
 
             return {
                 totalGross: totalGross || 0,
@@ -3218,7 +3692,8 @@ Alpine.store('app', {
             const cashHakAdmin = cashTx.reduce((sum, t) => sum + (t.revenue_split?.admin_gross_share || t.total_amount * 0.25), 0);
             const netSettlement = qrisHakWarung - cashHakAdmin; // Positive = admin bayar warung
 
-            const pendingCount = this.transactions.filter(t => t.status === 'pending_verification').length;
+            const pendingCashCount = this.transactions.filter(t => t.status === 'pending' && t.payment_method === 'cash').length;
+            const pendingCount = pendingCashCount;
             const cancelledCount = this.transactions.filter(t => t.status === 'cancelled').length;
 
             return {
@@ -3236,6 +3711,7 @@ Alpine.store('app', {
                 netSettlement,
                 paidCount: paidTx.length,
                 pendingCount,
+                pendingCashCount,
                 cancelledCount,
                 storesCount: this.stores.length
             };
@@ -3310,6 +3786,76 @@ Alpine.store('app', {
                 paidCount: paidTx.length,
                 activeEventName: activeEvent ? activeEvent.name : '-'
             };
+        },
+
+        // Testing Mode State & Actions
+        resetTestingModalOpen: false,
+        resetTestingEventTarget: null,
+
+        openResetTestingModal(event = null) {
+            this.resetTestingEventTarget = event || this.getActiveEvent();
+            this.resetTestingModalOpen = true;
+        },
+
+        async toggleEventTesting(eventId = null) {
+            const targetEvent = eventId ? (this.events.find(e => e.id == eventId) || this.getActiveEvent()) : this.getActiveEvent();
+            if (!targetEvent) {
+                showSwal('warn', 'Event Tidak Ditemukan', 'Harap pilih event terlebih dahulu.');
+                return;
+            }
+
+            const rolePrefix = this.currentRole === 'superadmin' ? 'superadmin' : 'admin';
+            try {
+                this.showLoading('Mengubah status Masa Testing...');
+                const res = await apiFetch(`/${rolePrefix}/events/${targetEvent.id}/toggle-testing`, {
+                    method: 'POST',
+                    body: { is_testing_mode: !targetEvent.is_testing_mode }
+                });
+
+                if (res.success) {
+                    targetEvent.is_testing_mode = res.is_testing_mode;
+                    if (this.activeEvent && this.activeEvent.id == targetEvent.id) {
+                        this.activeEvent.is_testing_mode = res.is_testing_mode;
+                    }
+                    showSwal('success', 'Status Berubah', res.message);
+                } else {
+                    showSwal('danger', 'Gagal', res.message || 'Gagal mengubah mode testing.');
+                }
+            } catch (err) {
+                showSwal('danger', 'Kesalahan', err.message || 'Terjadi kesalahan saat memproses permintaan.');
+            } finally {
+                this.hideLoading();
+            }
+        },
+
+        async confirmResetTesting() {
+            const targetEvent = this.resetTestingEventTarget || this.getActiveEvent();
+            if (!targetEvent) return;
+
+            const rolePrefix = this.currentRole === 'superadmin' ? 'superadmin' : 'admin';
+            this.resetTestingModalOpen = false;
+
+            try {
+                this.showLoading('Membersihkan seluruh data transaksi testing...');
+                const res = await apiFetch(`/${rolePrefix}/events/${targetEvent.id}/reset-testing`, {
+                    method: 'POST'
+                });
+
+                if (res.success) {
+                    // Filter out testing transactions from frontend store state
+                    this.transactions = this.transactions.filter(t => !t.is_testing);
+                    showSwal('success', 'Berhasil Direset', res.message);
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1200);
+                } else {
+                    showSwal('danger', 'Gagal Reset', res.message || 'Terjadi kesalahan saat reset transaksi.');
+                }
+            } catch (err) {
+                showSwal('danger', 'Kesalahan', err.message || 'Terjadi kesalahan pada server.');
+            } finally {
+                this.hideLoading();
+            }
         }
     });
 
