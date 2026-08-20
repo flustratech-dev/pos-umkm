@@ -128,6 +128,25 @@ class QrisProofRequiredTest extends TestCase
         });
     }
 
+    public function test_proof_compressed_to_webp_by_the_browser_is_accepted(): void
+    {
+        Storage::fake('public');
+
+        // Kasir mengunggah foto kamera; browser mengecilkannya jadi WebP dulu.
+        $this->actingAs($this->tenantUser)
+            ->post(route('user.kasir.checkout-qris'), [
+                'items' => $this->items(),
+                'proof_image' => UploadedFile::fake()->image('bukti.webp')->mimeType('image/webp'),
+            ], ['Accept' => 'application/json'])
+            ->assertOk()
+            ->assertJson(['success' => true]);
+
+        $proofPath = Transaction::firstOrFail()->paymentProof->proof_path;
+
+        Storage::disk('public')->assertExists($proofPath);
+        $this->assertStringEndsWith('.webp', $proofPath);
+    }
+
     public function test_pay_button_stays_locked_until_a_proof_is_attached(): void
     {
         $html = $this->actingAs($this->tenantUser)->get(route('user.kasir'))

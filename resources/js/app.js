@@ -18,6 +18,27 @@ window.loadChartJs = async function() {
 };
 
 // Helper for making API calls with CSRF
+const httpErrorMessage = (status) => {
+    switch (status) {
+        case 413:
+            return 'File yang dikirim terlalu besar untuk server. Ulangi dengan foto yang lebih kecil.';
+        case 419:
+            return 'Sesi kedaluwarsa atau file terlalu besar sehingga data tidak terkirim utuh. Muat ulang halaman lalu coba lagi.';
+        case 401:
+            return 'Sesi Anda sudah berakhir. Silakan masuk kembali.';
+        case 403:
+            return 'Akses ditolak untuk tindakan ini.';
+        case 404:
+            return 'Alamat tujuan tidak ditemukan di server.';
+        case 500:
+        case 502:
+        case 503:
+            return 'Server sedang bermasalah (kode ' + status + '). Coba lagi sebentar lagi.';
+        default:
+            return 'Terjadi kesalahan pada server (kode ' + status + ').';
+    }
+};
+
 const apiFetch = async (url, options = {}) => {
     const skipLoading = options.skipLoading || false;
     const loadingText = options.loadingText || 'Memproses...';
@@ -60,10 +81,12 @@ const apiFetch = async (url, options = {}) => {
             throw new Error('Ukuran file terlalu besar. Coba foto dengan resolusi lebih rendah atau gunakan screenshot.');
         }
 
-        const data = await res.json().catch(() => ({ success: false, message: 'Terjadi kesalahan pada server.' }));
+        // Respons non-JSON (halaman error 419/500 dari server web) tidak boleh
+        // berakhir jadi pesan generik tanpa petunjuk buat kasir.
+        const data = await res.json().catch(() => ({ success: false, message: null }));
         
         if (!res.ok) {
-            throw new Error(data.message || 'Terjadi kesalahan pada server.');
+            throw new Error(data.message || httpErrorMessage(res.status));
         }
         
         return data;
@@ -857,6 +880,12 @@ Alpine.store('app', {
 
                 // Kompresi di background — file yang di-upload ke server adalah hasil compress
                 this.qrisProofFile = await this.compressImage(file);
+
+                // Masih di atas 2 MB (batas upload_max_filesize paling umum di
+                // server): tekan sekali lagi supaya tidak ditolak 413/419.
+                if (this.qrisProofFile.size > 2 * 1024 * 1024) {
+                    this.qrisProofFile = await this.compressImage(file, { maxWidth: 900, maxHeight: 900, quality: 0.6 });
+                }
             } catch (err) {
                 console.error('[Upload] Error processing image:', err);
                 // Fallback: pakai file asli tanpa kompresi
