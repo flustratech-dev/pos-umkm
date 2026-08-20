@@ -58,6 +58,7 @@ Route::prefix('user')->name('user.')->middleware(['auth', 'role:user'])->group(f
     Route::get('/kasir', [UserKasirController::class, 'index'])->name('kasir');
     Route::post('/kasir/checkout-cash', [UserKasirController::class, 'checkoutCash'])->name('kasir.checkout-cash');
     Route::post('/kasir/checkout-qris', [UserKasirController::class, 'checkoutQris'])->name('kasir.checkout-qris');
+    Route::post('/kasir/checkout-qris-tanpa-bukti', [UserKasirController::class, 'checkoutQrisWithoutProof'])->name('kasir.checkout-qris-without-proof');
     Route::post('/kasir/generate-qris', [UserKasirController::class, 'generateQris'])->name('kasir.generate-qris');
 
     Route::get('/produk', [UserProductController::class, 'index'])->name('produk');

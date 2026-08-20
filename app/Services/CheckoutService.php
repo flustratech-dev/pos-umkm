@@ -146,11 +146,38 @@ class CheckoutService
      */
     public function processQrisCheckout(Store $store, User $cashier, array $items, UploadedFile $proofFile): Transaction
     {
+        return $this->recordQrisTransaction($store, $cashier, $items, $proofFile, null);
+    }
+
+    /**
+     * Catat transaksi QRIS yang uangnya sudah masuk ke rekening tapi bukti
+     * transfernya gagal diunggah (mis. file ditolak server).
+     *
+     * Statusnya tetap lunas seperti QRIS biasa — tidak perlu persetujuan admin,
+     * karena pembayarannya memang sudah diterima. Alasannya disimpan supaya EO
+     * tahu kenapa transaksi ini tidak punya arsip bukti.
+     */
+    public function processQrisCheckoutWithoutProof(Store $store, User $cashier, array $items, string $reason): Transaction
+    {
+        if (trim($reason) === '') {
+            throw new InvalidArgumentException('Alasan bukti tidak terunggah wajib diisi.');
+        }
+
+        return $this->recordQrisTransaction($store, $cashier, $items, null, trim($reason));
+    }
+
+    protected function recordQrisTransaction(
+        Store $store,
+        User $cashier,
+        array $items,
+        ?UploadedFile $proofFile,
+        ?string $proofFailureReason
+    ): Transaction {
         if (empty($items)) {
             throw new InvalidArgumentException('Keranjang belanja tidak boleh kosong.');
         }
 
-        return DB::transaction(function () use ($store, $cashier, $items, $proofFile) {
+        return DB::transaction(function () use ($store, $cashier, $items, $proofFile, $proofFailureReason) {
             $totalAmount = 0;
             $preparedItems = [];
 
@@ -188,6 +215,7 @@ class CheckoutService
                 'status' => 'paid',
                 'is_testing' => $isTesting,
                 'paid_at' => now(),
+                'proof_failure_reason' => $proofFailureReason,
             ]);
 
             foreach ($preparedItems as $item) {
@@ -195,10 +223,12 @@ class CheckoutService
                 TransactionItem::create($item);
             }
 
-            PaymentProof::create([
-                'transaction_id' => $transaction->id,
-                'proof_path' => $proofFile->store('payment_proofs', 'public'),
-            ]);
+            if ($proofFile) {
+                PaymentProof::create([
+                    'transaction_id' => $transaction->id,
+                    'proof_path' => $proofFile->store('payment_proofs', 'public'),
+                ]);
+            }
 
             // Generate revenue split immediately since it's auto-success
             $this->revenueSplitService->calculate($transaction);

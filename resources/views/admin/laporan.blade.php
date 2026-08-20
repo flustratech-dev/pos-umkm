@@ -321,6 +321,13 @@
                             <td class="px-3.5 py-3 text-center">
                                 <div class="flex items-center justify-center gap-1.5">
                                     <!-- QRIS Proof Button -->
+                                    <!-- QRIS lunas tanpa bukti (bukti gagal diunggah saat transaksi) -->
+                                    <template x-if="tx.is_proof_missing">
+                                        <span
+                                            class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[9px] font-black uppercase tracking-wider border border-amber-200 cursor-help"
+                                            :title="tx.proof_failure_reason || 'Bukti transfer gagal diunggah saat transaksi.'"
+                                        >Tanpa Bukti</span>
+                                    </template>
                                     <template x-if="tx.payment_method === 'qris' && (tx.proof_image || tx.payment_proof)">
                                         <button 
                                             @click="selectedProofUrl = tx.proof_image || tx.payment_proof; proofModalOpen = true"

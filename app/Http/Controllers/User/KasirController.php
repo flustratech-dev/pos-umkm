@@ -5,6 +5,7 @@ namespace App\Http\Controllers\User;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CashCheckoutRequest;
 use App\Http\Requests\QrisCheckoutRequest;
+use App\Http\Requests\QrisWithoutProofRequest;
 use App\Models\Event;
 use App\Models\Product;
 use App\Models\Store;
@@ -115,6 +116,41 @@ class KasirController extends Controller
         $user->update(['store_id' => $targetStore->id]);
         
         return redirect()->back()->with('success', 'Berhasil beralih ke warung: ' . $targetStore->event->name);
+    }
+
+    /**
+     * Simpan transaksi QRIS yang uangnya sudah masuk ke rekening tapi bukti
+     * transfernya gagal diunggah. Statusnya tetap lunas dan langsung masuk
+     * laporan; tidak menunggu persetujuan admin.
+     */
+    public function checkoutQrisWithoutProof(QrisWithoutProofRequest $request): JsonResponse
+    {
+        $user = Auth::user();
+        $store = $user->store ?: Store::where('owner_id', $user->id)->firstOrFail();
+
+        if (!$store->event->is_active) {
+            return response()->json(['success' => false, 'message' => 'Kasir ditutup karena event sudah inaktif.'], 403);
+        }
+
+        try {
+            $transaction = $this->checkoutService->processQrisCheckoutWithoutProof(
+                $store,
+                $user,
+                $request->input('items', []),
+                $request->input('reason')
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Transaksi QRIS tercatat lunas tanpa bukti transfer. Struk siap dicetak.',
+                'transaction' => $transaction,
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
     }
 
     public function generateQris(Request $request): JsonResponse
