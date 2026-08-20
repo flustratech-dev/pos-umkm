@@ -43,6 +43,9 @@ const apiFetch = async (url, options = {}) => {
     const skipLoading = options.skipLoading || false;
     const loadingText = options.loadingText || 'Memproses...';
 
+
+    const timeoutMs = options.timeout || 30000; // 30 detik default timeout
+
     if (!skipLoading && typeof window.showLoading === 'function') {
         window.showLoading(loadingText);
     }
@@ -65,10 +68,21 @@ const apiFetch = async (url, options = {}) => {
         }
     }
 
+    // Timeout controller agar request tidak hang selamanya di koneksi lambat
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
     try {
-        const res = await fetch(url, { ...options, headers });
-        // Respons non-JSON (halaman error 413/419/500 dari server web) tidak
-        // boleh berakhir jadi pesan generik tanpa petunjuk buat kasir.
+        const res = await fetch(url, { ...options, headers, signal: controller.signal });
+        clearTimeout(timeoutId);
+
+        // Handle HTTP 413: file terlalu besar (Nginx/PHP limit)
+        if (res.status === 413) {
+            throw new Error('Ukuran file terlalu besar. Coba foto dengan resolusi lebih rendah atau gunakan screenshot.');
+        }
+
+        // Respons non-JSON (halaman error 419/500 dari server web) tidak boleh
+        // berakhir jadi pesan generik tanpa petunjuk buat kasir.
         const data = await res.json().catch(() => ({ success: false, message: null }));
         
         if (!res.ok) {
@@ -76,6 +90,16 @@ const apiFetch = async (url, options = {}) => {
         }
         
         return data;
+    } catch (err) {
+        clearTimeout(timeoutId);
+        // Network error atau timeout
+        if (err.name === 'AbortError') {
+            throw new Error('Koneksi timeout. Periksa jaringan internet Anda dan coba lagi.');
+        }
+        if (err instanceof TypeError && err.message === 'Failed to fetch') {
+            throw new Error('Koneksi terputus. Pastikan Anda terhubung ke internet dan coba lagi.');
+        }
+        throw err;
     } finally {
         if (!skipLoading && typeof window.hideLoading === 'function') {
             window.hideLoading();
@@ -453,6 +477,85 @@ Alpine.store('app', {
             return role;
         },
 
+        /**
+         * Normalisasi format transaksi dari API response (Eloquent) ke format flat
+         * yang sama dengan layout blade mapping, agar tampilan laporan konsisten.
+         *
+         * API response mengembalikan nested relations (store, cashier, payment_proof, revenue_split)
+         * dan string decimal values, sedangkan views mengharapkan flat fields seperti
+         * store_name, cashier_name, proof_image (URL), dan numeric total_amount.
+         */
+        normalizeTransaction(tx) {
+            if (!tx) return tx;
+
+            // Kalau sudah punya store_name (format layout), kembalikan apa adanya
+            if (tx.store_name !== undefined && tx.cashier_name !== undefined) {
+                return tx;
+            }
+
+            const normalized = { ...tx };
+
+            // Flatten store → store_name
+            if (tx.store && typeof tx.store === 'object') {
+                normalized.store_name = tx.store.name || '';
+                normalized.store_id = tx.store_id || tx.store.id;
+            }
+            if (!normalized.store_name) {
+                normalized.store_name = tx.store_name || '';
+            }
+
+            // Flatten cashier → cashier_name
+            if (tx.cashier && typeof tx.cashier === 'object') {
+                normalized.cashier_name = tx.cashier.name || '';
+                normalized.cashier_id = tx.cashier_id || tx.cashier.id;
+            }
+            if (!normalized.cashier_name) {
+                normalized.cashier_name = tx.cashier_name || '';
+            }
+
+            // Flatten payment_proof relation → proof_image & payment_proof (URL string)
+            if (tx.payment_proof && typeof tx.payment_proof === 'object') {
+                const proofUrl = tx.payment_proof.proof_url
+                    || (tx.payment_proof.proof_path ? '/storage/' + tx.payment_proof.proof_path : null);
+                normalized.payment_proof = proofUrl;
+                normalized.proof_image = proofUrl;
+            } else if (typeof tx.payment_proof === 'string') {
+                normalized.proof_image = normalized.proof_image || tx.payment_proof;
+            }
+
+            // Normalize revenue_split (Eloquent uses snake_case keys in JSON)
+            if (tx.revenue_split && typeof tx.revenue_split === 'object') {
+                normalized.revenue_split = {
+                    owner_share: parseFloat(tx.revenue_split.owner_share) || 0,
+                    admin_gross_share: parseFloat(tx.revenue_split.admin_gross_share) || 0,
+                    superadmin_share: parseFloat(tx.revenue_split.superadmin_share) || 0,
+                    admin_net_share: parseFloat(tx.revenue_split.admin_net_share) || 0,
+                };
+            }
+
+            // Convert string decimals to numbers
+            normalized.total_amount = parseFloat(tx.total_amount) || 0;
+            normalized.amount_paid = tx.amount_paid != null ? parseFloat(tx.amount_paid) : null;
+            normalized.change_due = tx.change_due != null ? parseFloat(tx.change_due) : null;
+
+            // Normalize items prices
+            if (Array.isArray(tx.items)) {
+                normalized.items = tx.items.map(item => ({
+                    ...item,
+                    price: parseFloat(item.price) || 0,
+                    original_price: item.original_price != null ? parseFloat(item.original_price) : null,
+                    qty: parseInt(item.qty) || 0,
+                    subtotal: parseFloat(item.subtotal) || 0,
+                }));
+            }
+
+            // Preserve date formats
+            normalized.paid_at = tx.paid_at || null;
+            normalized.created_at = tx.created_at || null;
+
+            return normalized;
+        },
+
         getCurrentUser() {
             return this.currentUser || window.__AUTH_USER__ || { name: 'User', email: '', role: this.currentRole };
         },
@@ -639,8 +742,9 @@ Alpine.store('app', {
                 });
 
                 if (data.success && data.transaction) {
-                    this.transactions.unshift(data.transaction);
-                    this.activeReceiptTransaction = data.transaction;
+                    const normTx = this.normalizeTransaction(data.transaction);
+                    this.transactions.unshift(normTx);
+                    this.activeReceiptTransaction = normTx;
                     this.receiptModalOpen = true;
                     this.isCheckoutOpen = false;
                     this.clearCart();
@@ -688,33 +792,104 @@ Alpine.store('app', {
             }
         },
 
+        /**
+         * Kompresi gambar menggunakan HTML5 Canvas.
+         * Mengurangi ukuran file foto HP dari 5-15 MB → ~100-300 KB.
+         * @param {File} file - File gambar asli dari input
+         * @param {Object} opts - Opsi kompresi
+         * @param {number} opts.maxWidth - Lebar maksimal (default: 1200px)
+         * @param {number} opts.maxHeight - Tinggi maksimal (default: 1200px)
+         * @param {number} opts.quality - Kualitas JPEG 0-1 (default: 0.7)
+         * @returns {Promise<File>} File hasil kompresi
+         */
+        compressImage(file, opts = {}) {
+            const maxWidth = opts.maxWidth || 1200;
+            const maxHeight = opts.maxHeight || 1200;
+            const quality = opts.quality || 0.7;
+
+            return new Promise((resolve, reject) => {
+                // Kalau bukan image, langsung kembalikan file asli
+                if (!file.type.startsWith('image/')) {
+                    resolve(file);
+                    return;
+                }
+
+                // Kalau sudah kecil (< 500 KB), tidak perlu compress
+                if (file.size <= 500 * 1024) {
+                    resolve(file);
+                    return;
+                }
+
+                const img = new Image();
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+
+                img.onload = () => {
+                    let { width, height } = img;
+
+                    // Hitung rasio resize
+                    if (width > maxWidth || height > maxHeight) {
+                        const ratio = Math.min(maxWidth / width, maxHeight / height);
+                        width = Math.round(width * ratio);
+                        height = Math.round(height * ratio);
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    canvas.toBlob(
+                        (blob) => {
+                            if (!blob) {
+                                resolve(file); // Fallback ke file asli jika gagal
+                                return;
+                            }
+                            const compressedFile = new File(
+                                [blob],
+                                file.name.replace(/\.[^.]+$/, '.jpg'),
+                                { type: 'image/jpeg', lastModified: Date.now() }
+                            );
+                            console.log(`[Compress] ${(file.size / 1024 / 1024).toFixed(2)} MB → ${(compressedFile.size / 1024).toFixed(0)} KB`);
+                            resolve(compressedFile);
+                        },
+                        'image/jpeg',
+                        quality
+                    );
+                };
+
+                img.onerror = () => {
+                    console.warn('[Compress] Gagal load image, gunakan file asli');
+                    resolve(file); // Fallback ke file asli
+                };
+
+                img.src = URL.createObjectURL(file);
+            });
+        },
+
         async handleQrisProofUpload(event) {
             const file = event.target.files[0];
             if (!file) return;
 
-            // Foto kamera HP bisa 3-8 MB dan ditolak server (413/419) sebelum
-            // sempat divalidasi. Dikecilkan dulu; resolusinya masih cukup
-            // untuk membaca nominal pada bukti transfer.
             try {
-                this.notify('info', 'Memproses Bukti', 'Sedang mengompres foto bukti transfer...', 2000);
-                let compressed = await compressImage(file, 1400, 1400, 0.85);
-
-                // Masih di atas 2 MB (batas upload PHP paling umum): tekan lagi.
-                if (compressed.file.size > 2 * 1024 * 1024) {
-                    compressed = await compressImage(file, 900, 900, 0.7);
-                }
-
-                this.qrisProofFile = compressed.file;
-                this.qrisProofPreview = compressed.previewUrl;
-            } catch (error) {
-                // Format yang tidak bisa dibaca canvas (mis. HEIC di sebagian
-                // browser): pakai file aslinya, biar server yang memutuskan.
-                this.qrisProofFile = file;
+                // Tampilkan preview segera dari file asli agar UX tetap responsif
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     this.qrisProofPreview = e.target.result;
                 };
                 reader.readAsDataURL(file);
+
+                // Kompresi di background — file yang di-upload ke server adalah hasil compress
+                this.qrisProofFile = await this.compressImage(file);
+
+                // Masih di atas 2 MB (batas upload_max_filesize paling umum di
+                // server): tekan sekali lagi supaya tidak ditolak 413/419.
+                if (this.qrisProofFile.size > 2 * 1024 * 1024) {
+                    this.qrisProofFile = await this.compressImage(file, { maxWidth: 900, maxHeight: 900, quality: 0.6 });
+                }
+            } catch (err) {
+                console.error('[Upload] Error processing image:', err);
+                // Fallback: pakai file asli tanpa kompresi
+                this.qrisProofFile = file;
             }
         },
 
@@ -749,8 +924,9 @@ Alpine.store('app', {
                 });
 
                 if (data.success && data.transaction) {
-                    this.transactions.unshift(data.transaction);
-                    this.activeReceiptTransaction = data.transaction;
+                    const normTx = this.normalizeTransaction(data.transaction);
+                    this.transactions.unshift(normTx);
+                    this.activeReceiptTransaction = normTx;
                     this.receiptModalOpen = true;
                     this.isCheckoutOpen = false;
                     this.clearCart();
@@ -776,7 +952,7 @@ Alpine.store('app', {
                 if (data.success) {
                     const idx = this.transactions.findIndex(t => t.id === txId);
                     if (idx !== -1) {
-                        this.transactions[idx] = data.transaction;
+                        this.transactions[idx] = this.normalizeTransaction(data.transaction);
                     }
                     this.qrisModalOpen = false;
                     this.notify('success', 'Berhasil', data.message);
@@ -807,7 +983,7 @@ Alpine.store('app', {
                     if (data.success) {
                         const idx = this.transactions.findIndex(t => t.id === this.selectedQrisTransaction.id);
                         if (idx !== -1) {
-                            this.transactions[idx] = data.transaction;
+                            this.transactions[idx] = this.normalizeTransaction(data.transaction);
                         }
                         this.rejectModalOpen = false;
                         this.qrisModalOpen = false;
@@ -855,7 +1031,7 @@ Alpine.store('app', {
                 if (data.success) {
                     const idx = this.transactions.findIndex(t => t.id === this.transactionToCancel.id);
                     if (idx !== -1) {
-                        this.transactions[idx] = data.transaction;
+                        this.transactions[idx] = this.normalizeTransaction(data.transaction);
                     }
                     this.cancelModalOpen = false;
                     this.notify('warning', 'Transaksi Dibatalkan', data.message);
@@ -3397,7 +3573,7 @@ Alpine.store('app', {
             const netIncome = totalGross * 0.75;
             const totalCount = validTx.length;
             const cancelledCount = txs.filter(t => (storeId ? t.store_id == storeId : true) && ['cancelled', 'rejected'].includes(t.status)).length;
-            const pendingCount = txs.filter(t => (storeId ? t.store_id == storeId : true) && t.status === 'pending_verification').length;
+            const pendingCount = txs.filter(t => (storeId ? t.store_id == storeId : true) && ['pending', 'pending_verification'].includes(t.status)).length;
 
             return {
                 totalGross: totalGross || 0,

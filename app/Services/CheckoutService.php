@@ -203,7 +203,7 @@ class CheckoutService
             // Generate revenue split immediately since it's auto-success
             $this->revenueSplitService->calculate($transaction);
 
-            return $transaction->load(['items', 'store', 'cashier', 'paymentProof']);
+            return $transaction->load(['items', 'store', 'cashier', 'paymentProof', 'revenueSplit']);
         });
     }
 }
