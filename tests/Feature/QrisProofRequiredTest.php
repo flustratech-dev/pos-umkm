@@ -147,6 +147,23 @@ class QrisProofRequiredTest extends TestCase
         $this->assertStringEndsWith('.webp', $proofPath);
     }
 
+    public function test_iphone_heic_proof_is_accepted(): void
+    {
+        Storage::fake('public');
+
+        // Foto bawaan iPhone berformat HEIC; aturan 'image' bawaan Laravel
+        // menolaknya, padahal browser tenant kadang gagal mengubahnya ke JPEG.
+        $this->actingAs($this->tenantUser)
+            ->post(route('user.kasir.checkout-qris'), [
+                'items' => $this->items(),
+                'proof_image' => UploadedFile::fake()->create('IMG_1234.heic', 800, 'image/heic'),
+            ], ['Accept' => 'application/json'])
+            ->assertOk()
+            ->assertJson(['success' => true]);
+
+        $this->assertNotNull(Transaction::firstOrFail()->paymentProof);
+    }
+
     public function test_pay_button_stays_locked_until_a_proof_is_attached(): void
     {
         $html = $this->actingAs($this->tenantUser)->get(route('user.kasir'))
