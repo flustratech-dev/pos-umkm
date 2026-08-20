@@ -12,7 +12,7 @@
         
         const result = await Swal.fire({
             title: 'Konfirmasi Pembayaran?',
-            text: 'Pastikan uang tunai sudah diterima oleh kasir warung sesuai jumlah.',
+            text: 'Pastikan uang tunai sudah disetorkan oleh stand / diterima sesuai jumlah tagihan.',
             icon: 'question',
             showCancelButton: true,
             confirmButtonColor: '#00ba7c',
@@ -34,13 +34,14 @@
 
                 const data = await response.json();
 
-                if (response.ok) {
-                    Swal.fire({
+                if (response.ok && data.success) {
+                    await Swal.fire({
                         icon: 'success',
                         title: 'Berhasil!',
-                        text: 'Transaksi cash telah dikonfirmasi.',
+                        text: data.message || 'Transaksi cash telah dikonfirmasi.',
                         confirmButtonColor: '#1d9bf0'
-                    }).then(() => window.location.reload());
+                    });
+                    window.location.reload();
                 } else {
                     Swal.fire('Gagal', data.message || 'Terjadi kesalahan.', 'error');
                 }
@@ -135,6 +136,7 @@
                 <!-- Action Button -->
                 <div class="pt-3 border-t border-[#eff3f4] mt-3.5">
                     <button 
+                        type="button"
                         @click="confirmCash({{ $trx->id }})"
                         :disabled="isConfirming"
                         class="w-full py-2.5 px-3 rounded-full bg-[#00ba7c] hover:bg-[#009b67] disabled:opacity-50 text-white text-xs font-black shadow-xs transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
@@ -181,9 +183,23 @@
                             <td class="px-5 py-3 text-xs text-[#536471] font-semibold">{{ $history->store->name ?? '-' }}</td>
                             <td class="px-5 py-3 text-xs font-black text-[#00ba7c] text-right">Rp {{ number_format($history->total_amount, 0, ',', '.') }}</td>
                             <td class="px-5 py-3 text-center">
-                                <span class="inline-block px-2.5 py-1 rounded-lg bg-[#e6f8f2] text-[#00ba7c] text-[10px] font-black border border-[#a6e9d5]">
-                                    LUNAS
-                                </span>
+                                @if($history->status === 'paid')
+                                    <span class="inline-block px-2.5 py-1 rounded-lg bg-[#e6f8f2] text-[#00ba7c] text-[10px] font-black border border-[#a6e9d5]">
+                                        LUNAS
+                                    </span>
+                                @elseif($history->status === 'rejected')
+                                    <span class="inline-block px-2.5 py-1 rounded-lg bg-[#fef2f2] text-[#f4212e] text-[10px] font-black border border-[#fecdd3]">
+                                        DITOLAK
+                                    </span>
+                                @elseif($history->status === 'cancelled')
+                                    <span class="inline-block px-2.5 py-1 rounded-lg bg-[#f7f9f9] text-[#536471] text-[10px] font-black border border-[#eff3f4] line-through">
+                                        BATAL
+                                    </span>
+                                @else
+                                    <span class="inline-block px-2.5 py-1 rounded-lg bg-amber-50 text-amber-600 text-[10px] font-black border border-amber-200">
+                                        {{ strtoupper($history->status) }}
+                                    </span>
+                                @endif
                             </td>
                         </tr>
                     @endforeach

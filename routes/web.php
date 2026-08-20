@@ -92,6 +92,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     // Verifikasi Cash
     Route::get('/verifikasi-cash', [AdminCashVerificationController::class, 'index'])->name('verifikasi-cash.index');
     Route::post('/verifikasi-cash/{transaction}/confirm', [AdminCashVerificationController::class, 'confirm'])->name('verifikasi-cash.confirm');
+    Route::post('/verifikasi-cash/{transaction}/reject', [AdminCashVerificationController::class, 'reject'])->name('verifikasi-cash.reject');
+    Route::delete('/verifikasi-cash/{transaction}', [AdminCashVerificationController::class, 'destroy'])->name('verifikasi-cash.destroy');
 
     Route::post('/transaksi/{transaction}/cancel', [AdminTransactionController::class, 'cancel'])->name('transaksi.cancel');
 
@@ -128,6 +130,9 @@ Route::prefix('superadmin')->name('superadmin.')->middleware(['auth', 'role:supe
 
 
     Route::get('/verifikasi-cash', [AdminCashVerificationController::class, 'index'])->name('verifikasi-cash');
+    Route::post('/verifikasi-cash/{transaction}/confirm', [AdminCashVerificationController::class, 'confirm'])->name('verifikasi-cash.confirm');
+    Route::post('/verifikasi-cash/{transaction}/reject', [AdminCashVerificationController::class, 'reject'])->name('verifikasi-cash.reject');
+    Route::delete('/verifikasi-cash/{transaction}', [AdminCashVerificationController::class, 'destroy'])->name('verifikasi-cash.destroy');
     Route::get('/produk', [AdminProductController::class, 'index'])->name('produk');
     Route::get('/warung', [AdminStoreController::class, 'index'])->name('warung');
     Route::get('/helpdesk', [AdminHelpdeskController::class, 'index'])->name('helpdesk');
