@@ -819,8 +819,13 @@ Alpine.store('app', {
                     return;
                 }
 
-                // Kalau sudah kecil (< 500 KB), tidak perlu compress
-                if (file.size <= 500 * 1024) {
+                // Server hanya menerima jpg/png/gif/bmp/webp. Format lain
+                // (HEIC/HEIF bawaan iPhone) HARUS lewat canvas dulu untuk
+                // dikonversi, sekecil apa pun ukurannya.
+                const formatAman = /^image\/(jpeg|jpg|png|gif|bmp|webp)$/i.test(file.type);
+
+                // Sudah kecil (< 500 KB) dan formatnya diterima server: lewati.
+                if (formatAman && file.size <= 500 * 1024) {
                     resolve(file);
                     return;
                 }
@@ -936,7 +941,10 @@ Alpine.store('app', {
 
                 const data = await apiFetch('/user/kasir/checkout-qris', {
                     method: 'POST',
-                    body: body
+                    body: body,
+                    // Unggahan foto di jaringan event sering lambat; 30 detik
+                    // bawaan terlalu pendek dan bikin gagal padahal masih jalan.
+                    timeout: 90000
                 });
 
                 if (data.success && data.transaction) {
@@ -952,7 +960,11 @@ Alpine.store('app', {
                 // Pembayaran mungkin sudah masuk rekening walau buktinya gagal
                 // terkirim, jadi tawarkan pencatatan darurat.
                 this.qrisUploadFailed = true;
-                this.qrisFailureReason = error.message || 'Bukti transfer gagal diunggah.';
+                const berkas = this.qrisProofFile;
+                const detailBerkas = berkas
+                    ? ` (${berkas.type || 'tipe tidak dikenal'}, ${(berkas.size / 1024 / 1024).toFixed(1)} MB)`
+                    : '';
+                this.qrisFailureReason = (error.message || 'Bukti transfer gagal diunggah.') + detailBerkas;
                 this.notify('error', 'Gagal Mengirim Bukti', error.message);
             }
         },
