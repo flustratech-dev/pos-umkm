@@ -18,6 +18,27 @@ window.loadChartJs = async function() {
 };
 
 // Helper for making API calls with CSRF
+const httpErrorMessage = (status) => {
+    switch (status) {
+        case 413:
+            return 'File yang dikirim terlalu besar untuk server. Ulangi dengan foto yang lebih kecil.';
+        case 419:
+            return 'Sesi kedaluwarsa atau file terlalu besar sehingga data tidak terkirim utuh. Muat ulang halaman lalu coba lagi.';
+        case 401:
+            return 'Sesi Anda sudah berakhir. Silakan masuk kembali.';
+        case 403:
+            return 'Akses ditolak untuk tindakan ini.';
+        case 404:
+            return 'Alamat tujuan tidak ditemukan di server.';
+        case 500:
+        case 502:
+        case 503:
+            return 'Server sedang bermasalah (kode ' + status + '). Coba lagi sebentar lagi.';
+        default:
+            return 'Terjadi kesalahan pada server (kode ' + status + ').';
+    }
+};
+
 const apiFetch = async (url, options = {}) => {
     const skipLoading = options.skipLoading || false;
     const loadingText = options.loadingText || 'Memproses...';
@@ -46,10 +67,12 @@ const apiFetch = async (url, options = {}) => {
 
     try {
         const res = await fetch(url, { ...options, headers });
-        const data = await res.json().catch(() => ({ success: false, message: 'Terjadi kesalahan pada server.' }));
+        // Respons non-JSON (halaman error 413/419/500 dari server web) tidak
+        // boleh berakhir jadi pesan generik tanpa petunjuk buat kasir.
+        const data = await res.json().catch(() => ({ success: false, message: null }));
         
         if (!res.ok) {
-            throw new Error(data.message || 'Terjadi kesalahan pada server.');
+            throw new Error(data.message || httpErrorMessage(res.status));
         }
         
         return data;
@@ -665,9 +688,27 @@ Alpine.store('app', {
             }
         },
 
-        handleQrisProofUpload(event) {
+        async handleQrisProofUpload(event) {
             const file = event.target.files[0];
-            if (file) {
+            if (!file) return;
+
+            // Foto kamera HP bisa 3-8 MB dan ditolak server (413/419) sebelum
+            // sempat divalidasi. Dikecilkan dulu; resolusinya masih cukup
+            // untuk membaca nominal pada bukti transfer.
+            try {
+                this.notify('info', 'Memproses Bukti', 'Sedang mengompres foto bukti transfer...', 2000);
+                let compressed = await compressImage(file, 1400, 1400, 0.85);
+
+                // Masih di atas 2 MB (batas upload PHP paling umum): tekan lagi.
+                if (compressed.file.size > 2 * 1024 * 1024) {
+                    compressed = await compressImage(file, 900, 900, 0.7);
+                }
+
+                this.qrisProofFile = compressed.file;
+                this.qrisProofPreview = compressed.previewUrl;
+            } catch (error) {
+                // Format yang tidak bisa dibaca canvas (mis. HEIC di sebagian
+                // browser): pakai file aslinya, biar server yang memutuskan.
                 this.qrisProofFile = file;
                 const reader = new FileReader();
                 reader.onload = (e) => {
