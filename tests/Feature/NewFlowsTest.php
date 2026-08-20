@@ -165,4 +165,85 @@ class NewFlowsTest extends TestCase
         $tenantPdfResponse->assertOk();
         $this->assertEquals('application/pdf', $tenantPdfResponse->headers->get('Content-Type'));
     }
+
+    public function test_admin_can_reject_cash_verification(): void
+    {
+        $owner = User::create([
+            'name' => 'Pak Budi',
+            'username' => 'tenda-b02',
+            'email' => 'tenda-b02@tenant.local',
+            'role' => 'user',
+            'password' => bcrypt('secret'),
+        ]);
+
+        $store = Store::create([
+            'event_id' => $this->event->id,
+            'owner_id' => $owner->id,
+            'name' => 'Warung Nasi',
+            'booth_number' => 'B-02',
+            'access_uuid' => 'test-uuid-5678',
+            'is_active' => true,
+        ]);
+
+        $tx = Transaction::create([
+            'invoice_code' => 'INV-TEST-REJECT-001',
+            'store_id' => $store->id,
+            'cashier_id' => $owner->id,
+            'total_amount' => 25000,
+            'payment_method' => 'cash',
+            'amount_paid' => 30000,
+            'change_due' => 5000,
+            'status' => 'pending',
+        ]);
+
+        $response = $this->actingAs($this->admin)->postJson(route('admin.verifikasi-cash.reject', $tx), [
+            'reason' => 'Testing / Uji coba transaksi',
+        ]);
+
+        $response->assertOk();
+        $response->assertJson(['success' => true]);
+
+        $tx->refresh();
+        $this->assertEquals('rejected', $tx->status);
+        $this->assertEquals('Testing / Uji coba transaksi', $tx->rejection_reason);
+        $this->assertEquals($this->admin->id, $tx->verified_by);
+    }
+
+    public function test_admin_can_delete_pending_cash_transaction_permanently(): void
+    {
+        $owner = User::create([
+            'name' => 'Pak Budi',
+            'username' => 'tenda-b03',
+            'email' => 'tenda-b03@tenant.local',
+            'role' => 'user',
+            'password' => bcrypt('secret'),
+        ]);
+
+        $store = Store::create([
+            'event_id' => $this->event->id,
+            'owner_id' => $owner->id,
+            'name' => 'Warung Kopi',
+            'booth_number' => 'B-03',
+            'access_uuid' => 'test-uuid-9999',
+            'is_active' => true,
+        ]);
+
+        $tx = Transaction::create([
+            'invoice_code' => 'INV-TEST-DELETE-001',
+            'store_id' => $store->id,
+            'cashier_id' => $owner->id,
+            'total_amount' => 10000,
+            'payment_method' => 'cash',
+            'amount_paid' => 10000,
+            'change_due' => 0,
+            'status' => 'pending',
+        ]);
+
+        $response = $this->actingAs($this->admin)->deleteJson(route('admin.verifikasi-cash.destroy', $tx));
+
+        $response->assertOk();
+        $response->assertJson(['success' => true]);
+
+        $this->assertDatabaseMissing('transactions', ['id' => $tx->id]);
+    }
 }

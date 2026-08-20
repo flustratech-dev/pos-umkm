@@ -39,12 +39,12 @@ class TransactionVerificationService
     }
 
     /**
-     * Reject pending QRIS transaction.
+     * Reject pending transaction (QRIS or Cash).
      */
     public function reject(Transaction $transaction, User $verifier, string $reason): Transaction
     {
-        if ($transaction->status !== 'pending_verification') {
-            throw new InvalidArgumentException("Transaksi tidak dalam status pending verification (Status saat ini: {$transaction->status}).");
+        if (!in_array($transaction->status, ['pending', 'pending_verification'])) {
+            throw new InvalidArgumentException("Transaksi tidak dalam status pending (Status saat ini: {$transaction->status}).");
         }
 
         if (empty(trim($reason))) {
