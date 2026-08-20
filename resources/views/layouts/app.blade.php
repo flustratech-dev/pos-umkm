@@ -140,6 +140,8 @@
                 'created_at' => $t->created_at ? $t->created_at->toIso8601String() : null,
                 'payment_proof' => $t->paymentProof ? $t->paymentProof->proof_url : null,
                 'proof_image' => $t->paymentProof ? $t->paymentProof->proof_url : null,
+                'proof_failure_reason' => $t->proof_failure_reason,
+                'is_proof_missing' => $t->is_proof_missing,
                 'items' => $t->items ? $t->items->map(function($item) {
                     return [
                         'product_id' => $item->product_id,

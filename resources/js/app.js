@@ -345,6 +345,9 @@ Alpine.store('app', {
         cashAmountPaid: '',
         qrisProofPreview: null,
         qrisProofFile: null,
+        // Terisi saat pengiriman QRIS gagal, memunculkan tombol darurat.
+        qrisUploadFailed: false,
+        qrisFailureReason: '',
         dynamicQrisLoading: false,
         dynamicQrisDataUrl: null,
         
@@ -685,6 +688,8 @@ Alpine.store('app', {
             this.cashAmountPaid = '';
             this.qrisProofPreview = null;
             this.qrisProofFile = null;
+            this.qrisUploadFailed = false;
+            this.qrisFailureReason = '';
         },
 
         get cartTotal() {
@@ -886,16 +891,27 @@ Alpine.store('app', {
                 if (this.qrisProofFile.size > 2 * 1024 * 1024) {
                     this.qrisProofFile = await this.compressImage(file, { maxWidth: 900, maxHeight: 900, quality: 0.6 });
                 }
+
+                // Beri tahu kasir sedini mungkin kalau ukurannya masih rawan
+                // ditolak server, jangan tunggu sampai gagal saat menyimpan.
+                if (this.qrisProofFile.size > 2 * 1024 * 1024) {
+                    const ukuranMB = (this.qrisProofFile.size / 1024 / 1024).toFixed(1);
+                    this.notify('warning', 'Gambar Melebihi Kapasitas', `Setelah dikompres ukurannya masih ${ukuranMB} MB. Coba pakai screenshot bukti transfer, bukan foto layar.`, 6000);
+                }
             } catch (err) {
                 console.error('[Upload] Error processing image:', err);
                 // Fallback: pakai file asli tanpa kompresi
                 this.qrisProofFile = file;
+                const ukuranMB = (file.size / 1024 / 1024).toFixed(1);
+                this.notify('warning', 'Foto Tidak Bisa Dikompres', `Format foto ini tidak dikenali browser, jadi dikirim apa adanya (${ukuranMB} MB) dan bisa ditolak server. Screenshot bukti transfer lebih aman.`, 6000);
             }
         },
 
         removeQrisProof() {
             this.qrisProofFile = null;
             this.qrisProofPreview = null;
+            this.qrisUploadFailed = false;
+            this.qrisFailureReason = '';
             const camInput = document.getElementById('qris_proof_camera');
             if (camInput) camInput.value = '';
             const galInput = document.getElementById('qris_proof_gallery');
@@ -931,6 +947,61 @@ Alpine.store('app', {
                     this.isCheckoutOpen = false;
                     this.clearCart();
                     this.notify('success', 'Berhasil', data.message);
+                }
+            } catch (error) {
+                // Pembayaran mungkin sudah masuk rekening walau buktinya gagal
+                // terkirim, jadi tawarkan pencatatan darurat.
+                this.qrisUploadFailed = true;
+                this.qrisFailureReason = error.message || 'Bukti transfer gagal diunggah.';
+                this.notify('error', 'Gagal Mengirim Bukti', error.message);
+            }
+        },
+
+        /**
+         * Tombol darurat: uang QRIS sudah masuk rekening tapi buktinya gagal
+         * diunggah. Transaksi tetap dicatat lunas supaya masuk laporan, tanpa
+         * bukti dan tanpa perlu persetujuan admin.
+         */
+        async saveQrisWithoutProof() {
+            const alasan = this.qrisFailureReason || 'Bukti transfer gagal diunggah.';
+
+            const konfirmasi = await Swal.fire({
+                icon: 'warning',
+                title: 'Simpan Tanpa Bukti Transfer?',
+                html: `Pastikan pembayaran <b>benar-benar sudah masuk</b> ke rekening QRIS.<br><br>
+                       Transaksi akan dicatat <b>lunas</b> sebesar <b>${formatRupiah(this.cartTotal + (this.getCurrentStore() ? this.storeUniqueCode(this.getCurrentStore()) : 0))}</b>
+                       dan langsung masuk laporan, tanpa arsip bukti transfer.`,
+                showCancelButton: true,
+                confirmButtonColor: '#f4212e',
+                cancelButtonColor: '#eff3f4',
+                confirmButtonText: 'Ya, Sudah Dibayar',
+                cancelButtonText: '<span class=\'text-[#0f1419]\'>Batal</span>'
+            });
+
+            if (!konfirmasi.isConfirmed) return;
+
+            try {
+                const data = await apiFetch('/user/kasir/checkout-qris-tanpa-bukti', {
+                    method: 'POST',
+                    loadingText: 'Mencatat transaksi tanpa bukti...',
+                    body: {
+                        items: this.cart.map(c => ({
+                            product_id: c.product.id,
+                            qty: c.qty,
+                            price: this.cartItemPrice(c)
+                        })),
+                        reason: alasan
+                    }
+                });
+
+                if (data.success && data.transaction) {
+                    const normTx = this.normalizeTransaction(data.transaction);
+                    this.transactions.unshift(normTx);
+                    this.activeReceiptTransaction = normTx;
+                    this.receiptModalOpen = true;
+                    this.isCheckoutOpen = false;
+                    this.clearCart();
+                    this.notify('success', 'Tercatat di Laporan', data.message);
                 }
             } catch (error) {
                 this.notify('error', 'Gagal', error.message);
