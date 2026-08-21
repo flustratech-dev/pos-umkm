@@ -223,6 +223,26 @@ class ReportDownloadTest extends TestCase
         )->assertOk()->assertDownload('Laporan_Penjualan_Warung_Laporan_20260820.csv');
     }
 
+    public function test_money_columns_are_rounded_to_whole_rupiah(): void
+    {
+        // Nilai berdesimal (mis. 474774.4999) dibaca Excel berlokal Indonesia
+        // sebagai pemisah ribuan dan berubah jadi angka triliunan.
+        $this->transaksiPada('2026-08-20 10:00:00', 1899098);
+
+        $isi = $this->actingAs($this->tenantUser)->get(
+            route('user.laporan.pdf', ['format' => 'csv', 'from' => '2026-08-20', 'to' => '2026-08-20'])
+        )->assertOk()->streamedContent();
+
+        $baris = collect(explode("
+", $isi))->first(fn ($b) => str_contains($b, 'Nasi Goreng'));
+        $this->assertNotNull($baris, 'Baris transaksi tidak ditemukan.');
+
+        // 25% dari 1.899.098 = 474.774,5 -> harus jadi 474775 tanpa desimal
+        $this->assertStringContainsString('474775', $baris);
+        $this->assertStringNotContainsString('474774.5', $baris);
+        $this->assertStringNotContainsString('.5;', $baris);
+    }
+
     public function test_admin_can_download_a_period(): void
     {
         $this->transaksiPada('2026-08-20 10:00:00');

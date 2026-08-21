@@ -73,10 +73,12 @@ class ReportExportService
             strtoupper($transaction->payment_method),
             $this->statusLabel($transaction->status),
             $items,
-            (float) $transaction->total_amount,
-            $split ? (float) $split->owner_share : 0,
-            $split ? (float) $split->admin_gross_share : 0,
-            $split ? (float) $split->superadmin_share : 0,
+            // Dibulatkan ke rupiah penuh: nilai berdesimal seperti 474774.4999
+            // dibaca Excel berlokal Indonesia sebagai pemisah ribuan.
+            (int) round((float) $transaction->total_amount),
+            $split ? (int) round((float) $split->owner_share) : 0,
+            $split ? (int) round((float) $split->admin_gross_share) : 0,
+            $split ? (int) round((float) $split->superadmin_share) : 0,
             $this->proofLabel($transaction),
             $transaction->proof_failure_reason
                 ?? $transaction->cancellation_reason
@@ -123,7 +125,7 @@ class ReportExportService
             ['Diunduh', now()->format('d/m/Y H:i')],
             ['Jumlah Transaksi', $transactions->count()],
             ['Transaksi Lunas', $paid->count()],
-            ['Total Penjualan Lunas (Rp)', (float) $paid->sum('total_amount')],
+            ['Total Penjualan Lunas (Rp)', (int) round((float) $paid->sum('total_amount'))],
             [],
         ];
     }
