@@ -121,7 +121,7 @@
             <table class="w-full text-left text-xs text-[#0f1419]">
                 <thead class="bg-[#f7f9f9] border-b border-[#eff3f4] text-[10px] uppercase font-black text-[#0f1419] tracking-wider">
                     <tr>
-                        <th class="px-4 py-3.5">Invoice</th>
+                        <th class="px-4 py-3.5">Invoice / Antrean</th>
                         <th class="px-4 py-3.5">Waktu Paid</th>
                         <th class="px-4 py-3.5">Stand Tenant</th>
                         <th class="px-4 py-3.5">Metode</th>
@@ -134,7 +134,12 @@
                 <tbody class="divide-y divide-[#eff3f4] font-medium">
                     <template x-for="tx in reportTransactions" :key="tx.id">
                         <tr class="hover:bg-[#f7f9f9] transition-colors">
-                            <td class="px-4 py-3 font-black text-[#0f1419]" x-text="tx.invoice_code"></td>
+                            <td class="px-4 py-3 font-black text-[#0f1419]">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="px-2 py-0.5 rounded-lg bg-[#e8f5fd] text-[#1d9bf0] text-[10px] font-black shrink-0" x-text="`#${String(tx.id || 0).padStart(4, '0')}`"></span>
+                                    <span class="truncate" x-text="tx.invoice_code"></span>
+                                </div>
+                            </td>
                             <td class="px-4 py-3 text-[#536471] font-semibold" x-text="formatDateTime(tx.paid_at)"></td>
                             <td class="px-4 py-3 font-black text-[#0f1419]" x-text="tx.store_name"></td>
                             <td class="px-4 py-3 uppercase font-black text-[10px] text-[#1d9bf0]" x-text="tx.payment_method"></td>
