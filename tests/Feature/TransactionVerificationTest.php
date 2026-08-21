@@ -92,4 +92,24 @@ class TransactionVerificationTest extends TestCase
         $this->assertEquals('Bukti transfer buram/tidak terbaca', $rejectedTx->rejection_reason);
         $this->assertNull($rejectedTx->revenueSplit);
     }
+
+    public function test_complete_cash_transaction_without_payment(): void
+    {
+        $tx = Transaction::create([
+            'invoice_code' => 'INV-TEST-CASH-NOPAY',
+            'store_id' => $this->store->id,
+            'cashier_id' => $this->cashier->id,
+            'total_amount' => 75000.00,
+            'payment_method' => 'cash',
+            'status' => 'pending',
+        ]);
+
+        $completedTx = $this->service->completeWithoutPayment($tx, $this->admin, 'Tanpa Pembayaran');
+
+        $this->assertEquals('rejected', $completedTx->status);
+        $this->assertEquals('Tanpa Pembayaran', $completedTx->rejection_reason);
+        $this->assertEquals($this->admin->id, $completedTx->verified_by);
+        $this->assertTrue($completedTx->is_without_payment);
+        $this->assertNull($completedTx->revenueSplit);
+    }
 }

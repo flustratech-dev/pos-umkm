@@ -246,4 +246,47 @@ class NewFlowsTest extends TestCase
 
         $this->assertDatabaseMissing('transactions', ['id' => $tx->id]);
     }
+
+    public function test_admin_can_complete_cash_verification_without_payment(): void
+    {
+        $owner = User::create([
+            'name' => 'Pak Budi',
+            'username' => 'tenda-b04',
+            'email' => 'tenda-b04@tenant.local',
+            'role' => 'user',
+            'password' => bcrypt('secret'),
+        ]);
+
+        $store = Store::create([
+            'event_id' => $this->event->id,
+            'owner_id' => $owner->id,
+            'name' => 'Warung Nasi',
+            'booth_number' => 'B-04',
+            'access_uuid' => 'test-uuid-4444',
+            'is_active' => true,
+        ]);
+
+        $tx = Transaction::create([
+            'invoice_code' => 'INV-TEST-NOPAY-001',
+            'store_id' => $store->id,
+            'cashier_id' => $owner->id,
+            'total_amount' => 45000,
+            'payment_method' => 'cash',
+            'amount_paid' => 50000,
+            'change_due' => 5000,
+            'status' => 'pending',
+        ]);
+
+        $response = $this->actingAs($this->admin)->postJson(route('admin.verifikasi-cash.without-payment', $tx));
+
+        $response->assertOk();
+        $response->assertJson(['success' => true]);
+
+        $tx->refresh();
+        $this->assertEquals('rejected', $tx->status);
+        $this->assertEquals('Tanpa Pembayaran', $tx->rejection_reason);
+        $this->assertEquals($this->admin->id, $tx->verified_by);
+        $this->assertTrue($tx->is_without_payment);
+        $this->assertNull($tx->revenueSplit);
+    }
 }
