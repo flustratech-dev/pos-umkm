@@ -7,225 +7,84 @@
 window.__adminSalesChart = null;
 window.__adminMethodChart = null;
 
+window.__SALES_TREND__ = @json($salesTrend ?? []);
+window.__EVENT_STATS__ = @json($stats ?? []);
+
 async function renderAdminSalesChart(timeframe) {
     const ctxHourly = document.getElementById('hourlySalesChart');
     if (!ctxHourly) return;
     if (window.loadChartJs) await window.loadChartJs();
     if (!window.Chart) return;
 
-    let labels = [];
-    let cashData = [];
-    let qrisData = [];
-    const allTx = (window.Alpine ? window.Alpine.store('app')?.transactions : null) || window.__INITIAL_TRANSACTIONS__ || [];
-
-    const parseDate = (raw) => {
-        if (!raw) return null;
-        if (raw instanceof Date) return raw;
-        const str = typeof raw === 'string' ? raw.replace(' ', 'T') : raw;
-        const d = new Date(str);
-        return isNaN(d.getTime()) ? null : d;
-    };
-
-    const formatDateKey = (d) => {
-        const year = d.getFullYear();
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-    };
-
-    if (timeframe === '1d') {
-        labels = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
-        cashData = labels.map(h => {
-            const hNum = parseInt(h.split(':')[0], 10);
-            return allTx
-                .filter(t => {
-                    if (t.status !== 'paid' || t.payment_method !== 'cash') return false;
-                    const d = parseDate(t.paid_at || t.created_at);
-                    return d && d.getHours() === hNum;
-                })
-                .reduce((sum, t) => sum + (parseFloat(t.total_amount) || 0), 0);
-        });
-
-        qrisData = labels.map(h => {
-            const hNum = parseInt(h.split(':')[0], 10);
-            return allTx
-                .filter(t => {
-                    if (t.status !== 'paid' || t.payment_method !== 'qris') return false;
-                    const d = parseDate(t.paid_at || t.created_at);
-                    return d && d.getHours() === hNum;
-                })
-                .reduce((sum, t) => sum + (parseFloat(t.total_amount) || 0), 0);
-        });
-    } else if (timeframe === '7d') {
-        const now = new Date();
-        for (let i = 6; i >= 0; i--) {
-            const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
-            const dateKey = formatDateKey(d);
-            const label = d.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' });
-            labels.push(label);
-
-            const cashTotal = allTx
-                .filter(t => {
-                    if (t.status !== 'paid' || t.payment_method !== 'cash') return false;
-                    const td = parseDate(t.paid_at || t.created_at);
-                    return td && formatDateKey(td) === dateKey;
-                })
-                .reduce((sum, t) => sum + (parseFloat(t.total_amount) || 0), 0);
-            cashData.push(cashTotal);
-
-            const qrisTotal = allTx
-                .filter(t => {
-                    if (t.status !== 'paid' || t.payment_method !== 'qris') return false;
-                    const td = parseDate(t.paid_at || t.created_at);
-                    return td && formatDateKey(td) === dateKey;
-                })
-                .reduce((sum, t) => sum + (parseFloat(t.total_amount) || 0), 0);
-            qrisData.push(qrisTotal);
-        }
-    } else if (timeframe === '30d') {
-        const now = new Date();
-        for (let i = 29; i >= 0; i--) {
-            const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
-            const dateKey = formatDateKey(d);
-            const label = d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
-            labels.push(label);
-
-            const cashTotal = allTx
-                .filter(t => {
-                    if (t.status !== 'paid' || t.payment_method !== 'cash') return false;
-                    const td = parseDate(t.paid_at || t.created_at);
-                    return td && formatDateKey(td) === dateKey;
-                })
-                .reduce((sum, t) => sum + (parseFloat(t.total_amount) || 0), 0);
-            cashData.push(cashTotal);
-
-            const qrisTotal = allTx
-                .filter(t => {
-                    if (t.status !== 'paid' || t.payment_method !== 'qris') return false;
-                    const td = parseDate(t.paid_at || t.created_at);
-                    return td && formatDateKey(td) === dateKey;
-                })
-                .reduce((sum, t) => sum + (parseFloat(t.total_amount) || 0), 0);
-            qrisData.push(qrisTotal);
-        }
-    }
+    // Seri grafik dihitung di server dari seluruh transaksi event. Sebelumnya
+    // dihitung dari daftar transaksi di browser yang hanya berisi 10 terakhir,
+    // sehingga grafiknya selalu rata nol.
+    const tren = (window.__SALES_TREND__ || {})[timeframe] || { labels: [], cash: [], qris: [] };
+    const labels = tren.labels || [];
+    const cashData = tren.cash || [];
+    const qrisData = tren.qris || [];
 
     if (window.__adminSalesChart) {
         window.__adminSalesChart.destroy();
         window.__adminSalesChart = null;
     }
 
-    const canvas = document.getElementById('hourlySalesChart');
-    const ctx = canvas.getContext('2d');
-
-    // Create rich linear gradient fills like modern Area Chart
-    const greenGradient = ctx.createLinearGradient(0, 0, 0, 240);
-    greenGradient.addColorStop(0, 'rgba(0, 186, 124, 0.42)');
-    greenGradient.addColorStop(0.7, 'rgba(0, 186, 124, 0.12)');
-    greenGradient.addColorStop(1, 'rgba(0, 186, 124, 0.01)');
-
-    const blueGradient = ctx.createLinearGradient(0, 0, 0, 240);
-    blueGradient.addColorStop(0, 'rgba(29, 155, 240, 0.45)');
-    blueGradient.addColorStop(0.7, 'rgba(29, 155, 240, 0.14)');
-    blueGradient.addColorStop(1, 'rgba(29, 155, 240, 0.01)');
-
     window.__adminSalesChart = new window.Chart(ctxHourly, {
         type: 'line',
         data: {
-            labels: labels,
+            labels,
             datasets: [
                 {
                     label: 'Tunai / Cash',
                     data: cashData,
                     borderColor: '#00ba7c',
-                    backgroundColor: greenGradient,
+                    backgroundColor: 'rgba(0, 186, 124, 0.1)',
+                    tension: 0.4,
                     fill: true,
-                    tension: 0.45,
-                    pointRadius: 0,
-                    pointHoverRadius: 6,
-                    pointBackgroundColor: '#00ba7c',
-                    pointHoverBackgroundColor: '#ffffff',
-                    pointHoverBorderColor: '#00ba7c',
-                    pointHoverBorderWidth: 3,
-                    borderWidth: 2
+                    pointRadius: 3,
+                    pointBackgroundColor: '#00ba7c'
                 },
                 {
                     label: 'QRIS Statis',
                     data: qrisData,
                     borderColor: '#1d9bf0',
-                    backgroundColor: blueGradient,
+                    backgroundColor: 'rgba(29, 155, 240, 0.1)',
+                    tension: 0.4,
                     fill: true,
-                    tension: 0.45,
-                    pointRadius: 0,
-                    pointHoverRadius: 6,
-                    pointBackgroundColor: '#1d9bf0',
-                    pointHoverBackgroundColor: '#ffffff',
-                    pointHoverBorderColor: '#1d9bf0',
-                    pointHoverBorderWidth: 3,
-                    borderWidth: 2
+                    pointRadius: 3,
+                    pointBackgroundColor: '#1d9bf0'
                 }
             ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            animation: {
-                duration: 350
-            },
-            interaction: {
-                mode: 'index',
-                intersect: false
-            },
+            interaction: { mode: 'index', intersect: false },
             plugins: {
-                legend: { 
-                    display: true,
+                legend: {
                     position: 'top',
                     align: 'end',
-                    labels: {
-                        usePointStyle: true,
-                        boxWidth: 8,
-                        boxHeight: 8,
-                        color: '#0f1419',
-                        font: { weight: 'bold', size: 11 },
-                        padding: 12
-                    }
+                    labels: { usePointStyle: true, pointStyle: 'circle', boxWidth: 8, font: { size: 11, weight: 'bold' }, color: '#0f1419' }
                 },
                 tooltip: {
-                    backgroundColor: '#0f1419',
-                    titleColor: '#ffffff',
-                    bodyColor: '#ffffff',
-                    titleFont: { weight: 'bold', size: 12 },
-                    bodyFont: { weight: 'bold', size: 12 },
-                    padding: 10,
-                    cornerRadius: 12,
                     callbacks: {
-                        label: (context) => ` ${context.dataset.label}: Rp ${(context.parsed.y || 0).toLocaleString('id-ID')}`
+                        label: (item) => `${item.dataset.label}: ${window.formatRupiah ? window.formatRupiah(item.parsed.y) : item.parsed.y}`
                     }
                 }
             },
             scales: {
                 y: {
-                    stacked: true,
                     beginAtZero: true,
                     ticks: {
                         color: '#536471',
-                        font: { weight: '600', size: 10 },
-                        callback: (val) => val >= 1000000 ? 'Rp ' + (val / 1000000).toFixed(1) + 'M' : 'Rp ' + (val / 1000) + 'k'
+                        font: { size: 10 },
+                        callback: (value) => window.formatRupiah ? window.formatRupiah(value) : value
                     },
-                    grid: { 
-                        color: '#eff3f4',
-                        drawBorder: false
-                    },
-                    border: { display: false }
+                    grid: { color: '#eff3f4' }
                 },
                 x: {
-                    ticks: {
-                        color: '#536471',
-                        font: { weight: '600', size: 10 },
-                        maxTicksLimit: timeframe === '30d' ? 10 : (timeframe === '7d' ? 7 : 9)
-                    },
-                    grid: { display: false },
-                    border: { color: '#eff3f4' }
+                    ticks: { color: '#536471', font: { size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 12 },
+                    grid: { display: false }
                 }
             }
         }
@@ -242,9 +101,10 @@ async function renderAdminMethodChart() {
         window.__adminMethodChart = null;
     }
 
-    const allTx = (window.Alpine ? window.Alpine.store('app')?.transactions : null) || window.__INITIAL_TRANSACTIONS__ || [];
-    const cashCount = allTx.filter(t => t.payment_method === 'cash' && t.status === 'paid').length;
-    const qrisCount = allTx.filter(t => t.payment_method === 'qris' && t.status === 'paid').length;
+    // Jumlah transaksi lunas untuk seluruh event, dihitung di server.
+    const ringkasan = window.__EVENT_STATS__ || {};
+    const cashCount = ringkasan.cash_count || 0;
+    const qrisCount = ringkasan.qris_count || 0;
 
     window.__adminMethodChart = new window.Chart(ctxMethod, {
         type: 'doughnut',
@@ -330,14 +190,14 @@ async function renderAdminMethodChart() {
 
         <!-- Twitter Blue Action Button (Only show when there is a pending queue) -->
         <a 
-            x-show="adminStats.pendingCount > 0"
+            x-show="{{ (int) ($stats['pending_count'] ?? 0) }} > 0"
             x-cloak
             href="/admin/verifikasi-cash" 
             class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white text-xs sm:text-sm font-black shadow-md shadow-[#1d9bf0]/25 transition-all active:scale-95"
         >
             <span class="w-2 h-2 rounded-full bg-white animate-ping"></span>
             <span>Antrean Verifikasi Cash</span>
-            <span class="px-2.5 py-0.5 rounded-full bg-white text-[#1d9bf0] text-xs font-black shadow-2xs" x-text="adminStats.pendingCount"></span>
+            <span class="px-2.5 py-0.5 rounded-full bg-white text-[#1d9bf0] text-xs font-black shadow-2xs">{{ number_format($stats['pending_count'] ?? 0, 0, ',', '.') }}</span>
         </a>
     </div>
 
@@ -395,28 +255,28 @@ async function renderAdminMethodChart() {
         <!-- Total Gross Revenue -->
         <div class="bg-gradient-to-br from-[#1d9bf0] to-[#1271b3] rounded-3xl p-5 text-white shadow-lg shadow-[#1d9bf0]/25 col-span-2 sm:col-span-1">
             <span class="text-xs font-bold text-white/90 uppercase tracking-wider block">Total Omzet Event</span>
-            <h3 class="text-2xl font-black mt-1 tracking-tight text-white" x-text="formatRupiah(adminStats.totalGross)"></h3>
-            <p class="text-[11px] text-white/90 mt-2"><span class="font-black text-white" x-text="adminStats.paidCount"></span> transaksi berhasil</p>
+            <h3 class="text-2xl font-black mt-1 tracking-tight text-white">{{ 'Rp ' . number_format($stats['total_gross'] ?? 0, 0, ',', '.') }}</h3>
+            <p class="text-[11px] text-white/90 mt-2"><span class="font-black text-white">{{ number_format($stats['paid_count'] ?? 0, 0, ',', '.') }}</span> transaksi berhasil</p>
         </div>
 
         <!-- Net EO Revenue (25%) -->
         <div class="bg-white rounded-3xl p-5 border border-[#eff3f4] shadow-xs">
             <span class="text-xs font-bold text-[#0f1419] uppercase tracking-wider block">Bagian EO (25%)</span>
-            <h3 class="text-xl font-black text-[#1d9bf0] mt-1" x-text="formatRupiah(adminStats.adminGross)"></h3>
+            <h3 class="text-xl font-black text-[#1d9bf0] mt-1">{{ 'Rp ' . number_format($stats['admin_gross'] ?? 0, 0, ',', '.') }}</h3>
             <p class="text-[11px] text-[#536471] mt-2 font-medium">Total 25% dari Omzet</p>
         </div>
 
         <!-- Active Stores Count -->
         <div class="bg-white rounded-3xl p-5 border border-[#eff3f4] shadow-xs">
             <span class="text-xs font-bold text-[#0f1419] uppercase tracking-wider block">Warung Terdaftar</span>
-            <h3 class="text-xl font-black text-[#0f1419] mt-1" x-text="adminStats.storesCount"></h3>
+            <h3 class="text-xl font-black text-[#0f1419] mt-1">{{ number_format($stats['stores_count'] ?? 0, 0, ',', '.') }}</h3>
             <p class="text-[11px] text-[#536471] mt-2 font-medium">Semua stand aktif berjualan</p>
         </div>
 
         <!-- Pending Cash Count -->
         <div class="bg-amber-50 rounded-3xl p-5 border border-amber-200 shadow-xs">
             <span class="text-xs font-bold text-[#ff7a00] uppercase tracking-wider block">Pending Cash</span>
-            <h3 class="text-xl font-black text-[#ff7a00] mt-1" x-text="$store.app.transactions.filter(t => t.status === 'pending' && t.payment_method === 'cash').length"></h3>
+            <h3 class="text-xl font-black text-[#ff7a00] mt-1">{{ number_format($stats['pending_cash_count'] ?? 0, 0, ',', '.') }}</h3>
             <p class="text-[11px] text-amber-700 mt-2 font-medium">Menunggu dibayar ke Kasir</p>
         </div>
     </div>

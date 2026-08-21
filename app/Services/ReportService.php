@@ -52,6 +52,133 @@ class ReportService
     /**
      * Get statistics for an Event (Admin EO view).
      */
+    /**
+     * Data grafik tren penjualan untuk dashboard EO.
+     *
+     * Dihitung di server dari SELURUH transaksi lunas milik event, bukan dari
+     * potongan transaksi terakhir yang dikirim ke browser — itu yang dulu
+     * membuat grafiknya rata nol padahal transaksi ramai.
+     *
+     * @return array{1d: array, 7d: array, 30d: array}
+     */
+    public function getSalesTrend(?Event $event = null): array
+    {
+        $event = $event ?? Event::getActive();
+
+        if (!$event) {
+            return $this->emptyTrend();
+        }
+
+        $storeIds = Store::where('event_id', $event->id)->pluck('id');
+
+        if ($storeIds->isEmpty()) {
+            return $this->emptyTrend();
+        }
+
+        $sejak = now()->copy()->subDays(29)->startOfDay();
+
+        $transactions = Transaction::whereIn('store_id', $storeIds)
+            ->where('status', 'paid')
+            ->where(function ($q) use ($sejak) {
+                $q->where('paid_at', '>=', $sejak)
+                    ->orWhere(function ($q2) use ($sejak) {
+                        $q2->whereNull('paid_at')->where('created_at', '>=', $sejak);
+                    });
+            })
+            ->get(['payment_method', 'total_amount', 'paid_at', 'created_at']);
+
+        return [
+            '1d' => $this->trendPerJam($transactions),
+            '7d' => $this->trendPerHari($transactions, 7),
+            '30d' => $this->trendPerHari($transactions, 30),
+        ];
+    }
+
+    protected function emptyTrend(): array
+    {
+        return [
+            '1d' => $this->trendPerJam(collect()),
+            '7d' => $this->trendPerHari(collect(), 7),
+            '30d' => $this->trendPerHari(collect(), 30),
+        ];
+    }
+
+    /**
+     * Sepanjang hari ini, jam 00:00 sampai 23:00 — bukan cuma jam kerja,
+     * supaya transaksi pagi buta dan larut malam tetap kelihatan.
+     */
+    protected function trendPerJam($transactions): array
+    {
+        $labels = [];
+        $cash = array_fill(0, 24, 0.0);
+        $qris = array_fill(0, 24, 0.0);
+
+        for ($jam = 0; $jam < 24; $jam++) {
+            $labels[] = str_pad((string) $jam, 2, '0', STR_PAD_LEFT) . ':00';
+        }
+
+        $hariIni = now()->toDateString();
+
+        foreach ($transactions as $tx) {
+            $waktu = $tx->paid_at ?: $tx->created_at;
+            if (!$waktu || $waktu->toDateString() !== $hariIni) {
+                continue;
+            }
+
+            $jam = (int) $waktu->format('G');
+            $nilai = (float) $tx->total_amount;
+
+            if ($tx->payment_method === 'cash') {
+                $cash[$jam] += $nilai;
+            } else {
+                $qris[$jam] += $nilai;
+            }
+        }
+
+        return ['labels' => $labels, 'cash' => $cash, 'qris' => $qris];
+    }
+
+    protected function trendPerHari($transactions, int $jumlahHari): array
+    {
+        $labels = [];
+        $kunci = [];
+        $cash = [];
+        $qris = [];
+
+        for ($i = $jumlahHari - 1; $i >= 0; $i--) {
+            $tanggal = now()->copy()->subDays($i);
+            $labels[] = $tanggal->translatedFormat('d M');
+            $kunci[] = $tanggal->toDateString();
+            $cash[] = 0.0;
+            $qris[] = 0.0;
+        }
+
+        $indeks = array_flip($kunci);
+
+        foreach ($transactions as $tx) {
+            $waktu = $tx->paid_at ?: $tx->created_at;
+            if (!$waktu) {
+                continue;
+            }
+
+            $tanggal = $waktu->toDateString();
+            if (!isset($indeks[$tanggal])) {
+                continue;
+            }
+
+            $posisi = $indeks[$tanggal];
+            $nilai = (float) $tx->total_amount;
+
+            if ($tx->payment_method === 'cash') {
+                $cash[$posisi] += $nilai;
+            } else {
+                $qris[$posisi] += $nilai;
+            }
+        }
+
+        return ['labels' => $labels, 'cash' => $cash, 'qris' => $qris];
+    }
+
     public function getEventStats(?Event $event = null): array
     {
         $event = $event ?? Event::getActive();

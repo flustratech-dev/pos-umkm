@@ -32,6 +32,10 @@ class DashboardController extends Controller
 
         $stores = $activeEvent ? Store::where('event_id', $activeEvent->id)->get() : collect();
 
-        return view('admin.dashboard', compact('activeEvent', 'stats', 'recentTransactions', 'stores'));
+        // Grafik dihitung di server dari seluruh transaksi event, karena daftar
+        // di atas sengaja dibatasi 10 transaksi terakhir untuk tabel ringkas.
+        $salesTrend = $this->reportService->getSalesTrend($activeEvent);
+
+        return view('admin.dashboard', compact('activeEvent', 'stats', 'recentTransactions', 'stores', 'salesTrend'));
     }
 }
