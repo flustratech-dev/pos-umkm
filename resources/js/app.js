@@ -3709,13 +3709,13 @@ Alpine.store('app', {
             const totalCash = cashTx.reduce((sum, t) => sum + t.total_amount, 0);
             const totalQris = qrisTx.reduce((sum, t) => sum + t.total_amount, 0);
 
-            // Settlement: Admin holds all QRIS, warung holds all cash
-            // Admin owes warung: QRIS * 75% (hak warung dari QRIS yang admin pegang)
-            // Warung owes admin: Cash * 25% (hak admin dari cash yang warung pegang)
-            // Net settlement = QRIS hak warung - Cash hak admin
+            // Settlement: seluruh uang dipegang admin.
+            // Cash disetor ke kasir admin saat verifikasi, QRIS masuk rekening admin.
+            // Jadi admin membayar hak warung SECARA PENUH (75% dari seluruh omzet),
+            // bukan sisa hasil offset cash vs QRIS seperti alur lama.
             const qrisHakWarung = qrisTx.reduce((sum, t) => sum + (t.revenue_split?.owner_share || t.total_amount * 0.75), 0);
-            const cashHakAdmin = cashTx.reduce((sum, t) => sum + (t.revenue_split?.admin_gross_share || t.total_amount * 0.25), 0);
-            const netSettlement = qrisHakWarung - cashHakAdmin; // Positive = admin bayar warung
+            const cashHakWarung = cashTx.reduce((sum, t) => sum + (t.revenue_split?.owner_share || t.total_amount * 0.75), 0);
+            const netSettlement = ownerTotal;
 
             const pendingCashCount = this.transactions.filter(t => t.status === 'pending' && t.payment_method === 'cash').length;
             const pendingCount = pendingCashCount;
@@ -3732,7 +3732,7 @@ Alpine.store('app', {
                 cashCount: cashTx.length,
                 qrisCount: qrisTx.length,
                 qrisHakWarung,
-                cashHakAdmin,
+                cashHakWarung,
                 netSettlement,
                 paidCount: paidTx.length,
                 pendingCount,
@@ -3759,7 +3759,7 @@ Alpine.store('app', {
                         hakWarung: 0,
                         hakAdmin: 0,
                         qrisHakWarung: 0,
-                        cashHakAdmin: 0,
+                        cashHakWarung: 0,
                         txCount: 0
                     };
                 }
@@ -3775,20 +3775,19 @@ Alpine.store('app', {
 
                 if (t.payment_method === 'cash') {
                     s.totalCash += t.total_amount;
-                    s.cashHakAdmin += adminShare;
+                    s.cashHakWarung += ownerShare;
                 } else if (t.payment_method === 'qris') {
                     s.totalQris += t.total_amount;
                     s.qrisHakWarung += ownerShare;
                 }
             });
 
-            // Calculate net settlement per store
-            // net = qrisHakWarung - cashHakAdmin
-            // positive = admin bayar warung, negative = warung bayar admin
+            // Seluruh uang (cash maupun QRIS) ada di admin, jadi yang harus
+            // ditransfer ke warung adalah hak warung penuh — bukan sisa offset.
             return Object.values(storeMap).map(s => ({
                 ...s,
-                netSettlement: s.qrisHakWarung - s.cashHakAdmin,
-                cashDipegang: s.totalCash,   // uang fisik di tangan warung
+                netSettlement: s.hakWarung,
+                cashDipegang: s.totalCash,   // cash yang sudah disetor ke kasir admin
                 qrisDipegang: s.totalQris     // uang di rekening admin
             })).sort((a, b) => b.totalGross - a.totalGross);
         },

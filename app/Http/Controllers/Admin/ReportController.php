@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Models\Store;
 use App\Models\Transaction;
+use App\Services\ReportExportService;
 use App\Services\ReportService;
+use App\Support\ReportPeriod;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -43,39 +45,57 @@ class ReportController extends Controller
             $query->where('store_id', $storeFilter);
         }
 
+        $period = ReportPeriod::fromRequest($request);
+        $period->apply($query);
+
         $transactions = $query->get();
         $stores = $activeEvent ? Store::where('event_id', $activeEvent->id)->get() : collect();
 
-        return view('admin.laporan', compact('activeEvent', 'stats', 'transactions', 'stores', 'statusFilter', 'storeFilter'));
+        return view('admin.laporan', compact('activeEvent', 'stats', 'transactions', 'stores', 'statusFilter', 'storeFilter', 'period'));
     }
 
-    public function downloadPdf(Request $request): Response
+    public function downloadPdf(Request $request, ReportExportService $exporter)
     {
         $activeEvent = Event::getActive();
+        $period = ReportPeriod::fromRequest($request);
 
-        // 1. Download PDF khusus untuk satu tenant / warung tertentu
+        $format = $request->query('format', 'pdf');
+        if (!in_array($format, ReportExportService::FORMATS, true)) {
+            $format = 'pdf';
+        }
+
+        // 1. Laporan khusus untuk satu tenant / warung tertentu
         if ($request->filled('store_id') && $request->store_id !== 'all') {
             $store = Store::with('owner')->findOrFail($request->store_id);
             $user = $store->owner ?: auth()->user();
             $stats = $this->reportService->getStoreStats($store);
 
-            $transactions = Transaction::where('store_id', $store->id)
-                ->with(['items', 'revenueSplit'])
-                ->latest()
-                ->get();
+            $query = Transaction::where('store_id', $store->id)
+                ->with(['items', 'revenueSplit', 'cashier', 'paymentProof'])
+                ->latest();
+            $period->apply($query);
+            $transactions = $query->get();
 
-            $pdf = Pdf::loadView('reports.user-pdf', compact('user', 'store', 'activeEvent', 'stats', 'transactions'))
+            $judul = 'Laporan Stand ' . $store->name;
+
+            if ($format === 'csv') {
+                return $exporter->csv($transactions, $period, $judul, withStore: false);
+            }
+
+            if ($format === 'xlsx') {
+                return $exporter->xlsx($transactions, $period, $judul, withStore: false);
+            }
+
+            $pdf = Pdf::loadView('reports.user-pdf', compact('user', 'store', 'activeEvent', 'stats', 'transactions', 'period'))
                 ->setPaper('a4', 'portrait');
 
-            $fileName = 'Laporan_Stand_' . str_replace(' ', '_', $store->name) . '_' . date('Ymd_His') . '.pdf';
-
-            return $pdf->download($fileName);
+            return $pdf->download($exporter->fileName($judul, $period, 'pdf'));
         }
 
-        // 2. Default: Download PDF keseluruhan event (All)
+        // 2. Default: laporan keseluruhan event
         $stats = $this->reportService->getEventStats($activeEvent);
 
-        $query = Transaction::with(['store', 'revenueSplit'])
+        $query = Transaction::with(['store', 'revenueSplit', 'items', 'cashier', 'paymentProof'])
             ->latest();
 
         if ($activeEvent) {
@@ -84,14 +104,23 @@ class ReportController extends Controller
             });
         }
 
+        $period->apply($query);
         $transactions = $query->get();
         $stores = $activeEvent ? Store::where('event_id', $activeEvent->id)->get() : collect();
 
-        $pdf = Pdf::loadView('reports.admin-pdf', compact('activeEvent', 'stats', 'transactions', 'stores'))
+        $judul = 'Laporan EO ' . ($activeEvent ? $activeEvent->name : 'Event');
+
+        if ($format === 'csv') {
+            return $exporter->csv($transactions, $period, $judul);
+        }
+
+        if ($format === 'xlsx') {
+            return $exporter->xlsx($transactions, $period, $judul);
+        }
+
+        $pdf = Pdf::loadView('reports.admin-pdf', compact('activeEvent', 'stats', 'transactions', 'stores', 'period'))
             ->setPaper('a4', 'landscape');
 
-        $fileName = 'Laporan_EO_' . ($activeEvent ? str_replace(' ', '_', $activeEvent->name) : 'Event') . '_' . date('Ymd_His') . '.pdf';
-
-        return $pdf->download($fileName);
+        return $pdf->download($exporter->fileName($judul, $period, 'pdf'));
     }
 }

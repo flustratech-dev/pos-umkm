@@ -97,6 +97,7 @@
                     <div class="title" style="margin: 0; font-size: 15px;">AUDIT PLATFORM & BREAKDOWN PEMBAGIAN HASIL</div>
                     <div class="subtitle" style="font-weight: bold; color: #0f1419; font-size: 11px;">Platform Lisensi JADISATU Multi-Event</div>
                     <div class="subtitle">Pembagian: 75% Warung &bull; 25% EO &bull; Fee Dev 10% dari 25% (= 2.5%) &bull; JADISATU Event System</div>
+                    <div class="subtitle" style="font-weight: bold;">Periode Laporan: {{ isset($period) ? $period->label() : 'Semua Periode' }}</div>
                 </td>
             </tr>
         </table>

@@ -121,7 +121,7 @@
                 </div>
                 <div>
                     <h3 class="text-sm font-black text-[#0f1419]">Rekap Settlement per Warung</h3>
-                    <p class="text-[11px] text-[#536471] font-medium">Berapa yang harus admin transfer ke tiap warung setelah offset Cash vs QRIS</p>
+                    <p class="text-[11px] text-[#536471] font-medium">Seluruh uang (cash & QRIS) dipegang admin — ini hak warung yang harus ditransfer penuh</p>
                 </div>
             </div>
 
@@ -130,7 +130,7 @@
                 <div class="bg-[#f7f9f9] rounded-2xl p-3 text-center">
                     <span class="text-[10px] font-bold text-[#536471] uppercase block">💵 Total Cash</span>
                     <span class="text-sm font-black text-[#0f1419] mt-0.5 block" x-text="formatRupiah(stats.totalCash)"></span>
-                    <span class="text-[10px] text-[#536471] font-medium block">Dipegang warung</span>
+                    <span class="text-[10px] text-[#536471] font-medium block">Disetor ke admin</span>
                 </div>
                 <div class="bg-[#f7f9f9] rounded-2xl p-3 text-center">
                     <span class="text-[10px] font-bold text-[#536471] uppercase block">📱 Total QRIS</span>
@@ -138,14 +138,14 @@
                     <span class="text-[10px] text-[#536471] font-medium block">Dipegang admin</span>
                 </div>
                 <div class="bg-[#f7f9f9] rounded-2xl p-3 text-center">
-                    <span class="text-[10px] font-bold text-[#536471] uppercase block">Hak Admin di Cash</span>
-                    <span class="text-sm font-black text-[#0f1419] mt-0.5 block" x-text="formatRupiah(stats.cashHakAdmin)"></span>
-                    <span class="text-[10px] text-[#536471] font-medium block">25% dari transaksi cash</span>
+                    <span class="text-[10px] font-bold text-[#536471] uppercase block">Hak EO</span>
+                    <span class="text-sm font-black text-[#0f1419] mt-0.5 block" x-text="formatRupiah(stats.adminGross)"></span>
+                    <span class="text-[10px] text-[#536471] font-medium block">25%, tetap di admin</span>
                 </div>
-                <div class="rounded-2xl p-3 text-center" :class="stats.netSettlement >= 0 ? 'bg-emerald-50 border border-emerald-200' : 'bg-amber-50 border border-amber-200'">
-                    <span class="text-[10px] font-bold uppercase block" :class="stats.netSettlement >= 0 ? 'text-emerald-600' : 'text-amber-600'" x-text="stats.netSettlement >= 0 ? '🔄 Admin → Warung' : '🔄 Warung → Admin'"></span>
-                    <span class="text-sm font-black mt-0.5 block" :class="stats.netSettlement >= 0 ? 'text-emerald-700' : 'text-amber-700'" x-text="formatRupiah(Math.abs(stats.netSettlement))"></span>
-                    <span class="text-[10px] font-medium block" :class="stats.netSettlement >= 0 ? 'text-emerald-500' : 'text-amber-500'" x-text="stats.netSettlement >= 0 ? 'Total transfer ke warung' : 'Total warung setor ke admin'"></span>
+                <div class="rounded-2xl p-3 text-center bg-emerald-50 border border-emerald-200">
+                    <span class="text-[10px] font-bold uppercase block text-emerald-600">🔄 Admin → Warung</span>
+                    <span class="text-sm font-black mt-0.5 block text-emerald-700" x-text="formatRupiah(stats.netSettlement)"></span>
+                    <span class="text-[10px] font-medium block text-emerald-500">Total transfer ke warung (75% penuh)</span>
                 </div>
             </div>
         <!-- Per-Store Settlement Table -->
@@ -180,12 +180,8 @@
                                     <span class="text-[10px] font-bold text-emerald-600">Admin bayar</span>
                                     <span class="text-[10px] font-black text-emerald-700" x-text="formatRupiah(s.netSettlement)"></span>
                                 </div>
-                                <div x-show="s.netSettlement < 0" x-cloak class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200">
-                                    <span class="text-[10px] font-bold text-amber-600">Warung setor</span>
-                                    <span class="text-[10px] font-black text-amber-700" x-text="formatRupiah(Math.abs(s.netSettlement))"></span>
-                                </div>
                                 <div x-show="s.netSettlement === 0" x-cloak class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100">
-                                    <span class="text-[10px] font-bold text-slate-500">Lunas</span>
+                                    <span class="text-[10px] font-bold text-slate-500">Belum ada transaksi</span>
                                 </div>
                             </td>
                             <td class="px-4 py-3 text-center">
@@ -274,6 +270,65 @@
                 <option value="cancelled">Cancelled (Dibatalkan)</option>
                 <option value="rejected">Rejected</option>
             </select>
+
+            <!-- Filter Periode (menyatu dengan baris filter yang sudah ada) -->
+            <div
+                x-data="{
+                    from: new URLSearchParams(location.search).get('from') || '',
+                    to: new URLSearchParams(location.search).get('to') || '',
+                    terapkan() {
+                        const url = new URL(location.href);
+                        if (this.from && this.to) {
+                            url.searchParams.set('from', this.from);
+                            url.searchParams.set('to', this.to);
+                        } else if (this.from) {
+                            url.searchParams.set('from', this.from);
+                            url.searchParams.set('to', this.from);
+                        } else {
+                            url.searchParams.delete('from');
+                            url.searchParams.delete('to');
+                        }
+                        location.href = url.toString();
+                    },
+                    cepat(hari) {
+                        const d = new Date();
+                        const akhir = new Date(d);
+                        const awal = new Date(d);
+                        if (hari === 'kemarin') { awal.setDate(awal.getDate() - 1); akhir.setDate(akhir.getDate() - 1); }
+                        if (hari === '7hari') { awal.setDate(awal.getDate() - 6); }
+                        const f = (x) => x.toISOString().substring(0, 10);
+                        this.from = f(awal); this.to = f(akhir); this.terapkan();
+                    }
+                }"
+                class="flex items-center gap-2 shrink-0"
+            >
+                <input
+                    type="date"
+                    x-model="from"
+                    @change="if (to) terapkan()"
+                    class="px-3 py-2 bg-[#f7f9f9] border border-[#eff3f4] rounded-full text-xs font-black text-[#0f1419] focus:ring-2 focus:ring-[#1d9bf0] focus:outline-none cursor-pointer"
+                    title="Dari tanggal"
+                >
+                <span class="text-[10px] font-black text-[#536471]">s/d</span>
+                <input
+                    type="date"
+                    x-model="to"
+                    @change="terapkan()"
+                    class="px-3 py-2 bg-[#f7f9f9] border border-[#eff3f4] rounded-full text-xs font-black text-[#0f1419] focus:ring-2 focus:ring-[#1d9bf0] focus:outline-none cursor-pointer"
+                    title="Sampai tanggal"
+                >
+                <button @click="cepat('hariini')" type="button" class="px-3 py-2 bg-[#f7f9f9] hover:bg-[#e8f5fd] hover:text-[#1d9bf0] border border-[#eff3f4] rounded-full text-xs font-black text-[#0f1419] transition-colors cursor-pointer shrink-0">Hari Ini</button>
+                <button @click="cepat('kemarin')" type="button" class="px-3 py-2 bg-[#f7f9f9] hover:bg-[#e8f5fd] hover:text-[#1d9bf0] border border-[#eff3f4] rounded-full text-xs font-black text-[#0f1419] transition-colors cursor-pointer shrink-0">Kemarin</button>
+                <button @click="cepat('7hari')" type="button" class="px-3 py-2 bg-[#f7f9f9] hover:bg-[#e8f5fd] hover:text-[#1d9bf0] border border-[#eff3f4] rounded-full text-xs font-black text-[#0f1419] transition-colors cursor-pointer shrink-0">7 Hari</button>
+                <button
+                    x-show="from || to"
+                    x-cloak
+                    @click="from = ''; to = ''; terapkan()"
+                    type="button"
+                    class="px-3 py-2 bg-[#f4212e]/10 hover:bg-[#f4212e]/20 text-[#f4212e] rounded-full text-xs font-black transition-colors cursor-pointer shrink-0"
+                    title="Tampilkan semua periode"
+                >Reset</button>
+            </div>
         </div>
     </div>
 

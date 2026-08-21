@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Models\Store;
 use App\Models\Transaction;
+use App\Services\ReportExportService;
 use App\Services\ReportService;
+use App\Support\ReportPeriod;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -43,28 +45,47 @@ class ReportController extends Controller
             $query->where('status', $statusFilter);
         }
 
+        $period = ReportPeriod::fromRequest($request);
+        $period->apply($query);
+
         $transactions = $store ? $query->get() : collect();
 
-        return view('user.laporan', compact('user', 'store', 'activeEvent', 'stats', 'transactions', 'statusFilter'));
+        return view('user.laporan', compact('user', 'store', 'activeEvent', 'stats', 'transactions', 'statusFilter', 'period'));
     }
 
-    public function downloadPdf(): Response
+    public function downloadPdf(Request $request, ReportExportService $exporter)
     {
         $user = Auth::user();
         $store = $user->store ?: Store::where('owner_id', $user->id)->firstOrFail();
         $activeEvent = Event::getActive();
 
-        $stats = $this->reportService->getStoreStats($store);
-        $transactions = Transaction::where('store_id', $store->id)
-            ->with(['items', 'revenueSplit'])
-            ->latest()
-            ->get();
+        $period = ReportPeriod::fromRequest($request);
+        $format = $request->query('format', 'pdf');
+        if (!in_array($format, ReportExportService::FORMATS, true)) {
+            $format = 'pdf';
+        }
 
-        $pdf = Pdf::loadView('reports.user-pdf', compact('user', 'store', 'activeEvent', 'stats', 'transactions'))
+        $stats = $this->reportService->getStoreStats($store);
+
+        $query = Transaction::where('store_id', $store->id)
+            ->with(['items', 'revenueSplit', 'cashier', 'paymentProof'])
+            ->latest();
+        $period->apply($query);
+        $transactions = $query->get();
+
+        $judul = 'Laporan Penjualan ' . $store->name;
+
+        if ($format === 'csv') {
+            return $exporter->csv($transactions, $period, $judul, withStore: false);
+        }
+
+        if ($format === 'xlsx') {
+            return $exporter->xlsx($transactions, $period, $judul, withStore: false);
+        }
+
+        $pdf = Pdf::loadView('reports.user-pdf', compact('user', 'store', 'activeEvent', 'stats', 'transactions', 'period'))
             ->setPaper('a4', 'portrait');
 
-        $fileName = 'Laporan_Penjualan_' . str_replace(' ', '_', $store->name) . '_' . date('Ymd_His') . '.pdf';
-
-        return $pdf->download($fileName);
+        return $pdf->download($exporter->fileName($judul, $period, 'pdf'));
     }
 }

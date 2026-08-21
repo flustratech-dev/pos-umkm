@@ -96,7 +96,8 @@
                 <td style="border: none; text-align: {{ $logoBase64 ? 'left' : 'center' }}; vertical-align: middle; padding: 0 0 0 10px;">
                     <div class="title" style="margin: 0; font-size: 15px;">REKAPITULASI LAPORAN KEUANGAN PANITIA EO</div>
                     <div class="subtitle" style="font-weight: bold; color: #0f1419; font-size: 11px;">{{ $activeEvent?->name ?: 'Bazar UMKM' }} &bull; {{ $activeEvent?->location ?: 'Venue Event' }}</div>
-                    <div class="subtitle">Periode: {{ $activeEvent?->start_date?->format('d/m/Y') }} s/d {{ $activeEvent?->end_date?->format('d/m/Y') }} &bull; JADISATU Event System</div>
+                    <div class="subtitle">Event: {{ $activeEvent?->start_date?->format('d/m/Y') }} s/d {{ $activeEvent?->end_date?->format('d/m/Y') }} &bull; JADISATU Event System</div>
+                    <div class="subtitle" style="font-weight: bold;">Periode Laporan: {{ isset($period) ? $period->label() : 'Semua Periode' }}</div>
                 </td>
             </tr>
         </table>

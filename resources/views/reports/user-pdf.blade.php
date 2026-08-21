@@ -105,6 +105,7 @@
                     <div class="title" style="margin: 0; font-size: 15px;">LAPORAN PENJUALAN & BAGI HASIL STAND</div>
                     <div class="subtitle" style="font-weight: bold; color: #0f1419; font-size: 11px;">{{ $store->name }} ({{ $store->booth_number ?: 'Stand Tenant' }}) &bull; {{ $activeEvent?->name ?: 'Bazar UMKM' }}</div>
                     <div class="subtitle">Pemilik: {{ $user->name }} ({{ $user->phone ?: '-' }}) &bull; JADISATU Event System</div>
+                    <div class="subtitle" style="font-weight: bold;">Periode: {{ isset($period) ? $period->label() : 'Semua Periode' }}</div>
                 </td>
             </tr>
         </table>

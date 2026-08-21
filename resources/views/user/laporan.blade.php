@@ -158,6 +158,65 @@
                 <option value="cash">Cash / Tunai</option>
                 <option value="qris">QRIS</option>
             </select>
+
+            <!-- Filter Periode (menyatu dengan baris filter yang sudah ada) -->
+            <div
+                x-data="{
+                    from: new URLSearchParams(location.search).get('from') || '',
+                    to: new URLSearchParams(location.search).get('to') || '',
+                    terapkan() {
+                        const url = new URL(location.href);
+                        if (this.from && this.to) {
+                            url.searchParams.set('from', this.from);
+                            url.searchParams.set('to', this.to);
+                        } else if (this.from) {
+                            url.searchParams.set('from', this.from);
+                            url.searchParams.set('to', this.from);
+                        } else {
+                            url.searchParams.delete('from');
+                            url.searchParams.delete('to');
+                        }
+                        location.href = url.toString();
+                    },
+                    cepat(hari) {
+                        const d = new Date();
+                        const akhir = new Date(d);
+                        const awal = new Date(d);
+                        if (hari === 'kemarin') { awal.setDate(awal.getDate() - 1); akhir.setDate(akhir.getDate() - 1); }
+                        if (hari === '7hari') { awal.setDate(awal.getDate() - 6); }
+                        const f = (x) => x.toISOString().substring(0, 10);
+                        this.from = f(awal); this.to = f(akhir); this.terapkan();
+                    }
+                }"
+                class="flex items-center gap-2 shrink-0"
+            >
+                <input
+                    type="date"
+                    x-model="from"
+                    @change="if (to) terapkan()"
+                    class="px-3 py-2 bg-[#f7f9f9] border border-[#eff3f4] rounded-full text-xs font-black text-[#0f1419] focus:ring-2 focus:ring-[#1d9bf0] focus:outline-none cursor-pointer"
+                    title="Dari tanggal"
+                >
+                <span class="text-[10px] font-black text-[#536471]">s/d</span>
+                <input
+                    type="date"
+                    x-model="to"
+                    @change="terapkan()"
+                    class="px-3 py-2 bg-[#f7f9f9] border border-[#eff3f4] rounded-full text-xs font-black text-[#0f1419] focus:ring-2 focus:ring-[#1d9bf0] focus:outline-none cursor-pointer"
+                    title="Sampai tanggal"
+                >
+                <button @click="cepat('hariini')" type="button" class="px-3 py-2 bg-[#f7f9f9] hover:bg-[#e8f5fd] hover:text-[#1d9bf0] border border-[#eff3f4] rounded-full text-xs font-black text-[#0f1419] transition-colors cursor-pointer shrink-0">Hari Ini</button>
+                <button @click="cepat('kemarin')" type="button" class="px-3 py-2 bg-[#f7f9f9] hover:bg-[#e8f5fd] hover:text-[#1d9bf0] border border-[#eff3f4] rounded-full text-xs font-black text-[#0f1419] transition-colors cursor-pointer shrink-0">Kemarin</button>
+                <button @click="cepat('7hari')" type="button" class="px-3 py-2 bg-[#f7f9f9] hover:bg-[#e8f5fd] hover:text-[#1d9bf0] border border-[#eff3f4] rounded-full text-xs font-black text-[#0f1419] transition-colors cursor-pointer shrink-0">7 Hari</button>
+                <button
+                    x-show="from || to"
+                    x-cloak
+                    @click="from = ''; to = ''; terapkan()"
+                    type="button"
+                    class="px-3 py-2 bg-[#f4212e]/10 hover:bg-[#f4212e]/20 text-[#f4212e] rounded-full text-xs font-black transition-colors cursor-pointer shrink-0"
+                    title="Tampilkan semua periode"
+                >Reset</button>
+            </div>
         </div>
     </div>
 
