@@ -297,12 +297,12 @@
                             <td class="px-3.5 py-3 font-black text-[#0f1419]" x-text="tx.store_name"></td>
                             <td class="px-3.5 py-3">
                                 <span 
-                                    class="px-3 py-1 rounded-full font-black uppercase text-[10px]"
+                                     class="px-3 py-1 rounded-full font-black uppercase text-[10px]"
                                     :class="tx.payment_method === 'cash' ? 'bg-[#e8f5fd] text-[#1d9bf0] border border-[#bde2f9]' : 'bg-[#f0f8fe] text-[#1d9bf0] border border-[#bde2f9]'"
                                     x-text="tx.payment_method"
                                 ></span>
                             </td>
-                            <td class="px-3.5 py-3 font-black text-[#0f1419]" x-text="formatRupiah(tx.total_amount)"></td>
+                            <td class="px-3.5 py-3 font-black text-[#0f1419]" x-text="tx.is_without_payment || (tx.status === 'rejected' && tx.rejection_reason === 'Tanpa Pembayaran') ? '-' : formatRupiah(tx.total_amount)"></td>
                             <td class="px-3.5 py-3 font-black text-[#1d9bf0]" x-text="tx.status === 'paid' ? formatRupiah(tx.revenue_split?.owner_share || tx.total_amount * 0.75) : '-'"></td>
                             <td class="px-3.5 py-3 font-black text-[#0f1419] bg-[#f7f9f9]" x-text="tx.status === 'paid' ? formatRupiah(tx.revenue_split?.admin_gross_share || tx.total_amount * 0.25) : '-'"></td>
                             <td class="px-3.5 py-3">
@@ -310,16 +310,24 @@
                                     class="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[10px] font-bold"
                                     :class="{
                                         'bg-[#e8f5fd] text-[#1d9bf0] border border-[#bde2f9]': tx.status === 'paid',
-                                        'bg-amber-50 text-[#ff7a00] border border-amber-200': tx.status === 'pending_verification' || tx.status === 'pending',
-                                        'bg-rose-50 text-[#f4212e] border border-rose-200': tx.status === 'rejected',
+                                        'bg-amber-50 text-amber-700 border border-amber-200': tx.is_without_payment || (tx.status === 'rejected' && tx.rejection_reason === 'Tanpa Pembayaran'),
+                                        'bg-amber-50 text-[#ff7a00] border border-amber-200': !tx.is_without_payment && (tx.status === 'pending_verification' || tx.status === 'pending'),
+                                        'bg-rose-50 text-[#f4212e] border border-rose-200': tx.status === 'rejected' && !tx.is_without_payment && tx.rejection_reason !== 'Tanpa Pembayaran',
                                         'bg-slate-100 text-slate-500 line-through': tx.status === 'cancelled'
                                     }"
                                 >
-                                    <span x-text="tx.status === 'pending_verification' ? 'Pending Verif' : (tx.status === 'pending' ? 'Belum Bayar' : tx.status)"></span>
+                                    <span x-text="tx.is_without_payment || (tx.status === 'rejected' && tx.rejection_reason === 'Tanpa Pembayaran') ? 'Tanpa Pembayaran' : (tx.status === 'pending_verification' ? 'Pending Verif' : (tx.status === 'pending' ? 'Belum Bayar' : tx.status))"></span>
                                 </span>
                             </td>
                             <td class="px-3.5 py-3 text-center">
                                 <div class="flex items-center justify-center gap-1.5">
+                                    <!-- Tanpa Pembayaran Badge in Action column -->
+                                    <template x-if="tx.is_without_payment || (tx.status === 'rejected' && tx.rejection_reason === 'Tanpa Pembayaran')">
+                                        <span class="px-2.5 py-1 bg-amber-50 text-amber-700 text-[10px] font-black rounded-full border border-amber-200">
+                                            Tanpa Pembayaran
+                                        </span>
+                                    </template>
+
                                     <!-- QRIS Proof Button -->
                                     <!-- QRIS lunas tanpa bukti (bukti gagal diunggah saat transaksi) -->
                                     <template x-if="tx.is_proof_missing">
@@ -384,11 +392,12 @@
                             class="px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold shrink-0"
                             :class="{
                                 'bg-[#e8f5fd] text-[#1d9bf0] border border-[#bde2f9]': tx.status === 'paid',
-                                'bg-amber-50 text-[#ff7a00] border border-amber-200': tx.status === 'pending_verification' || tx.status === 'pending',
-                                'bg-rose-50 text-[#f4212e] border border-rose-200': tx.status === 'rejected',
+                                'bg-amber-50 text-amber-700 border border-amber-200': tx.is_without_payment || (tx.status === 'rejected' && tx.rejection_reason === 'Tanpa Pembayaran'),
+                                'bg-amber-50 text-[#ff7a00] border border-amber-200': !tx.is_without_payment && (tx.status === 'pending_verification' || tx.status === 'pending'),
+                                'bg-rose-50 text-[#f4212e] border border-rose-200': tx.status === 'rejected' && !tx.is_without_payment && tx.rejection_reason !== 'Tanpa Pembayaran',
                                 'bg-slate-100 text-slate-500': tx.status === 'cancelled'
                             }"
-                            x-text="tx.status === 'pending_verification' ? 'Pending Verif' : (tx.status === 'pending' ? 'Belum Bayar' : tx.status)"
+                            x-text="tx.is_without_payment || (tx.status === 'rejected' && tx.rejection_reason === 'Tanpa Pembayaran') ? 'Tanpa Pembayaran' : (tx.status === 'pending_verification' ? 'Pending Verif' : (tx.status === 'pending' ? 'Belum Bayar' : tx.status))"
                         ></span>
                     </div>
 
@@ -396,7 +405,7 @@
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs py-1.5 sm:py-2 border-y border-[#eff3f4]">
                         <div>
                             <span class="text-[9px] sm:text-[10px] text-[#536471] block font-semibold">Total Omzet</span>
-                            <span class="font-black text-[11px] sm:text-xs text-[#0f1419] truncate block" x-text="formatRupiah(tx.total_amount)"></span>
+                            <span class="font-black text-[11px] sm:text-xs text-[#0f1419] truncate block" x-text="tx.is_without_payment || (tx.status === 'rejected' && tx.rejection_reason === 'Tanpa Pembayaran') ? '-' : formatRupiah(tx.total_amount)"></span>
                         </div>
                         <div>
                             <span class="text-[9px] sm:text-[10px] text-[#536471] block font-semibold">Metode</span>
@@ -415,7 +424,7 @@
 
                 <!-- Footer Actions -->
                 <div class="flex flex-wrap items-center justify-between gap-1.5 pt-1">
-                    <div class="flex gap-1.5">
+                    <div class="flex items-center gap-1.5">
                         <button 
                             @click="$store.app.openReceipt(tx)"
                             class="px-3 sm:px-4 py-1 bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white text-[10px] sm:text-xs font-black rounded-full shadow-xs cursor-pointer"
@@ -429,6 +438,11 @@
                             >
                                 Bukti
                             </button>
+                        </template>
+                        <template x-if="tx.is_without_payment || (tx.status === 'rejected' && tx.rejection_reason === 'Tanpa Pembayaran')">
+                            <span class="px-2 py-0.5 bg-amber-50 text-amber-700 text-[9px] font-black rounded-full border border-amber-200">
+                                Tanpa Pembayaran
+                            </span>
                         </template>
                     </div>
 

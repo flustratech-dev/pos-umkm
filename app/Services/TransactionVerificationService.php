@@ -90,4 +90,29 @@ class TransactionVerificationService
             return $transaction->load(['items', 'store', 'verifier', 'revenueSplit']);
         });
     }
+
+    /**
+     * Complete pending cash transaction without payment (anomalous transaction / no cash received).
+     */
+    public function completeWithoutPayment(Transaction $transaction, User $verifier, string $reason = 'Tanpa Pembayaran'): Transaction
+    {
+        if (!in_array($transaction->status, ['pending', 'pending_verification'])) {
+            throw new InvalidArgumentException("Transaksi tidak dalam status pending (Status saat ini: {$transaction->status}).");
+        }
+
+        return DB::transaction(function () use ($transaction, $verifier, $reason) {
+            $transaction->update([
+                'status' => 'rejected',
+                'verified_by' => $verifier->id,
+                'verified_at' => now(),
+                'rejection_reason' => $reason ?: 'Tanpa Pembayaran',
+            ]);
+
+            if ($transaction->revenueSplit) {
+                $transaction->revenueSplit()->delete();
+            }
+
+            return $transaction->load(['items', 'store', 'verifier']);
+        });
+    }
 }

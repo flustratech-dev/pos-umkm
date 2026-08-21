@@ -111,6 +111,38 @@ class CashVerificationController extends Controller
     }
 
     /**
+     * Complete pending cash transaction without payment (clears from queue and marks as Tanpa Pembayaran).
+     */
+    public function completeWithoutPayment(Transaction $transaction): JsonResponse|RedirectResponse
+    {
+        $user = Auth::user();
+
+        try {
+            $this->verificationService->completeWithoutPayment($transaction, $user, 'Tanpa Pembayaran');
+
+            if (request()->expectsJson() || request()->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => "Transaksi {$transaction->invoice_code} berhasil diselesaikan tanpa pembayaran.",
+                    'transaction' => $transaction,
+                ]);
+            }
+
+            return redirect()->route('admin.verifikasi-cash.index')
+                ->with('success', "Transaksi {$transaction->invoice_code} berhasil diselesaikan tanpa pembayaran.");
+        } catch (Exception $e) {
+            if (request()->expectsJson() || request()->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $e->getMessage(),
+                ], 422);
+            }
+
+            return redirect()->back()->with('error', $e->getMessage());
+        }
+    }
+
+    /**
      * Delete pending or rejected cash transaction permanently (useful for test/anomaly transactions).
      */
     public function destroy(Transaction $transaction): JsonResponse|RedirectResponse

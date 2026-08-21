@@ -51,6 +51,52 @@
                 this.isConfirming = false;
             }
         }
+    },
+
+    async completeWithoutPayment(transactionId) {
+        if (this.isConfirming) return;
+        
+        const result = await Swal.fire({
+            title: 'Selesaikan Tanpa Pembayaran?',
+            text: 'Transaksi ini akan diselesaikan tanpa uang masuk dan nominalnya tidak akan dihitung ke omzet maupun bagi hasil.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#f59e0b',
+            cancelButtonColor: '#eff3f4',
+            confirmButtonText: 'Ya, Selesaikan Tanpa Pembayaran',
+            cancelButtonText: '<span class=\'text-[#0f1419]\'>Batal</span>'
+        });
+
+        if (result.isConfirmed) {
+            this.isConfirming = true;
+            try {
+                const response = await fetch(`/admin/verifikasi-cash/${transactionId}/without-payment`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
+                        'Accept': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    await Swal.fire({
+                        icon: 'success',
+                        title: 'Berhasil!',
+                        text: data.message || 'Transaksi telah diselesaikan tanpa pembayaran.',
+                        confirmButtonColor: '#1d9bf0'
+                    });
+                    window.location.reload();
+                } else {
+                    Swal.fire('Gagal', data.message || 'Terjadi kesalahan.', 'error');
+                }
+            } catch (e) {
+                Swal.fire('Error', 'Gagal terhubung ke server.', 'error');
+            } finally {
+                this.isConfirming = false;
+            }
+        }
     }
 }">
     <!-- Header Banner -->
@@ -138,8 +184,8 @@
                     </div>
                 </div>
 
-                <!-- Action Button -->
-                <div class="pt-3 border-t border-[#eff3f4] mt-3.5">
+                <!-- Action Buttons -->
+                <div class="pt-3 border-t border-[#eff3f4] mt-3.5 space-y-2">
                     <button 
                         type="button"
                         @click="confirmCash({{ $trx->id }})"
@@ -148,6 +194,15 @@
                     >
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
                         <span>Konfirmasi Sudah Dibayar</span>
+                    </button>
+                    <button 
+                        type="button"
+                        @click="completeWithoutPayment({{ $trx->id }})"
+                        :disabled="isConfirming"
+                        class="w-full py-2 px-3 rounded-full bg-[#f7f9f9] hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200 border border-[#eff3f4] disabled:opacity-50 text-[#536471] text-xs font-bold transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
+                    >
+                        <svg class="w-3.5 h-3.5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
+                        <span>Selesaikan Verifikasi Tanpa Pembayaran</span>
                     </button>
                 </div>
             </div>
@@ -186,9 +241,22 @@
                             <td class="px-5 py-3 text-xs text-[#536471] font-semibold">{{ $history->updated_at->format('d M, H:i') }}</td>
                             <td class="px-5 py-3 text-xs font-black text-[#0f1419]">{{ $history->invoice_code }}</td>
                             <td class="px-5 py-3 text-xs text-[#536471] font-semibold">{{ $history->store->name ?? '-' }}</td>
-                            <td class="px-5 py-3 text-xs font-black text-[#00ba7c] text-right">Rp {{ number_format($history->total_amount, 0, ',', '.') }}</td>
+                            <td class="px-5 py-3 text-right">
+                                @if($history->is_without_payment)
+                                    <span class="text-xs font-black text-amber-600">Rp 0</span>
+                                    <span class="text-[9px] text-[#536471] block font-medium">Tanpa Pembayaran</span>
+                                @elseif($history->status === 'paid')
+                                    <span class="text-xs font-black text-[#00ba7c]">Rp {{ number_format($history->total_amount, 0, ',', '.') }}</span>
+                                @else
+                                    <span class="text-xs font-semibold text-[#536471] line-through">Rp {{ number_format($history->total_amount, 0, ',', '.') }}</span>
+                                @endif
+                            </td>
                             <td class="px-5 py-3 text-center">
-                                @if($history->status === 'paid')
+                                @if($history->is_without_payment)
+                                    <span class="inline-block px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 text-[10px] font-black border border-amber-200">
+                                        TANPA PEMBAYARAN
+                                    </span>
+                                @elseif($history->status === 'paid')
                                     <span class="inline-block px-2.5 py-1 rounded-lg bg-[#e6f8f2] text-[#00ba7c] text-[10px] font-black border border-[#a6e9d5]">
                                         LUNAS
                                     </span>

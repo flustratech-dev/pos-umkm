@@ -136,6 +136,8 @@
                 'amount_paid' => $t->amount_paid ? (float)$t->amount_paid : null,
                 'change_due' => $t->change_due ? (float)$t->change_due : null,
                 'status' => $t->status,
+                'rejection_reason' => $t->rejection_reason,
+                'is_without_payment' => $t->is_without_payment,
                 'paid_at' => $t->paid_at ? $t->paid_at->toIso8601String() : null,
                 'created_at' => $t->created_at ? $t->created_at->toIso8601String() : null,
                 'payment_proof' => $t->paymentProof ? $t->paymentProof->proof_url : null,

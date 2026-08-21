@@ -185,32 +185,39 @@
                                     x-text="tx.payment_method"
                                 ></span>
                             </td>
-                            <td class="px-4 py-3 font-black text-[#0f1419]" x-text="formatRupiah(tx.total_amount)"></td>
+                            <td class="px-4 py-3 font-black text-[#0f1419]" x-text="tx.is_without_payment || (tx.status === 'rejected' && tx.rejection_reason === 'Tanpa Pembayaran') ? '-' : formatRupiah(tx.total_amount)"></td>
                             <td class="px-4 py-3 font-black text-[#0f1419]" x-text="tx.status === 'paid' ? formatRupiah(tx.revenue_split?.admin_gross_share || tx.total_amount * 0.25) : '-'"></td>
-                            <td class="px-4 py-3 text-[#0f1419] font-bold" x-text="tx.payment_method === 'cash' ? formatRupiah(tx.amount_paid) : '-'"></td>
-                            <td class="px-4 py-3 text-[#1d9bf0] font-black" x-text="tx.payment_method === 'cash' ? formatRupiah(tx.change_due) : '-'"></td>
+                            <td class="px-4 py-3 text-[#0f1419] font-bold" x-text="tx.is_without_payment || tx.status !== 'paid' ? '-' : (tx.payment_method === 'cash' ? formatRupiah(tx.amount_paid) : '-')"></td>
+                            <td class="px-4 py-3 text-[#1d9bf0] font-black" x-text="tx.is_without_payment || tx.status !== 'paid' ? '-' : (tx.payment_method === 'cash' ? formatRupiah(tx.change_due) : '-')"></td>
                             <td class="px-4 py-3 font-black text-[#1d9bf0]" x-text="tx.status === 'paid' ? formatRupiah(tx.revenue_split?.owner_share || tx.total_amount * 0.75) : '-'"></td>
                             <td class="px-4 py-3">
                                 <span 
                                     class="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[10px] font-bold"
                                     :class="{
                                         'bg-[#e8f5fd] text-[#1d9bf0] border border-[#bde2f9]': tx.status === 'paid',
-                                        'bg-amber-50 text-[#ff7a00] border border-amber-200': tx.status === 'pending_verification' || tx.status === 'pending',
-                                        'bg-rose-50 text-[#f4212e] border border-rose-200': tx.status === 'rejected',
+                                        'bg-amber-50 text-amber-700 border border-amber-200': tx.is_without_payment || (tx.status === 'rejected' && tx.rejection_reason === 'Tanpa Pembayaran'),
+                                        'bg-amber-50 text-[#ff7a00] border border-amber-200': !tx.is_without_payment && (tx.status === 'pending_verification' || tx.status === 'pending'),
+                                        'bg-rose-50 text-[#f4212e] border border-rose-200': tx.status === 'rejected' && !tx.is_without_payment && tx.rejection_reason !== 'Tanpa Pembayaran',
                                         'bg-slate-100 text-slate-500 line-through': tx.status === 'cancelled'
                                     }"
                                 >
                                     <span class="w-1.5 h-1.5 rounded-full" :class="{
                                         'bg-[#1d9bf0]': tx.status === 'paid',
-                                        'bg-[#ff7a00]': tx.status === 'pending_verification' || tx.status === 'pending',
-                                        'bg-[#f4212e]': tx.status === 'rejected',
+                                        'bg-amber-500': tx.is_without_payment || (tx.status === 'rejected' && tx.rejection_reason === 'Tanpa Pembayaran'),
+                                        'bg-[#ff7a00]': !tx.is_without_payment && (tx.status === 'pending_verification' || tx.status === 'pending'),
+                                        'bg-[#f4212e]': tx.status === 'rejected' && !tx.is_without_payment && tx.rejection_reason !== 'Tanpa Pembayaran',
                                         'bg-slate-400': tx.status === 'cancelled'
                                     }"></span>
-                                    <span x-text="tx.status === 'pending_verification' ? 'Pending Verif' : (tx.status === 'pending' ? 'Belum Bayar' : tx.status)"></span>
+                                    <span x-text="tx.is_without_payment || (tx.status === 'rejected' && tx.rejection_reason === 'Tanpa Pembayaran') ? 'Tanpa Pembayaran' : (tx.status === 'pending_verification' ? 'Pending Verif' : (tx.status === 'pending' ? 'Belum Bayar' : tx.status))"></span>
                                 </span>
                             </td>
                             <td class="px-4 py-3 text-center">
-                                <div class="flex items-center justify-center gap-1">
+                                <div class="flex items-center justify-center gap-1.5">
+                                    <template x-if="tx.is_without_payment || (tx.status === 'rejected' && tx.rejection_reason === 'Tanpa Pembayaran')">
+                                        <span class="px-2 py-0.5 bg-amber-50 text-amber-700 text-[9px] font-black rounded-full border border-amber-200">
+                                            Tanpa Pembayaran
+                                        </span>
+                                    </template>
                                     <!-- QRIS lunas tanpa bukti (bukti gagal diunggah saat transaksi) -->
                                     <template x-if="tx.is_proof_missing">
                                         <span
@@ -260,18 +267,19 @@
                             class="px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold shrink-0"
                             :class="{
                                 'bg-[#e8f5fd] text-[#1d9bf0] border border-[#bde2f9]': tx.status === 'paid',
-                                'bg-amber-50 text-[#ff7a00] border border-amber-200': tx.status === 'pending_verification' || tx.status === 'pending',
-                                'bg-rose-50 text-[#f4212e] border border-rose-200': tx.status === 'rejected',
+                                'bg-amber-50 text-amber-700 border border-amber-200': tx.is_without_payment || (tx.status === 'rejected' && tx.rejection_reason === 'Tanpa Pembayaran'),
+                                'bg-amber-50 text-[#ff7a00] border border-amber-200': !tx.is_without_payment && (tx.status === 'pending_verification' || tx.status === 'pending'),
+                                'bg-rose-50 text-[#f4212e] border border-rose-200': tx.status === 'rejected' && !tx.is_without_payment && tx.rejection_reason !== 'Tanpa Pembayaran',
                                 'bg-slate-100 text-slate-500': tx.status === 'cancelled'
                             }"
-                            x-text="tx.status === 'pending_verification' ? 'Pending Verif' : (tx.status === 'pending' ? 'Belum Bayar' : tx.status)"
+                            x-text="tx.is_without_payment || (tx.status === 'rejected' && tx.rejection_reason === 'Tanpa Pembayaran') ? 'Tanpa Pembayaran' : (tx.status === 'pending_verification' ? 'Pending Verif' : (tx.status === 'pending' ? 'Belum Bayar' : tx.status))"
                         ></span>
                     </div>
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs py-1.5 sm:py-2 border-y border-[#eff3f4]">
                         <div>
                             <span class="text-[9px] sm:text-[10px] text-[#536471] block font-semibold">Total Transaksi</span>
-                            <span class="font-black text-[11px] sm:text-xs text-[#0f1419] truncate block" x-text="formatRupiah(tx.total_amount)"></span>
+                            <span class="font-black text-[11px] sm:text-xs text-[#0f1419] truncate block" x-text="tx.is_without_payment || (tx.status === 'rejected' && tx.rejection_reason === 'Tanpa Pembayaran') ? '-' : formatRupiah(tx.total_amount)"></span>
                         </div>
                         <div>
                             <span class="text-[9px] sm:text-[10px] text-[#536471] block font-semibold">Potongan EO (25%)</span>
@@ -285,13 +293,13 @@
                         <template x-if="tx.payment_method === 'cash'">
                             <div>
                                 <span class="text-[9px] sm:text-[10px] text-[#536471] block font-semibold">Uang Diterima</span>
-                                <span class="font-black text-[11px] sm:text-xs text-[#0f1419] truncate block" x-text="formatRupiah(tx.amount_paid)"></span>
+                                <span class="font-black text-[11px] sm:text-xs text-[#0f1419] truncate block" x-text="tx.is_without_payment ? '-' : formatRupiah(tx.amount_paid)"></span>
                             </div>
                         </template>
                         <template x-if="tx.payment_method === 'cash'">
                             <div>
                                 <span class="text-[9px] sm:text-[10px] text-[#536471] block font-semibold">Kembalian</span>
-                                <span class="font-black text-[11px] sm:text-xs text-[#1d9bf0] truncate block" x-text="formatRupiah(tx.change_due)"></span>
+                                <span class="font-black text-[11px] sm:text-xs text-[#1d9bf0] truncate block" x-text="tx.is_without_payment ? '-' : formatRupiah(tx.change_due)"></span>
                             </div>
                         </template>
                     </div>
@@ -304,7 +312,12 @@
                     </div>
 
                     <!-- Action Buttons -->
-                    <div class="flex items-center gap-1">
+                    <div class="flex items-center gap-1.5">
+                        <template x-if="tx.is_without_payment || (tx.status === 'rejected' && tx.rejection_reason === 'Tanpa Pembayaran')">
+                            <span class="px-2 py-0.5 bg-amber-50 text-amber-700 text-[9px] font-black rounded-full border border-amber-200">
+                                Tanpa Pembayaran
+                            </span>
+                        </template>
                         <template x-if="tx.payment_method === 'qris' && (tx.proof_image || tx.payment_proof)">
                             <button 
                                 @click="selectedProofUrl = tx.proof_image || tx.payment_proof; proofModalOpen = true"
