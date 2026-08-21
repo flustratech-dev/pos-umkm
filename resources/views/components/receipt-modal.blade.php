@@ -54,12 +54,13 @@
                 </button>
             </div>
 
-            <!-- Kode Transaksi Unik -->
+            <!-- Nomor Antrean / Kode Transaksi Unik -->
             <div class="my-4 text-center">
-                <p class="text-xs text-[#536471] font-bold uppercase tracking-wider mb-1">KODE TRANSAKSI</p>
-                <div class="inline-block px-6 py-2 bg-[#1d9bf0]/10 border border-[#1d9bf0]/20 rounded-xl">
-                    <span class="text-4xl font-black text-[#1d9bf0] tracking-widest" x-text="String($store.app.activeReceiptTransaction?.id || 0).padStart(4, '0')"></span>
+                <p class="text-xs text-[#536471] font-black uppercase tracking-wider mb-1">NOMOR ANTREAN</p>
+                <div class="inline-block px-6 py-2 bg-[#1d9bf0]/10 border border-[#1d9bf0]/20 rounded-2xl shadow-2xs">
+                    <span class="text-4xl sm:text-5xl font-black text-[#1d9bf0] tracking-widest" x-text="`#${String($store.app.activeReceiptTransaction?.id || 0).padStart(4, '0')}`"></span>
                 </div>
+                <p class="text-[11px] text-[#536471] font-semibold mt-1">Tunjukkan nomor antrean ini ke Kasir untuk pembayaran</p>
             </div>
 
             <!-- Receipt Summary Card -->
@@ -67,7 +68,7 @@
                 <template x-if="$store.app.activeReceiptTransaction?.status === 'pending' && $store.app.activeReceiptTransaction?.payment_method === 'cash'">
                     <div class="mb-2 bg-[#fff9e6] border border-[#ffcc00] text-[#856600] px-4 py-3 rounded-2xl text-[11px] font-bold text-center flex items-center justify-center gap-2">
                         <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                        BELUM DIBAYAR — Silakan bayar di Kasir Admin (dekat pintu keluar)
+                        BELUM DIBAYAR — Tunjukkan Nomor Antrean ini ke Kasir untuk pembayaran
                     </div>
                 </template>
 

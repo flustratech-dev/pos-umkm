@@ -753,7 +753,7 @@ Alpine.store('app', {
                     this.receiptModalOpen = true;
                     this.isCheckoutOpen = false;
                     this.clearCart();
-                    this.notify('success', 'Berhasil!', 'Pesanan berhasil dibuat! Silakan arahkan pembeli ke Kasir Admin untuk pembayaran.');
+                    this.notify('success', 'Berhasil!', 'Pesanan berhasil dibuat! Silakan arahkan pembeli ke Kasir untuk pembayaran.');
                 }
             } catch (error) {
                 this.notify('error', 'Gagal', error.message);
@@ -1564,10 +1564,20 @@ Alpine.store('app', {
                         color: #1d4ed8;
                         text-align: center;
                         margin: 16px 0;
-                        padding: 8px;
+                        padding: 10px;
                         border: 2px dashed #1d4ed8;
-                        border-radius: 8px;
-                        letter-spacing: 4px;
+                        border-radius: 12px;
+                        letter-spacing: 3px;
+                        background: #f0f7ff;
+                    }
+                    .transaction-code-label {
+                        font-size: 10px;
+                        font-weight: 800;
+                        color: #64748b;
+                        letter-spacing: 1px;
+                        text-transform: uppercase;
+                        display: block;
+                        margin-bottom: 2px;
                     }
                     .badge-paid {
                         display: inline-block;
@@ -1682,7 +1692,8 @@ Alpine.store('app', {
             <body onload="window.print(); window.onafterprint = function(){ window.close(); }">
                 <div class="container">
                     <div class="transaction-code">
-                        ${String(tx.id || 0).padStart(4, '0')}
+                        <span class="transaction-code-label">NOMOR ANTREAN / KODE TRANSAKSI</span>
+                        #${String(tx.id || 0).padStart(4, '0')}
                     </div>
                     <!-- Header -->
                     <div class="header">

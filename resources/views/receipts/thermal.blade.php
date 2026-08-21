@@ -36,6 +36,12 @@
 
     <div class="double-line"></div>
 
+    <!-- NOMOR ANTREAN PROMINENT BOX -->
+    <div class="text-center" style="margin: 6px 0; padding: 4px; border: 2px dashed #000; border-radius: 4px;">
+        <div style="font-size: 9px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">NOMOR ANTREAN</div>
+        <div class="bold" style="font-size: 24px; letter-spacing: 3px;">#{{ str_pad($transaction->id, 4, '0', STR_PAD_LEFT) }}</div>
+    </div>
+
     <div class="flex-between" style="font-size: 11px;">
         <span>No: {{ $transaction->invoice_code }}</span>
         <span>{{ $transaction->paid_at ? $transaction->paid_at->format('d/m/y H:i') : $transaction->created_at->format('d/m/y H:i') }}</span>
@@ -46,9 +52,9 @@
     <div class="line"></div>
 
     @if($transaction->status === 'pending' && $transaction->payment_method === 'cash')
-    <div class="text-center bold" style="margin: 8px 0; padding: 4px; border: 1px dashed #000; font-size: 13px;">
+    <div class="text-center bold" style="margin: 8px 0; padding: 6px; border: 1px dashed #000; font-size: 13px;">
         BELUM DIBAYAR<br>
-        <span style="font-size: 10px;">Silakan bayar di Kasir Admin<br>(dekat pintu keluar)</span>
+        <span style="font-size: 10px; font-weight: normal;">Tunjukkan No. Antrean <strong>#{{ str_pad($transaction->id, 4, '0', STR_PAD_LEFT) }}</strong><br>ke Kasir untuk pembayaran</span>
     </div>
     <div class="line"></div>
     @endif

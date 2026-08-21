@@ -14,9 +14,15 @@
         const store = this.$store?.app?.getCurrentStore?.();
         const storeId = store ? store.id : null;
         const txs = this.$store?.app?.transactions || [];
+        const q = (this.searchInvoice || '').toLowerCase().trim().replace(/^#/, '');
         return txs.filter(t => {
+            const idStr = String(t.id || '');
+            const paddedId = idStr.padStart(4, '0');
             const matchesStore = storeId ? (t.store_id == storeId) : true;
-            const matchesSearch = !this.searchInvoice || (t.invoice_code || '').toLowerCase().includes(this.searchInvoice.toLowerCase());
+            const matchesSearch = !q || 
+                                  (t.invoice_code || '').toLowerCase().includes(q) ||
+                                  idStr.includes(q) ||
+                                  paddedId.includes(q);
             const matchesStatus = this.selectedStatus === 'all' || t.status === this.selectedStatus;
             const matchesMethod = this.selectedMethod === 'all' || t.payment_method === this.selectedMethod;
             return matchesStore && matchesSearch && matchesStatus && matchesMethod;
@@ -126,7 +132,7 @@
             <input 
                 type="text" 
                 x-model="searchInvoice"
-                placeholder="Cari nomor invoice (mis. INV/001)..." 
+                placeholder="Cari No. Antrean (misal: 0001) atau nomor invoice..." 
                 class="w-full pl-9 pr-4 py-2 bg-[#f7f9f9] border border-[#eff3f4] rounded-full text-xs sm:text-sm text-[#0f1419] placeholder-[#536471] focus:ring-2 focus:ring-[#1d9bf0] focus:outline-none font-semibold"
             >
         </div>
@@ -161,7 +167,7 @@
             <table class="w-full text-left text-xs text-[#0f1419]">
                 <thead class="bg-[#f7f9f9] border-b border-[#eff3f4] text-[10px] uppercase font-black text-[#0f1419] tracking-wider">
                     <tr>
-                        <th class="px-4 py-3.5">Invoice</th>
+                        <th class="px-4 py-3.5">Invoice / Antrean</th>
                         <th class="px-4 py-3.5">Waktu</th>
                         <th class="px-4 py-3.5">Metode</th>
                         <th class="px-4 py-3.5">Total Belanja</th>
@@ -176,7 +182,12 @@
                 <tbody class="divide-y divide-[#eff3f4] font-medium">
                     <template x-for="tx in myTransactions" :key="tx.id">
                         <tr class="hover:bg-[#f7f9f9] transition-colors">
-                            <td class="px-4 py-3 font-black text-[#0f1419]" x-text="tx.invoice_code"></td>
+                            <td class="px-4 py-3 font-black text-[#0f1419]">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="px-2 py-0.5 rounded-lg bg-[#e8f5fd] text-[#1d9bf0] text-[10px] font-black shrink-0" x-text="`#${String(tx.id || 0).padStart(4, '0')}`"></span>
+                                    <span class="truncate" x-text="tx.invoice_code"></span>
+                                </div>
+                            </td>
                             <td class="px-4 py-3 text-[#536471] font-semibold" x-text="formatDateTime(tx.paid_at || tx.created_at)"></td>
                             <td class="px-4 py-3">
                                 <span 
@@ -259,7 +270,10 @@
                 <div class="space-y-2">
                     <div class="flex items-start justify-between gap-1">
                         <div class="min-w-0 flex-1">
-                            <span class="font-black text-[11px] sm:text-xs text-[#0f1419] truncate block" x-text="tx.invoice_code"></span>
+                            <div class="flex items-center gap-1 mb-0.5">
+                                <span class="px-1.5 py-0.5 rounded-md bg-[#e8f5fd] text-[#1d9bf0] text-[9px] font-black shrink-0" x-text="`#${String(tx.id || 0).padStart(4, '0')}`"></span>
+                                <span class="font-black text-[11px] sm:text-xs text-[#0f1419] truncate block" x-text="tx.invoice_code"></span>
+                            </div>
                             <span class="text-[9px] sm:text-[10px] text-[#536471] block font-medium truncate" x-text="formatDateTime(tx.paid_at || tx.created_at)"></span>
                         </div>
 
