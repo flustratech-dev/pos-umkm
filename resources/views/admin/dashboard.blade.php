@@ -508,7 +508,10 @@ async function renderAdminMethodChart() {
                 <tbody class="divide-y divide-[#eff3f4]">
                     <template x-for="tx in $store.app.transactions.slice(0, 5)" :key="tx.id">
                         <tr class="hover:bg-[#f7f9f9]">
-                            <td class="px-4 py-3 font-black text-[#0f1419]" x-text="tx.invoice_code"></td>
+                            <td class="px-4 py-3 font-black text-[#0f1419]">
+                                <span class="px-2 py-0.5 rounded-lg bg-[#e8f5fd] text-[#1d9bf0] text-[10px] font-black mr-1" x-text="`#${String(tx.id || 0).padStart(4, '0')}`"></span>
+                                <span x-text="tx.invoice_code"></span>
+                            </td>
                             <td class="px-4 py-3 text-[#0f1419] font-bold" x-text="tx.store_name"></td>
                             <td class="px-4 py-3 font-black text-[#0f1419]" x-text="formatRupiah(tx.total_amount)"></td>
                             <td class="px-4 py-3 uppercase font-black text-[10px] text-[#1d9bf0]" x-text="tx.payment_method"></td>

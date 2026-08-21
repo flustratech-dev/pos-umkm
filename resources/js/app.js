@@ -753,7 +753,7 @@ Alpine.store('app', {
                     this.receiptModalOpen = true;
                     this.isCheckoutOpen = false;
                     this.clearCart();
-                    this.notify('success', 'Berhasil!', 'Pesanan berhasil dibuat! Silakan arahkan pembeli ke Kasir Admin untuk pembayaran.');
+                    this.notify('success', 'Berhasil!', 'Pesanan berhasil dibuat! Silakan arahkan pembeli ke Kasir untuk pembayaran.');
                 }
             } catch (error) {
                 this.notify('error', 'Gagal', error.message);
@@ -1564,10 +1564,20 @@ Alpine.store('app', {
                         color: #1d4ed8;
                         text-align: center;
                         margin: 16px 0;
-                        padding: 8px;
+                        padding: 10px;
                         border: 2px dashed #1d4ed8;
-                        border-radius: 8px;
-                        letter-spacing: 4px;
+                        border-radius: 12px;
+                        letter-spacing: 3px;
+                        background: #f0f7ff;
+                    }
+                    .transaction-code-label {
+                        font-size: 10px;
+                        font-weight: 800;
+                        color: #64748b;
+                        letter-spacing: 1px;
+                        text-transform: uppercase;
+                        display: block;
+                        margin-bottom: 2px;
                     }
                     .badge-paid {
                         display: inline-block;
@@ -1682,7 +1692,8 @@ Alpine.store('app', {
             <body onload="window.print(); window.onafterprint = function(){ window.close(); }">
                 <div class="container">
                     <div class="transaction-code">
-                        ${String(tx.id || 0).padStart(4, '0')}
+                        <span class="transaction-code-label">NOMOR ANTREAN / KODE TRANSAKSI</span>
+                        #${String(tx.id || 0).padStart(4, '0')}
                     </div>
                     <!-- Header -->
                     <div class="header">
@@ -1859,19 +1870,21 @@ Alpine.store('app', {
                 </tr>
             `).join('');
 
-            const txRows = txList.map((t, idx) => `
+            const txRows = txList.map((t, idx) => {
+                const isNoPay = t.is_without_payment || (t.status === 'rejected' && t.rejection_reason === 'Tanpa Pembayaran');
+                return `
                 <tr style="${t.status === 'cancelled' ? 'text-decoration: line-through; color: #555;' : ''}">
                     <td style="text-align: center; border: 1px solid #000; padding: 5px 6px;">${idx + 1}</td>
                     <td style="border: 1px solid #000; padding: 5px 6px; font-family: monospace; font-weight: bold;">${t.invoice_code}</td>
                     <td style="border: 1px solid #000; padding: 5px 6px; font-size: 11px;">${formatDateTime(t.paid_at || t.created_at)}</td>
                     <td style="border: 1px solid #000; padding: 5px 6px;">${t.store_name || '-'}</td>
                     <td style="text-align: center; border: 1px solid #000; padding: 5px 6px; text-transform: uppercase; font-size: 11px;">${t.payment_method}</td>
-                    <td style="text-align: right; border: 1px solid #000; padding: 5px 6px; font-weight: bold;">${formatRupiah(t.total_amount)}</td>
+                    <td style="text-align: right; border: 1px solid #000; padding: 5px 6px; font-weight: bold;">${isNoPay ? '-' : formatRupiah(t.total_amount)}</td>
                     <td style="text-align: right; border: 1px solid #000; padding: 5px 6px;">${t.status === 'paid' ? formatRupiah(t.revenue_split?.owner_share || t.total_amount * 0.75) : '-'}</td>
                     <td style="text-align: right; border: 1px solid #000; padding: 5px 6px;">${t.status === 'paid' ? formatRupiah(t.revenue_split?.admin_gross_share || t.total_amount * 0.25) : '-'}</td>
-                    <td style="text-align: center; border: 1px solid #000; padding: 5px 6px; font-weight: bold; font-size: 11px;">${t.status.toUpperCase()}</td>
+                    <td style="text-align: center; border: 1px solid #000; padding: 5px 6px; font-weight: bold; font-size: 11px;">${isNoPay ? 'TANPA PEMBAYARAN' : t.status.toUpperCase()}</td>
                 </tr>
-            `).join('');
+            `}).join('');
 
             const logoImg = window.__LOGO_BASE64__ || window.__LOGO_URL__ || '';
 
@@ -2132,18 +2145,20 @@ Alpine.store('app', {
                 timeZone: WIB
             });
 
-            const txRows = txList.map((t, idx) => `
+            const txRows = txList.map((t, idx) => {
+                const isNoPay = t.is_without_payment || (t.status === 'rejected' && t.rejection_reason === 'Tanpa Pembayaran');
+                return `
                 <tr style="${t.status === 'cancelled' ? 'text-decoration: line-through; color: #555;' : ''}">
                     <td style="text-align: center; border: 1px solid #000; padding: 5px 6px;">${idx + 1}</td>
                     <td style="border: 1px solid #000; padding: 5px 6px; font-family: monospace; font-weight: bold;">${t.invoice_code}</td>
                     <td style="border: 1px solid #000; padding: 5px 6px; font-size: 11px;">${formatDateTime(t.paid_at || t.created_at)}</td>
                     <td style="text-align: center; border: 1px solid #000; padding: 5px 6px; text-transform: uppercase; font-size: 11px;">${t.payment_method}</td>
-                    <td style="text-align: right; border: 1px solid #000; padding: 5px 6px; font-weight: bold;">${formatRupiah(t.total_amount)}</td>
+                    <td style="text-align: right; border: 1px solid #000; padding: 5px 6px; font-weight: bold;">${isNoPay ? '-' : formatRupiah(t.total_amount)}</td>
                     <td style="text-align: right; border: 1px solid #000; padding: 5px 6px; font-weight: bold;">${t.status === 'paid' ? formatRupiah(t.revenue_split?.owner_share || t.total_amount * 0.75) : '-'}</td>
                     <td style="text-align: right; border: 1px solid #000; padding: 5px 6px; font-weight: bold;">${t.status === 'paid' ? formatRupiah(t.revenue_split?.admin_gross_share || t.total_amount * 0.25) : '-'}</td>
-                    <td style="text-align: center; border: 1px solid #000; padding: 5px 6px; font-weight: bold; font-size: 11px;">${t.status.toUpperCase()}</td>
+                    <td style="text-align: center; border: 1px solid #000; padding: 5px 6px; font-weight: bold; font-size: 11px;">${isNoPay ? 'TANPA PEMBAYARAN' : t.status.toUpperCase()}</td>
                 </tr>
-            `).join('');
+            `}).join('');
 
             const logoImg = window.__LOGO_BASE64__ || window.__LOGO_URL__ || '';
 
@@ -2377,18 +2392,20 @@ Alpine.store('app', {
                 timeZone: WIB
             });
 
-            const txRows = txList.map((t, idx) => `
+            const txRows = txList.map((t, idx) => {
+                const isNoPay = t.is_without_payment || (t.status === 'rejected' && t.rejection_reason === 'Tanpa Pembayaran');
+                return `
                 <tr style="${t.status === 'cancelled' ? 'text-decoration: line-through; color: #555;' : ''}">
                     <td style="text-align: center; border: 1px solid #000; padding: 5px 6px;">${idx + 1}</td>
                     <td style="border: 1px solid #000; padding: 5px 6px; font-family: monospace; font-weight: bold;">${t.invoice_code}</td>
                     <td style="border: 1px solid #000; padding: 5px 6px; font-size: 11px;">${formatDateTime(t.paid_at || t.created_at)}</td>
                     <td style="text-align: center; border: 1px solid #000; padding: 5px 6px; text-transform: uppercase; font-size: 11px;">${t.payment_method}</td>
-                    <td style="text-align: right; border: 1px solid #000; padding: 5px 6px; font-weight: bold;">${formatRupiah(t.total_amount)}</td>
+                    <td style="text-align: right; border: 1px solid #000; padding: 5px 6px; font-weight: bold;">${isNoPay ? '-' : formatRupiah(t.total_amount)}</td>
                     <td style="text-align: right; border: 1px solid #000; padding: 5px 6px; font-weight: bold;">${t.status === 'paid' ? formatRupiah(t.revenue_split?.owner_share || t.total_amount * 0.75) : '-'}</td>
                     <td style="text-align: right; border: 1px solid #000; padding: 5px 6px; font-weight: bold;">${t.status === 'paid' ? formatRupiah(t.revenue_split?.admin_gross_share || t.total_amount * 0.25) : '-'}</td>
-                    <td style="text-align: center; border: 1px solid #000; padding: 5px 6px; font-weight: bold; font-size: 11px;">${t.status.toUpperCase()}</td>
+                    <td style="text-align: center; border: 1px solid #000; padding: 5px 6px; font-weight: bold; font-size: 11px;">${isNoPay ? 'TANPA PEMBAYARAN' : t.status.toUpperCase()}</td>
                 </tr>
-            `).join('');
+            `}).join('');
 
             const reportHtml = `
             <!DOCTYPE html>
@@ -3111,19 +3128,21 @@ Alpine.store('app', {
                 </tr>
             `).join('');
 
-            const txRows = txList.map((t, idx) => `
+            const txRows = txList.map((t, idx) => {
+                const isNoPay = t.is_without_payment || (t.status === 'rejected' && t.rejection_reason === 'Tanpa Pembayaran');
+                return `
                 <tr style="${t.status === 'cancelled' ? 'text-decoration: line-through; color: #777;' : ''}">
                     <td style="text-align: center; border: 1pt solid #000; padding: 4pt 5pt;">${idx + 1}</td>
                     <td style="border: 1pt solid #000; padding: 4pt 5pt; font-family: monospace; font-weight: bold;">${t.invoice_code}</td>
                     <td style="border: 1pt solid #000; padding: 4pt 5pt; font-size: 9.5pt;">${formatDateTime(t.paid_at || t.created_at)}</td>
                     <td style="border: 1pt solid #000; padding: 4pt 5pt;">${t.store_name || '-'}</td>
                     <td style="text-align: center; border: 1pt solid #000; padding: 4pt 5pt; text-transform: uppercase;">${t.payment_method}</td>
-                    <td style="text-align: right; border: 1pt solid #000; padding: 4pt 5pt; font-weight: bold;">${formatRupiah(t.total_amount)}</td>
+                    <td style="text-align: right; border: 1pt solid #000; padding: 4pt 5pt; font-weight: bold;">${isNoPay ? '-' : formatRupiah(t.total_amount)}</td>
                     <td style="text-align: right; border: 1pt solid #000; padding: 4pt 5pt;">${t.status === 'paid' ? formatRupiah(t.revenue_split?.owner_share || t.total_amount * 0.75) : '-'}</td>
                     <td style="text-align: right; border: 1pt solid #000; padding: 4pt 5pt;">${t.status === 'paid' ? formatRupiah(t.revenue_split?.admin_gross_share || t.total_amount * 0.25) : '-'}</td>
-                    <td style="text-align: center; border: 1pt solid #000; padding: 4pt 5pt; font-weight: bold;">${t.status.toUpperCase()}</td>
+                    <td style="text-align: center; border: 1pt solid #000; padding: 4pt 5pt; font-weight: bold;">${isNoPay ? 'TANPA PEMBAYARAN' : t.status.toUpperCase()}</td>
                 </tr>
-            `).join('');
+            `}).join('');
 
             const logoImg = window.__LOGO_BASE64__ || window.__LOGO_URL__ || '';
 
@@ -3315,19 +3334,21 @@ Alpine.store('app', {
                 </tr>
             `).join('');
 
-            let txRowsXml = txList.map((t, idx) => `
+            let txRowsXml = txList.map((t, idx) => {
+                const isNoPay = t.is_without_payment || (t.status === 'rejected' && t.rejection_reason === 'Tanpa Pembayaran');
+                return `
                 <tr>
                     <td style="text-align: center; border: 1px solid #cbd5e1;">${idx + 1}</td>
                     <td style="border: 1px solid #cbd5e1; font-family: monospace; font-weight: bold;">${t.invoice_code}</td>
                     <td style="border: 1px solid #cbd5e1;">${formatDateTime(t.paid_at || t.created_at)}</td>
                     <td style="border: 1px solid #cbd5e1;">${t.store_name || '-'}</td>
                     <td style="text-align: center; border: 1px solid #cbd5e1; text-transform: uppercase;">${t.payment_method}</td>
-                    <td style="text-align: right; border: 1px solid #cbd5e1;">${t.total_amount}</td>
+                    <td style="text-align: right; border: 1px solid #cbd5e1;">${isNoPay ? 0 : t.total_amount}</td>
                     <td style="text-align: right; border: 1px solid #cbd5e1;">${t.status === 'paid' ? (t.revenue_split?.owner_share || t.total_amount * 0.75) : 0}</td>
                     <td style="text-align: right; border: 1px solid #cbd5e1;">${t.status === 'paid' ? (t.revenue_split?.admin_gross_share || t.total_amount * 0.25) : 0}</td>
-                    <td style="text-align: center; border: 1px solid #cbd5e1; font-weight: bold;">${t.status.toUpperCase()}</td>
+                    <td style="text-align: center; border: 1px solid #cbd5e1; font-weight: bold;">${isNoPay ? 'TANPA PEMBAYARAN' : t.status.toUpperCase()}</td>
                 </tr>
-            `).join('');
+            `}).join('');
 
             const excelContent = `
             <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
@@ -3434,18 +3455,20 @@ Alpine.store('app', {
                 timeZone: WIB
             });
 
-            const txRows = txList.map((t, idx) => `
+            const txRows = txList.map((t, idx) => {
+                const isNoPay = t.is_without_payment || (t.status === 'rejected' && t.rejection_reason === 'Tanpa Pembayaran');
+                return `
                 <tr style="${t.status === 'cancelled' ? 'text-decoration: line-through; color: #777;' : ''}">
                     <td style="text-align: center; border: 1pt solid #000; padding: 4pt 5pt;">${idx + 1}</td>
                     <td style="border: 1pt solid #000; padding: 4pt 5pt; font-family: monospace; font-weight: bold;">${t.invoice_code}</td>
                     <td style="border: 1pt solid #000; padding: 4pt 5pt; font-size: 9.5pt;">${formatDateTime(t.paid_at || t.created_at)}</td>
                     <td style="text-align: center; border: 1pt solid #000; padding: 4pt 5pt; text-transform: uppercase;">${t.payment_method}</td>
-                    <td style="text-align: right; border: 1pt solid #000; padding: 4pt 5pt; font-weight: bold;">${formatRupiah(t.total_amount)}</td>
+                    <td style="text-align: right; border: 1pt solid #000; padding: 4pt 5pt; font-weight: bold;">${isNoPay ? '-' : formatRupiah(t.total_amount)}</td>
                     <td style="text-align: right; border: 1pt solid #000; padding: 4pt 5pt; font-weight: bold;">${t.status === 'paid' ? formatRupiah(t.revenue_split?.owner_share || t.total_amount * 0.75) : '-'}</td>
                     <td style="text-align: right; border: 1pt solid #000; padding: 4pt 5pt; font-weight: bold;">${t.status === 'paid' ? formatRupiah(t.revenue_split?.admin_gross_share || t.total_amount * 0.25) : '-'}</td>
-                    <td style="text-align: center; border: 1pt solid #000; padding: 4pt 5pt; font-weight: bold;">${t.status.toUpperCase()}</td>
+                    <td style="text-align: center; border: 1pt solid #000; padding: 4pt 5pt; font-weight: bold;">${isNoPay ? 'TANPA PEMBAYARAN' : t.status.toUpperCase()}</td>
                 </tr>
-            `).join('');
+            `}).join('');
 
             const wordContent = `
             <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
@@ -3565,18 +3588,20 @@ Alpine.store('app', {
                 minute: '2-digit'
             });
 
-            let txRowsXml = txList.map((t, idx) => `
+            let txRowsXml = txList.map((t, idx) => {
+                const isNoPay = t.is_without_payment || (t.status === 'rejected' && t.rejection_reason === 'Tanpa Pembayaran');
+                return `
                 <tr>
                     <td style="text-align: center; border: 1px solid #cbd5e1;">${idx + 1}</td>
                     <td style="border: 1px solid #cbd5e1; font-family: monospace; font-weight: bold;">${t.invoice_code}</td>
                     <td style="border: 1px solid #cbd5e1;">${formatDateTime(t.paid_at || t.created_at)}</td>
                     <td style="text-align: center; border: 1px solid #cbd5e1; text-transform: uppercase;">${t.payment_method}</td>
-                    <td style="text-align: right; border: 1px solid #cbd5e1; font-weight: bold;">${t.total_amount}</td>
-                    <td style="text-align: right; border: 1px solid #cbd5e1; font-weight: bold;">${t.status === 'paid' ? (t.revenue_split?.owner_share || t.total_amount * 0.75) : 0}</td>
-                    <td style="text-align: right; border: 1px solid #cbd5e1; font-weight: bold;">${t.status === 'paid' ? (t.revenue_split?.admin_gross_share || t.total_amount * 0.25) : 0}</td>
-                    <td style="text-align: center; border: 1px solid #cbd5e1; font-weight: bold;">${t.status.toUpperCase()}</td>
+                    <td style="text-align: right; border: 1px solid #cbd5e1;">${isNoPay ? 0 : t.total_amount}</td>
+                    <td style="text-align: right; border: 1px solid #cbd5e1;">${t.status === 'paid' ? (t.revenue_split?.owner_share || t.total_amount * 0.75) : 0}</td>
+                    <td style="text-align: right; border: 1px solid #cbd5e1;">${t.status === 'paid' ? (t.revenue_split?.admin_gross_share || t.total_amount * 0.25) : 0}</td>
+                    <td style="text-align: center; border: 1px solid #cbd5e1; font-weight: bold;">${isNoPay ? 'TANPA PEMBAYARAN' : t.status.toUpperCase()}</td>
                 </tr>
-            `).join('');
+            `}).join('');
 
             const excelContent = `
             <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">

@@ -157,7 +157,13 @@
                     <td class="bold">{{ $tx->invoice_code }}</td>
                     <td>{{ $tx->paid_at ? $tx->paid_at->format('d/m/Y H:i') : $tx->created_at->format('d/m/Y H:i') }}</td>
                     <td style="text-transform: uppercase;">{{ $tx->payment_method }}</td>
-                    <td class="text-right bold">Rp {{ number_format($tx->total_amount, 0, ',', '.') }}</td>
+                    <td class="text-right bold">
+                        @if($tx->is_without_payment || ($tx->status === 'rejected' && $tx->rejection_reason === 'Tanpa Pembayaran'))
+                            -
+                        @else
+                            Rp {{ number_format($tx->total_amount, 0, ',', '.') }}
+                        @endif
+                    </td>
                     <td class="text-right bold" style="color: #1d9bf0;">
                         @if($tx->status === 'paid')
                             Rp {{ number_format($tx->revenueSplit?->owner_share ?: ($tx->total_amount * 0.75), 0, ',', '.') }}
@@ -174,7 +180,11 @@
                     </td>
                     <td class="text-center">
                         <span style="font-weight: bold; font-size: 9px; text-transform: uppercase;">
-                            {{ $tx->status }}
+                            @if($tx->is_without_payment || ($tx->status === 'rejected' && $tx->rejection_reason === 'Tanpa Pembayaran'))
+                                TANPA PEMBAYARAN
+                            @else
+                                {{ $tx->status }}
+                            @endif
                         </span>
                     </td>
                 </tr>

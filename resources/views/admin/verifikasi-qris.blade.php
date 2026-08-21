@@ -7,10 +7,24 @@
 <div x-data="{
     proofZoomOpen: false,
     proofZoomUrl: '',
+    searchQuery: '',
 
     openZoom(url) {
         this.proofZoomUrl = url;
         this.proofZoomOpen = true;
+    },
+
+    get filteredPending() {
+        const list = this.$store.app.transactions.filter(t => t.status === 'pending_verification');
+        if (!this.searchQuery) return list;
+        const q = this.searchQuery.toLowerCase().trim().replace(/^#/, '');
+        return list.filter(trx => {
+            const idStr = String(trx.id || '');
+            const paddedId = idStr.padStart(4, '0');
+            const inv = (trx.invoice_code || '').toLowerCase();
+            const store = (trx.store_name || '').toLowerCase();
+            return idStr.includes(q) || paddedId.includes(q) || inv.includes(q) || store.includes(q);
+        });
     }
 }">
     <!-- Header Banner -->
@@ -35,24 +49,51 @@
         <div class="text-xs text-[#0f1419] space-y-1">
             <p class="font-black text-[#0f1419]">Prosedur Verifikasi QRIS:</p>
             <p class="text-[#536471] font-medium leading-relaxed">
-                Pastikan pembayaran QRIS telah masuk ke rekening panitia dari pelanggan. Klik <strong>'Setujui'</strong> untuk menyelesaikan pesanan dan merekam pembagian hasil secara sistem.
+                Cocokkan <strong>Nomor Antrean</strong> dan pastikan pembayaran QRIS telah masuk ke rekening panitia. Klik <strong>'Setujui'</strong> untuk menyelesaikan pesanan.
             </p>
+        </div>
+    </div>
+
+    <!-- Live Search Bar: Filter by Queue Number, Store Name, or Invoice -->
+    <div x-show="$store.app.transactions.filter(t => t.status === 'pending_verification').length > 0" x-cloak class="mb-6 bg-white p-3.5 rounded-3xl border border-[#eff3f4] shadow-xs">
+        <div class="relative">
+            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#536471]">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            </div>
+            <input 
+                type="text" 
+                x-model="searchQuery" 
+                placeholder="Cari Nomor Antrean (misal: 1, 0001), nama warung, atau invoice..." 
+                class="w-full pl-9 pr-16 py-2.5 bg-[#f7f9f9] border border-[#eff3f4] rounded-full text-xs sm:text-sm text-[#0f1419] placeholder-[#536471] focus:ring-2 focus:ring-[#1d9bf0] focus:bg-white focus:outline-none font-semibold transition-all"
+            >
+            <button 
+                x-show="searchQuery" 
+                x-cloak
+                @click="searchQuery = ''" 
+                class="absolute inset-y-0 right-0 pr-3 flex items-center text-xs font-black text-[#536471] hover:text-[#f4212e] cursor-pointer"
+            >
+                Reset
+            </button>
         </div>
     </div>
 
     <!-- Verification Queue Cards List (Compact & Clear Item List Grid) -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 sm:gap-4">
-        <template x-for="trx in $store.app.transactions.filter(t => t.status === 'pending_verification')" :key="trx.id">
+        <template x-for="trx in filteredPending" :key="trx.id">
             <div class="bg-white rounded-2xl sm:rounded-3xl border border-[#eff3f4] p-4 sm:p-5 hover:border-[#bde2f9] hover:shadow-md transition-all flex flex-col justify-between shadow-2xs group relative">
                 <div class="space-y-3">
-                    <!-- Card Header: Invoice, Store Name & Time -->
-                    <div class="flex items-start justify-between pb-2.5 border-b border-[#eff3f4]">
-                        <div class="min-w-0 flex-1 pr-2">
-                            <span class="text-xs font-black text-[#0f1419] block truncate" x-text="trx.invoice_code"></span>
-                            <div class="flex items-center gap-1.5 mt-0.5">
-                                <span class="text-[11px] text-[#1d9bf0] font-black truncate" x-text="trx.store_name"></span>
-                                <span class="text-[10px] text-[#536471]">•</span>
-                                <span class="text-[10px] text-[#536471] font-semibold truncate" x-text="trx.cashier_name || 'Kasir'"></span>
+                    <!-- Prominent Queue Number & Card Header -->
+                    <div class="flex items-start justify-between pb-2.5 border-b border-[#eff3f4] gap-2">
+                        <div class="flex items-center gap-2 min-w-0 flex-1">
+                            <div class="px-2.5 py-1 rounded-xl bg-[#1d9bf0]/10 border border-[#1d9bf0]/20 text-[#1d9bf0] font-black text-sm tracking-wider shrink-0 shadow-2xs" x-text="`#${String(trx.id || 0).padStart(4, '0')}`">
+                            </div>
+                            <div class="min-w-0">
+                                <span class="text-xs font-black text-[#0f1419] block truncate" x-text="trx.store_name"></span>
+                                <div class="flex items-center gap-1 mt-0.5 text-[10px] text-[#536471] font-semibold truncate">
+                                    <span x-text="trx.cashier_name || 'Kasir'"></span>
+                                    <span>&bull;</span>
+                                    <span class="truncate" x-text="trx.invoice_code"></span>
+                                </div>
                             </div>
                         </div>
                         <span class="text-[10px] text-[#536471] font-bold shrink-0 bg-[#f7f9f9] px-2 py-0.5 rounded-full border border-[#eff3f4]" x-text="formatDateTime(trx.created_at).split(' ')[1] || formatDateTime(trx.created_at)"></span>
@@ -137,6 +178,7 @@
             <table class="w-full text-left border-collapse min-w-[600px]">
                 <thead>
                     <tr class="bg-[#f7f9f9] border-b border-[#eff3f4]">
+                        <th class="px-5 py-3 text-[10px] font-black uppercase tracking-wider text-[#536471]">No. Antrean</th>
                         <th class="px-5 py-3 text-[10px] font-black uppercase tracking-wider text-[#536471]">Waktu</th>
                         <th class="px-5 py-3 text-[10px] font-black uppercase tracking-wider text-[#536471]">Invoice</th>
                         <th class="px-5 py-3 text-[10px] font-black uppercase tracking-wider text-[#536471]">Tenant</th>
@@ -147,6 +189,7 @@
                 <tbody class="divide-y divide-[#eff3f4]">
                     @foreach($historyTransactions as $history)
                         <tr class="hover:bg-[#f7f9f9] transition-colors">
+                            <td class="px-5 py-3 text-xs font-black text-[#1d9bf0]">#{{ str_pad($history->id, 4, '0', STR_PAD_LEFT) }}</td>
                             <td class="px-5 py-3 text-xs text-[#536471] font-semibold">{{ $history->updated_at->format('d M, H:i') }}</td>
                             <td class="px-5 py-3 text-xs font-black text-[#0f1419]">{{ $history->invoice_code }}</td>
                             <td class="px-5 py-3 text-xs text-[#536471] font-semibold">{{ $history->store->name ?? '-' }}</td>

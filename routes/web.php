@@ -100,6 +100,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     // Verifikasi Cash
     Route::get('/verifikasi-cash', [AdminCashVerificationController::class, 'index'])->name('verifikasi-cash.index');
     Route::post('/verifikasi-cash/{transaction}/confirm', [AdminCashVerificationController::class, 'confirm'])->name('verifikasi-cash.confirm');
+    Route::post('/verifikasi-cash/{transaction}/without-payment', [AdminCashVerificationController::class, 'completeWithoutPayment'])->name('verifikasi-cash.without-payment');
     Route::post('/verifikasi-cash/{transaction}/reject', [AdminCashVerificationController::class, 'reject'])->name('verifikasi-cash.reject');
     Route::delete('/verifikasi-cash/{transaction}', [AdminCashVerificationController::class, 'destroy'])->name('verifikasi-cash.destroy');
 
@@ -142,6 +143,7 @@ Route::prefix('superadmin')->name('superadmin.')->middleware(['auth', 'role:supe
 
     Route::get('/verifikasi-cash', [AdminCashVerificationController::class, 'index'])->name('verifikasi-cash');
     Route::post('/verifikasi-cash/{transaction}/confirm', [AdminCashVerificationController::class, 'confirm'])->name('verifikasi-cash.confirm');
+    Route::post('/verifikasi-cash/{transaction}/without-payment', [AdminCashVerificationController::class, 'completeWithoutPayment'])->name('verifikasi-cash.without-payment');
     Route::post('/verifikasi-cash/{transaction}/reject', [AdminCashVerificationController::class, 'reject'])->name('verifikasi-cash.reject');
     Route::delete('/verifikasi-cash/{transaction}', [AdminCashVerificationController::class, 'destroy'])->name('verifikasi-cash.destroy');
     Route::get('/produk', [AdminProductController::class, 'index'])->name('produk');

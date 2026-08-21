@@ -128,13 +128,14 @@
     <table class="data-table">
         <thead>
             <tr>
-                <th width="15%">Invoice</th>
-                <th width="14%">Waktu</th>
-                <th width="18%">Stand Warung</th>
+                <th width="14%">Invoice</th>
+                <th width="13%">Waktu</th>
+                <th width="17%">Stand Warung</th>
                 <th width="8%">Metode</th>
-                <th width="15%" class="text-right">Omzet Kotor</th>
-                <th width="15%" class="text-right">Bersih (75%)</th>
-                <th width="15%" class="text-right">Bagian EO (25%)</th>
+                <th width="14%" class="text-right">Omzet Kotor</th>
+                <th width="13%" class="text-right">Bersih (75%)</th>
+                <th width="13%" class="text-right">Bagian EO (25%)</th>
+                <th width="8%" class="text-center">Status</th>
             </tr>
         </thead>
         <tbody>
@@ -144,7 +145,13 @@
                     <td>{{ $tx->paid_at ? $tx->paid_at->format('d/m/Y H:i') : $tx->created_at->format('d/m/Y H:i') }}</td>
                     <td class="bold">{{ $tx->store?->name ?: '-' }}</td>
                     <td style="text-transform: uppercase;">{{ $tx->payment_method }}</td>
-                    <td class="text-right bold">Rp {{ number_format($tx->total_amount, 0, ',', '.') }}</td>
+                    <td class="text-right bold">
+                        @if($tx->is_without_payment || ($tx->status === 'rejected' && $tx->rejection_reason === 'Tanpa Pembayaran'))
+                            -
+                        @else
+                            Rp {{ number_format($tx->total_amount, 0, ',', '.') }}
+                        @endif
+                    </td>
                     <td class="text-right bold" style="color: #1d9bf0;">
                         @if($tx->status === 'paid')
                             Rp {{ number_format($tx->revenueSplit?->owner_share ?: ($tx->total_amount * 0.75), 0, ',', '.') }}
@@ -161,13 +168,17 @@
                     </td>
                     <td class="text-center">
                         <span style="font-weight: bold; font-size: 8px; text-transform: uppercase;">
-                            {{ $tx->status }}
+                            @if($tx->is_without_payment || ($tx->status === 'rejected' && $tx->rejection_reason === 'Tanpa Pembayaran'))
+                                TANPA PEMBAYARAN
+                            @else
+                                {{ $tx->status }}
+                            @endif
                         </span>
                     </td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="7" class="text-center" style="padding: 15px; color: #536471;">Belum ada data transaksi</td>
+                    <td colspan="8" class="text-center" style="padding: 15px; color: #536471;">Belum ada data transaksi</td>
                 </tr>
             @endforelse
         </tbody>

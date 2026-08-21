@@ -91,6 +91,15 @@ class Transaction extends Model
             && $this->proof_failure_reason !== null;
     }
 
+    /**
+     * Transaksi yang diselesaikan tanpa pembayaran oleh panitia verifikasi.
+     */
+    public function getIsWithoutPaymentAttribute(): bool
+    {
+        return $this->status === 'rejected'
+            && ($this->rejection_reason === 'Tanpa Pembayaran' || $this->rejection_reason === 'Tidak Ada Pembayaran Masuk');
+    }
+
     public function store(): BelongsTo
     {
         return $this->belongsTo(Store::class);
